@@ -31,7 +31,12 @@ atom -> Exp :
   ;
 
 add -> Exp :
-    add '+' atom { Exp::Add(next_metavar(), Box::new($1), Box::new($3)) }
+    add '+' atom {
+        Exp::Add(
+            Box::new(Exp::ToAny(next_metavar(), Box::new($1))),
+            Box::new(Exp::ToAny(next_metavar(), Box::new($3)))
+        )
+    }
   | atom         { $1 }
   ;
 
@@ -41,11 +46,11 @@ funExp -> Exp :
   ;
 
 exp -> Exp :
-    'fun' id '.' exp { Exp::Fun($2, next_metavar(), Box::new($4)) }
+    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
   | funExp          { $1 }
   ;
 
 %%
 
 use super::syntax::{Exp,Lit};
-use super::parser::next_metavar;
+use super::parser::{next_metavar, next_metavar_typ};

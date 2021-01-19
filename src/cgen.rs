@@ -1,9 +1,9 @@
-use super::parser::next_metavar;
+use super::parser::next_metavar_typ;
 use super::syntax::*;
 use im_rc::HashMap;
 use std::cell::RefCell;
 use z3;
-use z3::ast::Ast;
+use z3::ast::{Ast, Bool};
 use z3::{ast, ast::Dynamic, Model, SatResult, Sort};
 
 type Env = HashMap<String, Typ>;
@@ -14,9 +14,11 @@ struct State<'a> {
     bool_ctor: &'a z3::FuncDecl<'a>,
     str_ctor: &'a z3::FuncDecl<'a>,
     arr_ctor: &'a z3::FuncDecl<'a>,
+    any_ctor: &'a z3::FuncDecl<'a>,
     typ: &'a z3::DatatypeSort<'a>,
     solver: z3::Solver<'a>,
     vars: RefCell<HashMap<u32, Dynamic<'a>>>,
+    coercions: RefCell<HashMap<u32, Bool<'a>>>,
     typ_sort: &'a Sort<'a>,
 }
 
@@ -29,6 +31,7 @@ impl<'a> State<'a> {
             Typ::Arr(t1, t2) => self
                 .arr_ctor
                 .apply(&[&self.typ_to_z3ast(t1), &self.typ_to_z3ast(t2)]),
+            Typ::Any => self.any_ctor.apply(&[]),
             Typ::Metavar(n) => {
                 let mut vars = self.vars.borrow_mut();
                 match vars.get(n) {
@@ -40,6 +43,18 @@ impl<'a> State<'a> {
                         x
                     }
                 }
+            }
+        }
+    }
+
+    fn coercion_to_z3(&self, coercion: u32) -> Bool<'a> {
+        let mut coercions = self.coercions.borrow_mut();
+        match coercions.get(&coercion) {
+            Some(ast) => ast.clone(),
+            None => {
+                let t = z3::ast::Bool::fresh_const(&self.cxt, "coercion-metavar");
+                coercions.insert(coercion, t.clone());
+                t
             }
         }
     }
@@ -64,7 +79,7 @@ impl<'a> State<'a> {
             Exp::App(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                let alpha = next_metavar();
+                let alpha = next_metavar_typ();
                 let t = Typ::Arr(Box::new(t2), Box::new(alpha.clone()));
                 // In ordinary HM, we would create a new metavariable 'alpha' and produce the constraint
                 // 't1 = t2 -> alpha'. However, we cannot express this equality in propositional
@@ -73,34 +88,37 @@ impl<'a> State<'a> {
                 let phi = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&t));
                 (alpha, ast::Bool::and(self.cxt, &[&phi1, &phi2, &phi]))
             }
-            Exp::Add(op_t, e1, e2) => {
+            Exp::Add(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let phi3 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Int));
                 let phi4 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Int));
-                let int_case = ast::Bool::and(
-                    self.cxt,
-                    &[
-                        &phi3,
-                        &phi4,
-                        &self.typ_to_z3ast(&op_t)._eq(&self.typ_to_z3ast(&Typ::Int)),
-                    ],
-                );
+                let int_case = ast::Bool::and(self.cxt, &[&phi3, &phi4]);
                 let phi5 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Str));
                 let phi6 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Str));
-                let str_case = ast::Bool::and(
-                    self.cxt,
-                    &[
-                        &phi5,
-                        &phi6,
-                        &self.typ_to_z3ast(&op_t)._eq(&self.typ_to_z3ast(&Typ::Str)),
-                    ],
-                );
-                let add_constraints = ast::Bool::or(self.cxt, &[&int_case, &str_case]);
+                let str_case = ast::Bool::and(self.cxt, &[&phi5, &phi6]);
+                let phi7 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Any));
+                let phi8 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Any));
+                let any_case = ast::Bool::and(self.cxt, &[&phi7, &phi8]);
+                let add_constraints = ast::Bool::or(self.cxt, &[&int_case, &str_case, &any_case]);
                 (
                     Typ::Int,
                     ast::Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
                 )
+            }
+            Exp::ToAny(calpha, e) => {
+                let (t1, phi1) = self.cgen(env, e);
+                let alpha = next_metavar_typ();
+                // if t is already any, calpha is false, otherwise who knows
+                let phi2 = (self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Any)))
+                    .implies(&Bool::not(&self.coercion_to_z3(*calpha)));
+                // if calpha is true, then alpha, the result type, is Any,
+                // otherwise it's the original type
+                let phi3 = self.coercion_to_z3(*calpha).ite(
+                    &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                    &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&t1)),
+                );
+                (alpha, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
             }
         }
     }
@@ -147,6 +165,13 @@ impl<'a> State<'a> {
         self.typ.variants[3].accessors[1].apply(&[e])
     }
 
+    fn is_any<'b>(&'b self, e: &'b ast::Dynamic) -> Bool
+    where
+        'a: 'b,
+    {
+        self.typ.variants[4].tester.apply(&[e]).as_bool().unwrap()
+    }
+
     fn z3_to_typ<'b>(&'b self, model: &'b Model, e: ast::Dynamic) -> Typ
     where
         'a: 'b,
@@ -157,7 +182,7 @@ impl<'a> State<'a> {
             Typ::Bool
         } else if model.eval(&self.is_str(&e)).unwrap().as_bool().unwrap() {
             Typ::Str
-        } else {
+        } else if model.eval(&self.is_arr(&e)).unwrap().as_bool().unwrap() {
             let arg = self.arr_arg(&e);
             let arg = model.eval(&arg).unwrap();
             let ret = self.arr_ret(&e);
@@ -165,26 +190,31 @@ impl<'a> State<'a> {
             let t1 = self.z3_to_typ(model, arg);
             let t2 = self.z3_to_typ(model, ret);
             Typ::Arr(Box::new(t1), Box::new(t2))
+        } else if model.eval(&self.is_any(&e)).unwrap().as_bool().unwrap() {
+            Typ::Any
+        } else {
+            panic!("z3 typ had a type not handled");
         }
     }
 }
 
-fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
+fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &mut Exp) {
     match &mut *exp {
         Exp::Lit(_) => {}
         Exp::Var(_) => {}
         Exp::Fun(_, t, e) => {
             *t = env.get(&t.expect_metavar()).unwrap().clone();
-            annotate(env, e);
+            annotate(env, coercions, e);
         }
-        Exp::Add(t, e1, e2) => {
-            *t = env.get(&t.expect_metavar()).unwrap().clone();
-            annotate(env, e1);
-            annotate(env, e2);
+        Exp::ToAny(coercion, e) => {
+            annotate(env, coercions, e);
+            if !coercions.get(&coercion).unwrap() {
+                *exp = e.take();
+            }
         }
-        Exp::App(e1, e2) => {
-            annotate(env, e1);
-            annotate(env, e2);
+        Exp::App(e1, e2) | Exp::Add(e1, e2) => {
+            annotate(env, coercions, e1);
+            annotate(env, coercions, e2);
         }
     }
 }
@@ -204,6 +234,7 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
                 ("ret", z3::DatatypeAccessor::Datatype("Typ".into())),
             ],
         )
+        .variant("Any", vec![])
         .finish();
 
     let s = State {
@@ -212,8 +243,10 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
         bool_ctor: &typ.variants[1].constructor,
         str_ctor: &typ.variants[2].constructor,
         arr_ctor: &typ.variants[3].constructor,
+        any_ctor: &typ.variants[4].constructor,
         solver: z3::Solver::new(&cxt),
         vars: Default::default(),
+        coercions: Default::default(),
         typ_sort: &typ.sort,
         typ: &typ,
     };
@@ -227,15 +260,24 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
         SatResult::Sat => (),
     }
     let model = solver.get_model().expect("model not available");
-
+    eprintln!("{}", model);
     let mut result = HashMap::new();
     for (x, x_ast) in s.vars.borrow().iter() {
         let x_val_ast = model.eval(x_ast).expect("evaluating metavar");
         // let x_val_ast = x_val_ast.as_datatype().expect("expected datatype");
         result.insert(*x, s.z3_to_typ(&model, x_val_ast));
     }
+    let mut coercions = HashMap::new();
+    for (x, x_ast) in s.coercions.borrow().iter() {
+        let x_val_ast = model.eval(x_ast).expect("evaluating coercion-metavar");
+        // let x_val_ast = x_val_ast.as_datatype().expect("expected datatype");
+        coercions.insert(
+            *x,
+            x_val_ast.as_bool().expect("didn't resolve coercion value"),
+        );
+    }
     let mut e = exp.clone();
-    annotate(&result, &mut e);
+    annotate(&result, &coercions, &mut e);
     return Ok(e);
 }
 
@@ -261,16 +303,6 @@ mod test {
     }
 
     #[test]
-    fn test_typeinf_err_add() {
-        typeinf(&parse("(fun x . fun y . x + y) 10 false")).unwrap_err();
-    }
-
-    #[test]
-    fn test_typeinf_err_add_app() {
-        typeinf(&parse("fun f . f 10 + f true")).unwrap_err();
-    }
-
-    #[test]
     fn str_add() {
         println!(
             "{:?}",
@@ -279,10 +311,10 @@ mod test {
     }
 
     #[test]
-    fn cannot_add_str_int() {
+    fn add_str_int_any() {
         println!(
             "{:?}",
-            typeinf(&parse(r#"(fun x . fun y . x + y) "everything is " 10"#)).unwrap_err()
+            typeinf(&parse(r#"(fun x . fun y . x + y) "everything is " 10"#)).unwrap()
         );
     }
 

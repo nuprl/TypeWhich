@@ -4,6 +4,7 @@ pub enum Typ {
     Bool,
     Str,
     Arr(Box<Typ>, Box<Typ>),
+    Any,
     Metavar(u32),
 }
 
@@ -41,5 +42,14 @@ pub enum Exp {
     Var(Id),
     Fun(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
-    Add(Typ, Box<Exp>, Box<Exp>),
+    Add(Box<Exp>, Box<Exp>),
+    /// this u32 is a metavariable who's value indicates whether this cast to
+    /// any is needed or not
+    ToAny(u32, Box<Exp>),
+}
+
+impl Exp {
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(self, Exp::Lit(Lit::Int(0)))
+    }
 }
