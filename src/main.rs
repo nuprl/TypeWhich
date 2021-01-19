@@ -1,4 +1,4 @@
-mod cgen;
+pub mod cgen;
 mod parser;
 mod syntax;
 

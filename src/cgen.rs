@@ -4,7 +4,7 @@ use im_rc::HashMap;
 use std::cell::RefCell;
 use z3;
 use z3::ast::Ast;
-use z3::{ast, ast::Dynamic, SatResult, Sort, Model};
+use z3::{ast, ast::Dynamic, Model, SatResult, Sort};
 
 type Env = HashMap<String, Typ>;
 
@@ -12,11 +12,12 @@ struct State<'a> {
     cxt: &'a z3::Context,
     int_ctor: &'a z3::FuncDecl<'a>,
     bool_ctor: &'a z3::FuncDecl<'a>,
+    str_ctor: &'a z3::FuncDecl<'a>,
     arr_ctor: &'a z3::FuncDecl<'a>,
     typ: &'a z3::DatatypeSort<'a>,
     solver: z3::Solver<'a>,
     vars: RefCell<HashMap<u32, Dynamic<'a>>>,
-    typ_sort: &'a z3::Sort<'a>,
+    typ_sort: &'a Sort<'a>,
 }
 
 impl<'a> State<'a> {
@@ -24,6 +25,7 @@ impl<'a> State<'a> {
         match typ {
             Typ::Int => self.int_ctor.apply(&[]),
             Typ::Bool => self.bool_ctor.apply(&[]),
+            Typ::Str => self.str_ctor.apply(&[]),
             Typ::Arr(t1, t2) => self
                 .arr_ctor
                 .apply(&[&self.typ_to_z3ast(t1), &self.typ_to_z3ast(t2)]),
@@ -71,82 +73,130 @@ impl<'a> State<'a> {
                 let phi = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&t));
                 (alpha, ast::Bool::and(self.cxt, &[&phi1, &phi2, &phi]))
             }
-            Exp::Add(e1, e2) => {
+            Exp::Add(op_t, e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let phi3 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Int));
                 let phi4 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Int));
+                let int_case = ast::Bool::and(
+                    self.cxt,
+                    &[
+                        &phi3,
+                        &phi4,
+                        &self.typ_to_z3ast(&op_t)._eq(&self.typ_to_z3ast(&Typ::Int)),
+                    ],
+                );
+                let phi5 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Str));
+                let phi6 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Str));
+                let str_case = ast::Bool::and(
+                    self.cxt,
+                    &[
+                        &phi5,
+                        &phi6,
+                        &self.typ_to_z3ast(&op_t)._eq(&self.typ_to_z3ast(&Typ::Str)),
+                    ],
+                );
+                let add_constraints = ast::Bool::or(self.cxt, &[&int_case, &str_case]);
                 (
                     Typ::Int,
-                    ast::Bool::and(self.cxt, &[&phi1, &phi2, &phi3, &phi4]),
+                    ast::Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
                 )
             }
         }
     }
 
-    fn is_int<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool where 'a : 'b {
+    fn is_int<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool
+    where
+        'a: 'b,
+    {
         self.typ.variants[0].tester.apply(&[&e]).as_bool().unwrap()
     }
 
-    fn is_bool<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool where 'a : 'b  {
+    fn is_bool<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool
+    where
+        'a: 'b,
+    {
         self.typ.variants[1].tester.apply(&[e]).as_bool().unwrap()
     }
 
-    fn is_arr<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool where 'a : 'b  {
+    fn is_str<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool
+    where
+        'a: 'b,
+    {
         self.typ.variants[2].tester.apply(&[e]).as_bool().unwrap()
     }
 
-    fn arr_arg<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic where 'a : 'b  {
-        self.typ.variants[2].accessors[0].apply(&[e])
+    fn is_arr<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool
+    where
+        'a: 'b,
+    {
+        self.typ.variants[3].tester.apply(&[e]).as_bool().unwrap()
     }
 
-    fn arr_ret<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic where 'a : 'b  {
-        self.typ.variants[2].accessors[1].apply(&[e])
+    fn arr_arg<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
+    where
+        'a: 'b,
+    {
+        self.typ.variants[3].accessors[0].apply(&[e])
     }
 
-    fn z3_to_typ<'b>(&'b self, model: &'b Model, e: ast::Dynamic) -> Typ where 'a : 'b  {
+    fn arr_ret<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
+    where
+        'a: 'b,
+    {
+        self.typ.variants[3].accessors[1].apply(&[e])
+    }
+
+    fn z3_to_typ<'b>(&'b self, model: &'b Model, e: ast::Dynamic) -> Typ
+    where
+        'a: 'b,
+    {
         if model.eval(&self.is_int(&e)).unwrap().as_bool().unwrap() {
             Typ::Int
-        }
-        else if model.eval(&self.is_bool(&e)).unwrap().as_bool().unwrap() {
+        } else if model.eval(&self.is_bool(&e)).unwrap().as_bool().unwrap() {
             Typ::Bool
-        }
-        else {
+        } else if model.eval(&self.is_str(&e)).unwrap().as_bool().unwrap() {
+            Typ::Str
+        } else {
             let arg = self.arr_arg(&e);
             let arg = model.eval(&arg).unwrap();
             let ret = self.arr_ret(&e);
             let ret = model.eval(&ret).unwrap();
             let t1 = self.z3_to_typ(model, arg);
             let t2 = self.z3_to_typ(model, ret);
-            Typ::Arr(
-                Box::new(t1),
-                Box::new(t2))
+            Typ::Arr(Box::new(t1), Box::new(t2))
         }
     }
 }
 
 fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
     match &mut *exp {
-        Exp::Lit(_) => { },
-        Exp::Var(_) => { },
+        Exp::Lit(_) => {}
+        Exp::Var(_) => {}
         Exp::Fun(_, t, e) => {
             *t = env.get(&t.expect_metavar()).unwrap().clone();
             annotate(env, e);
         }
-        Exp::Add(e1, e2) | Exp::App(e1, e2) => {
+        Exp::Add(t, e1, e2) => {
+            *t = env.get(&t.expect_metavar()).unwrap().clone();
+            annotate(env, e1);
+            annotate(env, e2);
+        }
+        Exp::App(e1, e2) => {
             annotate(env, e1);
             annotate(env, e2);
         }
     }
 }
 
-fn typeinf(exp: &Exp) -> Result<Exp, ()> {
+pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
     let cfg = z3::Config::new();
     let cxt = z3::Context::new(&cfg);
 
     let typ = z3::DatatypeBuilder::new(&cxt, "Typ")
         .variant("Int", vec![])
         .variant("Bool", vec![])
+        .variant("Str", vec![])
         .variant(
             "Arr",
             vec![
@@ -160,7 +210,8 @@ fn typeinf(exp: &Exp) -> Result<Exp, ()> {
         cxt: &cxt,
         int_ctor: &typ.variants[0].constructor,
         bool_ctor: &typ.variants[1].constructor,
-        arr_ctor: &typ.variants[2].constructor,
+        str_ctor: &typ.variants[2].constructor,
+        arr_ctor: &typ.variants[3].constructor,
         solver: z3::Solver::new(&cxt),
         vars: Default::default(),
         typ_sort: &typ.sort,
@@ -220,8 +271,28 @@ mod test {
     }
 
     #[test]
+    fn str_add() {
+        println!(
+            "{:?}",
+            typeinf(&parse(r#"(fun x . x + x) "everything is ""#)).unwrap()
+        );
+    }
+
+    #[test]
+    fn cannot_add_str_int() {
+        println!(
+            "{:?}",
+            typeinf(&parse(r#"(fun x . fun y . x + y) "everything is " 10"#)).unwrap_err()
+        );
+    }
+
+    #[test]
     fn infer_arr() {
         println!("{:?}", typeinf(&parse("fun f . f 200")).unwrap());
     }
 
+    #[test]
+    fn ambiguous_add() {
+        println!("{:?}", typeinf(&parse("fun x . x + x")).unwrap());
+    }
 }

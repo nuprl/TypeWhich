@@ -2,6 +2,7 @@
 pub enum Typ {
     Int,
     Bool,
+    Str,
     Arr(Box<Typ>, Box<Typ>),
     Metavar(u32),
 }
@@ -19,6 +20,7 @@ impl Typ {
 pub enum Lit {
     Int(i32),
     Bool(bool),
+    Str(String),
 }
 
 impl Lit {
@@ -26,6 +28,7 @@ impl Lit {
         match self {
             Lit::Int(_) => Typ::Int,
             Lit::Bool(_) => Typ::Bool,
+            Lit::Str(_) => Typ::Str,
         }
     }
 }
@@ -38,5 +41,5 @@ pub enum Exp {
     Var(Id),
     Fun(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
-    Add(Box<Exp>, Box<Exp>),
+    Add(Typ, Box<Exp>, Box<Exp>),
 }

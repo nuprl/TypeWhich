@@ -10,6 +10,10 @@ bool -> bool :
   | 'false' { false }
   ;
 
+str -> String :
+    'STR' { let mut s = $lexer.span_str($1.unwrap().span()).to_string(); s.remove(0); s.pop(); s }
+  ;
+
 id -> String :
     'ID' { $lexer.span_str($1.unwrap().span()).to_string() }
   ;
@@ -17,6 +21,7 @@ id -> String :
 lit -> Lit :
     i32  { Lit::Int($1) }
   | bool { Lit::Bool($1) }
+  | str { Lit::Str($1) }
   ;
 
 atom -> Exp :
@@ -26,7 +31,7 @@ atom -> Exp :
   ;
 
 add -> Exp :
-    add '+' atom { Exp::Add(Box::new($1), Box::new($3)) }
+    add '+' atom { Exp::Add(next_metavar(), Box::new($1), Box::new($3)) }
   | atom         { $1 }
   ;
 
