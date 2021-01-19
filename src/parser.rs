@@ -1,16 +1,16 @@
-use std::cell::RefCell;
 use super::lexer_l;
 use super::parser_y;
-use super::syntax::Exp;
+use super::syntax::{Exp, Typ};
+use std::cell::RefCell;
 
 thread_local!(static NEXT_METAVAR: RefCell<u32> = RefCell::new(0));
 
-pub fn next_metavar() -> u32 {
+pub fn next_metavar() -> Typ {
     NEXT_METAVAR.with(|mv| {
         let mut mv = mv.borrow_mut();
         let i = *mv;
         *mv = i + 1;
-        i
+        Typ::Metavar(i)
     })
 }
 

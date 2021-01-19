@@ -25,9 +25,14 @@ atom -> Exp :
   | id          { Exp::Var($1) }
   ;
 
+add -> Exp :
+    add '+' atom { Exp::Add(Box::new($1), Box::new($3)) }
+  | atom         { $1 }
+  ;
+
 funExp -> Exp :
-    funExp atom { Exp::App(Box::new($1), Box::new($2)) }
-  | atom        { $1 }
+    funExp add { Exp::App(Box::new($1), Box::new($2)) }
+  | add        { $1 }
   ;
 
 exp -> Exp :
@@ -37,5 +42,5 @@ exp -> Exp :
 
 %%
 
-use super::syntax::{Exp,Typ,Lit};
+use super::syntax::{Exp,Lit};
 use super::parser::next_metavar;

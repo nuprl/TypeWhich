@@ -4,6 +4,7 @@
 fun "fun"
 false "false"
 true "true"
+\+ "+"
 \. "."
 \( "("
 \) ")"
