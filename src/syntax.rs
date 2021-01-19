@@ -15,7 +15,7 @@ impl Typ {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Lit {
     Int(i32),
     Bool(bool),
@@ -32,7 +32,7 @@ impl Lit {
 
 pub type Id = String;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Exp {
     Lit(Lit),
     Var(Id),

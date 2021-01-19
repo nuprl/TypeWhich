@@ -4,7 +4,7 @@ use im_rc::HashMap;
 use std::cell::RefCell;
 use z3;
 use z3::ast::Ast;
-use z3::{ast, ast::Dynamic, SatResult, Sort};
+use z3::{ast, ast::Dynamic, SatResult, Sort, Model};
 
 type Env = HashMap<String, Typ>;
 
@@ -13,6 +13,7 @@ struct State<'a> {
     int_ctor: &'a z3::FuncDecl<'a>,
     bool_ctor: &'a z3::FuncDecl<'a>,
     arr_ctor: &'a z3::FuncDecl<'a>,
+    typ: &'a z3::DatatypeSort<'a>,
     solver: z3::Solver<'a>,
     vars: RefCell<HashMap<u32, Dynamic<'a>>>,
     typ_sort: &'a z3::Sort<'a>,
@@ -82,9 +83,64 @@ impl<'a> State<'a> {
             }
         }
     }
+
+    fn is_int<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool where 'a : 'b {
+        self.typ.variants[0].tester.apply(&[&e]).as_bool().unwrap()
+    }
+
+    fn is_bool<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool where 'a : 'b  {
+        self.typ.variants[1].tester.apply(&[e]).as_bool().unwrap()
+    }
+
+    fn is_arr<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Bool where 'a : 'b  {
+        self.typ.variants[2].tester.apply(&[e]).as_bool().unwrap()
+    }
+
+    fn arr_arg<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic where 'a : 'b  {
+        self.typ.variants[2].accessors[0].apply(&[e])
+    }
+
+    fn arr_ret<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic where 'a : 'b  {
+        self.typ.variants[2].accessors[1].apply(&[e])
+    }
+
+    fn z3_to_typ<'b>(&'b self, model: &'b Model, e: ast::Dynamic) -> Typ where 'a : 'b  {
+        if model.eval(&self.is_int(&e)).unwrap().as_bool().unwrap() {
+            Typ::Int
+        }
+        else if model.eval(&self.is_bool(&e)).unwrap().as_bool().unwrap() {
+            Typ::Bool
+        }
+        else {
+            let arg = self.arr_arg(&e);
+            let arg = model.eval(&arg).unwrap();
+            let ret = self.arr_ret(&e);
+            let ret = model.eval(&ret).unwrap();
+            let t1 = self.z3_to_typ(model, arg);
+            let t2 = self.z3_to_typ(model, ret);
+            Typ::Arr(
+                Box::new(t1),
+                Box::new(t2))
+        }
+    }
 }
 
-fn typeinf(exp: &Exp) -> Result<(), ()> {
+fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
+    match &mut *exp {
+        Exp::Lit(_) => { },
+        Exp::Var(_) => { },
+        Exp::Fun(_, t, e) => {
+            *t = env.get(&t.expect_metavar()).unwrap().clone();
+            annotate(env, e);
+        }
+        Exp::Add(e1, e2) | Exp::App(e1, e2) => {
+            annotate(env, e1);
+            annotate(env, e2);
+        }
+    }
+}
+
+fn typeinf(exp: &Exp) -> Result<Exp, ()> {
     let cfg = z3::Config::new();
     let cxt = z3::Context::new(&cfg);
 
@@ -108,6 +164,7 @@ fn typeinf(exp: &Exp) -> Result<(), ()> {
         solver: z3::Solver::new(&cxt),
         vars: Default::default(),
         typ_sort: &typ.sort,
+        typ: &typ,
     };
 
     let solver = z3::Solver::new(&cxt);
@@ -119,9 +176,16 @@ fn typeinf(exp: &Exp) -> Result<(), ()> {
         SatResult::Sat => (),
     }
     let model = solver.get_model().expect("model not available");
-    println!("{}", model);
-    // TODO(arjun): Read the model out and produce a map from metavars to types
-    return Ok(());
+
+    let mut result = HashMap::new();
+    for (x, x_ast) in s.vars.borrow().iter() {
+        let x_val_ast = model.eval(x_ast).expect("evaluating metavar");
+        // let x_val_ast = x_val_ast.as_datatype().expect("expected datatype");
+        result.insert(*x, s.z3_to_typ(&model, x_val_ast));
+    }
+    let mut e = exp.clone();
+    annotate(&result, &mut e);
+    return Ok(e);
 }
 
 #[cfg(test)]
@@ -154,4 +218,10 @@ mod test {
     fn test_typeinf_err_add_app() {
         typeinf(&parse("fun f . f 10 + f true")).unwrap_err();
     }
+
+    #[test]
+    fn infer_arr() {
+        println!("{:?}", typeinf(&parse("fun f . f 200")).unwrap());
+    }
+
 }
