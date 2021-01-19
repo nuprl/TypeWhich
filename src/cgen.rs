@@ -89,37 +89,70 @@ impl<'a> State<'a> {
                 (alpha, ast::Bool::and(self.cxt, &[&phi1, &phi2, &phi]))
             }
             Exp::Add(e1, e2) => {
-                let (t1, phi1) = self.cgen(&env, e1);
-                let (t2, phi2) = self.cgen(&env, e2);
-                let phi3 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Int));
-                let phi4 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Int));
-                let int_case = ast::Bool::and(self.cxt, &[&phi3, &phi4]);
-                let phi5 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Str));
-                let phi6 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Str));
-                let str_case = ast::Bool::and(self.cxt, &[&phi5, &phi6]);
-                let phi7 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Any));
-                let phi8 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Any));
-                let any_case = ast::Bool::and(self.cxt, &[&phi7, &phi8]);
-                let add_constraints = ast::Bool::or(self.cxt, &[&int_case, &str_case, &any_case]);
-                (
-                    Typ::Int,
-                    ast::Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
-                )
+                if let (Exp::ToAny(ca, e1), Exp::ToAny(cb, e2)) = (&**e1, &**e2) {
+                    let (t1, phi1) = self.cgen(&env, e1);
+                    let (t2, phi2) = self.cgen(&env, e2);
+                    let typ_res = next_metavar_typ();
+                    let typ_res_z3 = self.typ_to_z3ast(&typ_res);
+                    let t1_z3 = self.typ_to_z3ast(&t1);
+                    let t2_z3 = self.typ_to_z3ast(&t2);
+                    let phi3 = t1_z3._eq(&self.typ_to_z3ast(&Typ::Int));
+                    let phi4 = t2_z3._eq(&self.typ_to_z3ast(&Typ::Int));
+                    let int_case = ast::Bool::and(
+                        self.cxt,
+                        &[&phi3, &phi4, &typ_res_z3._eq(&self.typ_to_z3ast(&Typ::Int))],
+                    );
+                    let phi5 = t1_z3._eq(&self.typ_to_z3ast(&Typ::Str));
+                    let phi6 = t2_z3._eq(&self.typ_to_z3ast(&Typ::Str));
+                    let str_case = ast::Bool::and(
+                        self.cxt,
+                        &[&phi5, &phi6, &typ_res_z3._eq(&self.typ_to_z3ast(&Typ::Str))],
+                    );
+                    let no_coerce_case = Bool::and(
+                        self.cxt,
+                        &[
+                            &Bool::or(self.cxt, &[&int_case, &str_case]),
+                            &Bool::not(&self.coercion_to_z3(*ca)),
+                            &Bool::not(&self.coercion_to_z3(*cb)),
+                        ],
+                    );
+                    let any_z3 = self.typ_to_z3ast(&Typ::Any);
+                    let any_case = Bool::and(
+                        self.cxt,
+                        &[
+                            &typ_res_z3._eq(&any_z3),
+                            &Bool::or(
+                                self.cxt,
+                                &[
+                                    &t1_z3._eq(&self.typ_to_z3ast(&Typ::Int)),
+                                    &t1_z3._eq(&self.typ_to_z3ast(&Typ::Str)),
+                                    &t1_z3._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                ],
+                            ),
+                            &Bool::or(
+                                self.cxt,
+                                &[
+                                    &t2_z3._eq(&self.typ_to_z3ast(&Typ::Int)),
+                                    &t2_z3._eq(&self.typ_to_z3ast(&Typ::Str)),
+                                    &t2_z3._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                ],
+                            ),
+                            &Bool::not(&t1_z3._eq(&self.typ_to_z3ast(&Typ::Any)))
+                                .implies(&self.coercion_to_z3(*ca)),
+                            &Bool::not(&t2_z3._eq(&self.typ_to_z3ast(&Typ::Any)))
+                                .implies(&self.coercion_to_z3(*cb)),
+                        ],
+                    );
+                    let add_constraints = Bool::or(self.cxt, &[&no_coerce_case, &any_case]);
+                    (
+                        typ_res,
+                        ast::Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
+                    )
+                } else {
+                    panic!("parser didn't insert coercions for Add");
+                }
             }
-            Exp::ToAny(calpha, e) => {
-                let (t1, phi1) = self.cgen(env, e);
-                let alpha = next_metavar_typ();
-                // if t is already any, calpha is false, otherwise who knows
-                let phi2 = (self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Any)))
-                    .implies(&Bool::not(&self.coercion_to_z3(*calpha)));
-                // if calpha is true, then alpha, the result type, is Any,
-                // otherwise it's the original type
-                let phi3 = self.coercion_to_z3(*calpha).ite(
-                    &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
-                    &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&t1)),
-                );
-                (alpha, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
-            }
+            Exp::ToAny(..) => panic!("ToAny should be pattern matched by a parent"),
         }
     }
 
@@ -270,7 +303,6 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
     let mut coercions = HashMap::new();
     for (x, x_ast) in s.coercions.borrow().iter() {
         let x_val_ast = model.eval(x_ast).expect("evaluating coercion-metavar");
-        // let x_val_ast = x_val_ast.as_datatype().expect("expected datatype");
         coercions.insert(
             *x,
             x_val_ast.as_bool().expect("didn't resolve coercion value"),
@@ -315,6 +347,14 @@ mod test {
         println!(
             "{:?}",
             typeinf(&parse(r#"(fun x . fun y . x + y) "everything is " 10"#)).unwrap()
+        );
+    }
+
+    #[test]
+    fn add_int_bool_any_fail() {
+        println!(
+            "{:?}",
+            typeinf(&parse(r#"(fun x . fun y . x + y) 10 false"#)).unwrap_err()
         );
     }
 
