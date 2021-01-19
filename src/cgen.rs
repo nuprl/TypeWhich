@@ -75,7 +75,10 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 let phi3 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Int));
                 let phi4 = self.typ_to_z3ast(&t2)._eq(&self.typ_to_z3ast(&Typ::Int));
-                (Typ::Int, ast::Bool::and(self.cxt, &[&phi1, &phi2, &phi3, &phi4]))
+                (
+                    Typ::Int,
+                    ast::Bool::and(self.cxt, &[&phi1, &phi2, &phi3, &phi4]),
+                )
             }
         }
     }
@@ -151,5 +154,4 @@ mod test {
     fn test_typeinf_err_add_app() {
         typeinf(&parse("fun f . f 10 + f true")).unwrap_err();
     }
-
 }
