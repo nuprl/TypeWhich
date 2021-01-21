@@ -380,10 +380,13 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
         typ: &typ,
     };
 
-    let solver = z3::Solver::new(&cxt);
+    let solver = z3::Optimize::new(&cxt);
     let (_, phi) = s.cgen(&Default::default(), exp);
     solver.assert(&phi);
-    match solver.check() {
+    for (_, x) in s.coercions.borrow().iter() {
+        solver.assert_soft(&Bool::not(x), 1, None);
+    }
+    match solver.check(&[]) {
         SatResult::Unsat => return Err(()),
         SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
         SatResult::Sat => (),
