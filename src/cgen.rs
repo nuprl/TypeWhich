@@ -65,29 +65,42 @@ impl<'a> State<'a> {
 
     fn cgen(&self, env: &Env, exp: &Exp) -> (Typ, z3::ast::Bool<'_>) {
         match exp {
+            // ---------------------------
+            // Γ ⊢ lit : (lit.typ(), true)
             Exp::Lit(lit) => (lit.typ(), self.z3_true()),
+            // ---------------------------
+            // Γ ⊢ x : (Γ(x), true)
             Exp::Var(x) => (
                 env.get(x).expect("unbound identifier").clone(),
                 self.z3_true(),
             ),
+            // Γ,x:T ⊢ e : (T_2, φ)
+            // ---------------------------------------
+            // Γ ⊢ fun (x : T_1) . e : (T_1 -> T_2, φ)
             Exp::Fun(x, t, body) => {
                 let mut env = env.clone();
                 env.insert(x.clone(), t.clone());
                 let (t_body, phi) = self.cgen(&env, body);
                 (Typ::Arr(Box::new(t.clone()), Box::new(t_body)), phi)
             }
+            // Γ ⊢ e_1 : (T_1, φ_1)
+            // Γ ⊢ e_2 : (T_2, φ_2)
+            // ----------------------------------------------
+            // Γ ⊢ e_1 e_2 : (α, φ_1 && φ_2 && T_1 -> α = T_2
             Exp::App(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let alpha = next_metavar_typ();
                 let t = Typ::Arr(Box::new(t2), Box::new(alpha.clone()));
-                // In ordinary HM, we would create a new metavariable 'alpha' and produce the constraint
-                // 't1 = t2 -> alpha'. However, we cannot express this equality in propositional
-                // logic + uninterpreted functions.
-                // create the con
                 let phi = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&t));
                 (alpha, ast::Bool::and(self.cxt, &[&phi1, &phi2, &phi]))
             }
+            // Γ ⊢ e_1 : (T_1, φ_1)
+            // Γ ⊢ e_2 : (T_2, φ_2)
+            // ----------------------------------------------
+            // Γ ⊢ e_1 + e_2 : (α, φ_1 && φ_2 && (T_1 = T_2 = α = int ||
+            //                                    T_1 = T_2 = α = str ||
+            //                                    T_1 = T_2 = α = any))
             Exp::Add(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -233,7 +246,7 @@ impl<'a> State<'a> {
         } else if model.eval(&self.is_any(&e)).unwrap().as_bool().unwrap() {
             Typ::Any
         } else {
-            panic!("z3 typ had a type not handled");
+            panic!("missing case in z3_to_typ");
         }
     }
 }

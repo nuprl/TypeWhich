@@ -43,8 +43,8 @@ pub enum Exp {
     Fun(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
-    /// this u32 is a metavariable who's value indicates whether this cast to
-    /// any is needed or not
+    /// This `u32` is the index of a boolean metavariable. When `true`, the
+    /// cast is needed. When `false`, it can be safely removed.
     ToAny(u32, Box<Exp>),
     FromAny(u32, Box<Exp>),
 }
