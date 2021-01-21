@@ -351,7 +351,6 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
         SatResult::Sat => (),
     }
     let model = solver.get_model().expect("model not available");
-    eprintln!("{}", model);
     let mut result = HashMap::new();
     for (x, x_ast) in s.vars.borrow().iter() {
         let x_val_ast = model.eval(x_ast).expect("evaluating metavar");
