@@ -133,6 +133,33 @@ impl<'a> State<'a> {
                 );
                 (beta, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
+            Exp::FromAny(calpha, e) => {
+                let (alpha, phi1) = self.cgen(env, e);
+                let beta = next_metavar_typ();
+                let phi2 = Bool::or(
+                    self.cxt,
+                    &[
+                        &Bool::and(
+                            self.cxt,
+                            &[
+                                &Bool::not(&self.coercion_to_z3(*calpha)),
+                                &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&alpha)),
+                            ],
+                        ),
+                        &Bool::and(
+                            self.cxt,
+                            &[
+                                &self.coercion_to_z3(*calpha),
+                                &Bool::not(
+                                    &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                ),
+                                &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                            ],
+                        ),
+                    ],
+                );
+                (beta, Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
         }
     }
 
@@ -219,7 +246,7 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
             *t = env.get(&t.expect_metavar()).unwrap().clone();
             annotate(env, coercions, e);
         }
-        Exp::ToAny(coercion, e) => {
+        Exp::ToAny(coercion, e) | Exp::FromAny(coercion, e) => {
             annotate(env, coercions, e);
             if !coercions.get(&coercion).unwrap() {
                 *exp = e.take();
@@ -277,13 +304,11 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
     let mut result = HashMap::new();
     for (x, x_ast) in s.vars.borrow().iter() {
         let x_val_ast = model.eval(x_ast).expect("evaluating metavar");
-        // let x_val_ast = x_val_ast.as_datatype().expect("expected datatype");
         result.insert(*x, s.z3_to_typ(&model, x_val_ast));
     }
     let mut coercions = HashMap::new();
     for (x, x_ast) in s.coercions.borrow().iter() {
         let x_val_ast = model.eval(x_ast).expect("evaluating coercion-metavar");
-        // let x_val_ast = x_val_ast.as_datatype().expect("expected datatype");
         coercions.insert(
             *x,
             x_val_ast.as_bool().expect("didn't resolve coercion value"),
@@ -305,9 +330,9 @@ mod test {
     }
 
     #[test]
-    fn test_typeinf_err() {
+    fn occurs_check_fun_any() {
         // In HM, this would be an occurs-check failure
-        typeinf(&parse("(fun f . f f)")).unwrap_err();
+        println!("{:?}", typeinf(&parse("fun f . f f")).unwrap())
     }
 
     #[test]

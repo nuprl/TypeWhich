@@ -41,7 +41,10 @@ add -> Exp :
   ;
 
 funExp -> Exp :
-    funExp add { Exp::App(Box::new($1), Box::new($2)) }
+    funExp add { Exp::App(
+        Box::new(Exp::FromAny(next_metavar(), Box::new($1))),
+        Box::new(Exp::ToAny(next_metavar(), Box::new(Exp::FromAny(next_metavar(), Box::new($2)))))
+    ) }
   | add        { $1 }
   ;
 

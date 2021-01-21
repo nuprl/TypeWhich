@@ -46,6 +46,7 @@ pub enum Exp {
     /// this u32 is a metavariable who's value indicates whether this cast to
     /// any is needed or not
     ToAny(u32, Box<Exp>),
+    FromAny(u32, Box<Exp>),
 }
 
 impl Exp {
