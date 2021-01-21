@@ -86,7 +86,7 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
-            // Γ ⊢ e_1 e_2 : (α, φ_1 && φ_2 && T_1 -> α = T_2
+            // Γ ⊢ e_1 e_2 : (α, φ_1 && φ_2 && T_1 -> α = T_2)
             Exp::App(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -119,9 +119,13 @@ impl<'a> State<'a> {
                     ast::Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
                 )
             }
-            Exp::ToAny(calpha, e) => {
-                let (alpha, phi1) = self.cgen(env, e);
-                let beta = next_metavar_typ();
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ MaybeToAny (cα, e) : (α, φ && ((cα = false && α = T) ||
+            //                                    (cα = true && α = any && T != any)))
+            Exp::MaybeToAny(calpha, e) => {
+                let (t, phi1) = self.cgen(env, e);
+                let alpha = next_metavar_typ();
                 let phi2 = Bool::or(
                     self.cxt,
                     &[
@@ -129,49 +133,70 @@ impl<'a> State<'a> {
                             self.cxt,
                             &[
                                 &Bool::not(&self.coercion_to_z3(*calpha)),
-                                &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&alpha)),
+                                &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&t)),
                             ],
                         ),
                         &Bool::and(
                             self.cxt,
                             &[
                                 &self.coercion_to_z3(*calpha),
-                                &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                &Bool::not(
+                                    &self.typ_to_z3ast(&t)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                ),
+                            ],
+                        ),
+                    ],
+                );
+                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ MaybeFromAny (cα, e) : (α, φ && ((cα = false && α = T) ||
+            //                                      (cα = true && α != any && T = any)))
+            Exp::MaybeFromAny(calpha, e) => {
+                let (t, phi1) = self.cgen(env, e);
+                let alpha = next_metavar_typ();
+                let phi2 = Bool::or(
+                    self.cxt,
+                    &[
+                        &Bool::and(
+                            self.cxt,
+                            &[
+                                &Bool::not(&self.coercion_to_z3(*calpha)),
+                                &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&t)),
+                            ],
+                        ),
+                        &Bool::and(
+                            self.cxt,
+                            &[
+                                &self.coercion_to_z3(*calpha),
                                 &Bool::not(
                                     &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
                                 ),
+                                &self.typ_to_z3ast(&t)._eq(&self.typ_to_z3ast(&Typ::Any)),
                             ],
                         ),
                     ],
                 );
-                (beta, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
-            Exp::FromAny(calpha, e) => {
-                let (alpha, phi1) = self.cgen(env, e);
-                let beta = next_metavar_typ();
-                let phi2 = Bool::or(
-                    self.cxt,
-                    &[
-                        &Bool::and(
-                            self.cxt,
-                            &[
-                                &Bool::not(&self.coercion_to_z3(*calpha)),
-                                &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&alpha)),
-                            ],
-                        ),
-                        &Bool::and(
-                            self.cxt,
-                            &[
-                                &self.coercion_to_z3(*calpha),
-                                &Bool::not(
-                                    &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&Typ::Any)),
-                                ),
-                                &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
-                            ],
-                        ),
-                    ],
-                );
-                (beta, Bool::and(self.cxt, &[&phi1, &phi2]))
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ ToAny (e) : (any, φ && T != any)
+            Exp::ToAny(e) => {
+                let (t1, phi1) = self.cgen(env, e);
+                let phi2 = Bool::not(&self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Any)));
+                (Typ::Any, Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ ToAny (e) : (α, φ && T = any)
+            Exp::FromAny(e) => {
+                let (t1, phi1) = self.cgen(env, e);
+                let phi2 = self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Any));
+                let alpha = next_metavar_typ();
+                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
         }
     }
@@ -259,15 +284,28 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
             *t = env.get(&t.expect_metavar()).unwrap().clone();
             annotate(env, coercions, e);
         }
-        Exp::ToAny(coercion, e) | Exp::FromAny(coercion, e) => {
+        Exp::MaybeToAny(coercion, e) => {
             annotate(env, coercions, e);
-            if !coercions.get(&coercion).unwrap() {
+            if *coercions.get(&coercion).unwrap() {
+                *exp = Exp::ToAny(Box::new(e.take()));
+            } else {
+                *exp = e.take();
+            }
+        }
+        Exp::MaybeFromAny(coercion, e) => {
+            annotate(env, coercions, e);
+            if *coercions.get(&coercion).unwrap() {
+                *exp = Exp::FromAny(Box::new(e.take()));
+            } else {
                 *exp = e.take();
             }
         }
         Exp::App(e1, e2) | Exp::Add(e1, e2) => {
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
+        }
+        Exp::ToAny(e) | Exp::FromAny(e) => {
+            annotate(env, coercions, e);
         }
     }
 }

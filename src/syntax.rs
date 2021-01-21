@@ -45,8 +45,10 @@ pub enum Exp {
     Add(Box<Exp>, Box<Exp>),
     /// This `u32` is the index of a boolean metavariable. When `true`, the
     /// cast is needed. When `false`, it can be safely removed.
-    ToAny(u32, Box<Exp>),
-    FromAny(u32, Box<Exp>),
+    MaybeToAny(u32, Box<Exp>),
+    MaybeFromAny(u32, Box<Exp>),
+    ToAny(Box<Exp>),
+    FromAny(Box<Exp>),
 }
 
 impl Exp {
