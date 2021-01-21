@@ -112,6 +112,23 @@ impl<'a> State<'a> {
                     Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
                 )
             }
+            // Γ ⊢ e_1 : (T_1, φ_1)
+            // Γ ⊢ e_2 : (T_2, φ_2)
+            // Γ ⊢ e_3 : (T_3, φ_3)
+            // ----------------------------------------------
+            // Γ ⊢ e_1 + e_2 : (α, φ_1 && φ_2 && φ_3 && T_1 = bool &&
+            //                                          T_2 = T_3
+            Exp::If(e1, e2, e3) => {
+                let (t1, phi1) = self.cgen(&env, e1);
+                let (t2, phi2) = self.cgen(&env, e2);
+                let (t3, phi3) = self.cgen(&env, e3);
+                let phi4 = self.t2z3(&t1)._eq(self.bool_z3);
+                let phi5 = self.t2z3(&t2)._eq(&self.t2z3(&t3));
+                (
+                    t2,
+                    Bool::and(self.cxt, &[&phi1, &phi2, &phi3, &phi4, &phi5]),
+                )
+            }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ MaybeToAny (cα, e) : (α, φ && ((cα = false && α = T) ||
@@ -262,12 +279,17 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
                 *exp = e.take();
             }
         }
+        Exp::ToAny(e) | Exp::FromAny(e) => {
+            annotate(env, coercions, e);
+        }
         Exp::App(e1, e2) | Exp::Add(e1, e2) => {
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
         }
-        Exp::ToAny(e) | Exp::FromAny(e) => {
-            annotate(env, coercions, e);
+        Exp::If(e1, e2, e3) => {
+            annotate(env, coercions, e1);
+            annotate(env, coercions, e2);
+            annotate(env, coercions, e3);
         }
     }
 }

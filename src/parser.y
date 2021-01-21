@@ -41,19 +41,33 @@ add -> Exp :
   ;
 
 funExp -> Exp :
-    funExp add { Exp::App(
-        Box::new(Exp::MaybeFromAny(next_metavar(), Box::new($1))),
-        Box::new(Exp::MaybeToAny(next_metavar(), Box::new(Exp::MaybeFromAny(next_metavar(), Box::new($2)))))
-    ) }
+    funExp add { app_($1, $2) }
   | add        { $1 }
   ;
 
 exp -> Exp :
     'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
   | funExp          { $1 }
+  | 'if' exp 'then' exp 'else' exp {
+        Exp::If(
+            Box::new(Exp::MaybeFromAny(next_metavar(), Box::new($2))),
+            Box::new(Exp::MaybeToAny(next_metavar(), Box::new($4))),
+            Box::new(Exp::MaybeToAny(next_metavar(), Box::new($6)))
+        )
+    }
+  | 'let' id '=' exp 'in' exp {
+        app_(Exp::Fun($2, next_metavar_typ(), Box::new($6)), $4)
+    }
   ;
 
 %%
+
+fn app_(e1: Exp, e2: Exp) -> Exp {
+    Exp::App(
+        Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e1))),
+        Box::new(Exp::MaybeToAny(next_metavar(), Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e2)))))
+    )
+}
 
 use super::syntax::{Exp,Lit};
 use super::parser::{next_metavar, next_metavar_typ};

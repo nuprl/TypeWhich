@@ -43,6 +43,7 @@ pub enum Exp {
     Fun(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
+    If(Box<Exp>, Box<Exp>, Box<Exp>),
     /// This `u32` is the index of a boolean metavariable. When `true`, the
     /// cast is needed. When `false`, it can be safely removed.
     MaybeToAny(u32, Box<Exp>),
