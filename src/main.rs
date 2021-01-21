@@ -29,15 +29,13 @@ mod tests_631 {
     use super::syntax::Exp;
     fn contains_coercions(e: Exp) -> bool {
         match e {
-            Exp::FromAny(..) => true,
-            Exp::ToAny(..) => true,
+            Exp::FromAny(..) | Exp::ToAny(..) => true,
             Exp::MaybeFromAny(..) | Exp::MaybeToAny(..) => {
                 panic!("should have been eliminated by typeinf")
             }
-            Exp::Lit(..) => false,
-            Exp::Var(..) => false,
-            Exp::Fun(_, _, e) => contains_coercions(*e),
-            Exp::App(e1, e2) | Exp::Add(e1, e2) => {
+            Exp::Lit(..) | Exp::Var(..) | Exp::Empty => false,
+            Exp::Fun(_, _, e) | Exp::Head(e) | Exp::Tail(e) => contains_coercions(*e),
+            Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {
                 contains_coercions(*e1) || contains_coercions(*e2)
             }
             Exp::If(e1, e2, e3) => {
@@ -87,6 +85,34 @@ mod tests_631 {
     #[test]
     fn bool_const() {
         succeeds("true");
+    }
+    #[test]
+    fn list_of_booleans() {
+        succeeds("true :: empty");
+    }
+    #[test]
+    fn list_of_numbers() {
+        succeeds("100 :: empty");
+    }
+    #[test]
+    fn extract_list() {
+        succeeds("head (2 :: empty) + 5");
+    }
+    #[test]
+    fn bogus_map() {
+        succeeds(
+            "let map = fun f . fun lst .
+               f(head(lst)) :: f(head(tail(lst))) :: empty in
+                   map (fun n . n + 1) (1 :: 2 :: 3 :: empty)",
+        );
+    }
+    #[test]
+    fn tail_wag() {
+        succeeds("12 :: (tail (12 :: empty))");
+    }
+    #[test]
+    fn tail_toggle() {
+        succeeds("tail (1 :: empty)");
     }
     #[test]
     fn identity_polymorphic() {

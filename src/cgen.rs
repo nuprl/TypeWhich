@@ -14,6 +14,7 @@ struct State<'a> {
     bool_z3: &'a Dynamic<'a>,
     str_z3: &'a Dynamic<'a>,
     arr_ctor: &'a z3::FuncDecl<'a>,
+    list_ctor: &'a z3::FuncDecl<'a>,
     any_z3: &'a Dynamic<'a>,
     typ: &'a z3::DatatypeSort<'a>,
     vars: RefCell<HashMap<u32, Dynamic<'a>>>,
@@ -28,6 +29,7 @@ impl<'a> State<'a> {
             Typ::Bool => self.bool_z3.clone(),
             Typ::Str => self.str_z3.clone(),
             Typ::Arr(t1, t2) => self.arr_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
+            Typ::List(t) => self.list_ctor.apply(&[&self.t2z3(t)]),
             Typ::Any => self.any_z3.clone(),
             Typ::Metavar(n) => {
                 let mut vars = self.vars.borrow_mut();
@@ -129,6 +131,41 @@ impl<'a> State<'a> {
                     Bool::and(self.cxt, &[&phi1, &phi2, &phi3, &phi4, &phi5]),
                 )
             }
+            // Γ ⊢ e_1 : (T_1, φ_1)
+            // Γ ⊢ e_2 : (T_2, φ_2)
+            // ----------------------------------------------
+            // Γ ⊢ e_1 + e_2 : (T_2, φ_1 && φ_2 && List(T_1) = T_2)
+            Exp::Cons(e1, e2) => {
+                let (t1, phi1) = self.cgen(&env, e1);
+                let (t2, phi2) = self.cgen(&env, e2);
+                let list_t1 = self.t2z3(&Typ::List(Box::new(t1)));
+                let phi3 = list_t1._eq(&self.t2z3(&t2));
+                (t2, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
+            }
+            // ----------------------------------------------
+            // Γ ⊢ empty : (List(α), true)
+            Exp::Empty => {
+                let alpha = next_metavar_typ();
+                (Typ::List(Box::new(alpha)), self.z3_true())
+            }
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ Head (e) : (α, φ && List(α) = T)
+            Exp::Head(e) => {
+                let (t, phi1) = self.cgen(env, e);
+                let alpha = next_metavar_typ();
+                let phi2 = self
+                    .t2z3(&Typ::List(Box::new(alpha.clone())))
+                    ._eq(&self.t2z3(&t));
+                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ Tail (e) : (T, φ)
+            Exp::Tail(e) => {
+                let (t, phi1) = self.cgen(env, e);
+                (t, phi1)
+            }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ MaybeToAny (cα, e) : (α, φ && ((cα = false && α = T) ||
@@ -212,8 +249,11 @@ impl<'a> State<'a> {
     fn is_arr(&self, model: &Model, e: &ast::Dynamic) -> bool {
         self.is_variant(3, model, e)
     }
-    fn is_any(&self, model: &Model, e: &ast::Dynamic) -> bool {
+    fn is_list(&self, model: &Model, e: &ast::Dynamic) -> bool {
         self.is_variant(4, model, e)
+    }
+    fn is_any(&self, model: &Model, e: &ast::Dynamic) -> bool {
+        self.is_variant(5, model, e)
     }
 
     fn arr_arg<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
@@ -227,6 +267,12 @@ impl<'a> State<'a> {
         'a: 'b,
     {
         self.typ.variants[3].accessors[1].apply(&[e])
+    }
+    fn list_typ<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
+    where
+        'a: 'b,
+    {
+        self.typ.variants[4].accessors[0].apply(&[e])
     }
 
     fn z3_to_typ<'b>(&'b self, model: &'b Model, e: ast::Dynamic) -> Typ
@@ -247,6 +293,11 @@ impl<'a> State<'a> {
             let t1 = self.z3_to_typ(model, arg);
             let t2 = self.z3_to_typ(model, ret);
             Typ::Arr(Box::new(t1), Box::new(t2))
+        } else if self.is_list(model, &e) {
+            let t = self.list_typ(&e);
+            let t = model.eval(&t).unwrap();
+            let t = self.z3_to_typ(model, t);
+            Typ::List(Box::new(t))
         } else if self.is_any(model, &e) {
             Typ::Any
         } else {
@@ -257,8 +308,7 @@ impl<'a> State<'a> {
 
 fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &mut Exp) {
     match &mut *exp {
-        Exp::Lit(_) => {}
-        Exp::Var(_) => {}
+        Exp::Lit(..) | Exp::Var(..) | Exp::Empty => {}
         Exp::Fun(_, t, e) => {
             *t = env.get(&t.expect_metavar()).unwrap().clone();
             annotate(env, coercions, e);
@@ -279,10 +329,10 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
                 *exp = e.take();
             }
         }
-        Exp::ToAny(e) | Exp::FromAny(e) => {
+        Exp::ToAny(e) | Exp::FromAny(e) | Exp::Head(e) | Exp::Tail(e) => {
             annotate(env, coercions, e);
         }
-        Exp::App(e1, e2) | Exp::Add(e1, e2) => {
+        Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
         }
@@ -309,6 +359,10 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
                 ("ret", z3::DatatypeAccessor::Datatype("Typ".into())),
             ],
         )
+        .variant(
+            "List",
+            vec![("t", z3::DatatypeAccessor::Datatype("Typ".into()))],
+        )
         .variant("Any", vec![])
         .finish();
 
@@ -318,7 +372,8 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
         bool_z3: &typ.variants[1].constructor.apply(&[]),
         str_z3: &typ.variants[2].constructor.apply(&[]),
         arr_ctor: &typ.variants[3].constructor,
-        any_z3: &typ.variants[4].constructor.apply(&[]),
+        list_ctor: &typ.variants[4].constructor,
+        any_z3: &typ.variants[5].constructor.apply(&[]),
         vars: Default::default(),
         coercions: Default::default(),
         typ_sort: &typ.sort,
@@ -397,5 +452,10 @@ mod test {
     #[test]
     fn ambiguous_add() {
         println!("{:?}", typeinf(&parse("fun x . x + x")).unwrap());
+    }
+
+    #[test]
+    fn heterogenous_list() {
+        println!("{:?}", typeinf(&parse("true :: 10 :: empty")).unwrap());
     }
 }

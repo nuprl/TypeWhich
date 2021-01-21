@@ -4,6 +4,7 @@ pub enum Typ {
     Bool,
     Str,
     Arr(Box<Typ>, Box<Typ>),
+    List(Box<Typ>),
     Any,
     Metavar(u32),
 }
@@ -44,6 +45,10 @@ pub enum Exp {
     App(Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
+    Cons(Box<Exp>, Box<Exp>),
+    Empty,
+    Head(Box<Exp>),
+    Tail(Box<Exp>),
     /// This `u32` is the index of a boolean metavariable. When `true`, the
     /// cast is needed. When `false`, it can be safely removed.
     MaybeToAny(u32, Box<Exp>),

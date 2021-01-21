@@ -28,45 +28,46 @@ atom -> Exp :
     '(' exp ')' { $2 }
   | lit         { Exp::Lit($1) }
   | id          { Exp::Var($1) }
-  ;
-
-add -> Exp :
-    add '+' atom {
-        Exp::Add(
-            Box::new(Exp::MaybeToAny(next_metavar(), Box::new($1))),
-            Box::new(Exp::MaybeToAny(next_metavar(), Box::new($3)))
-        )
-    }
-  | atom         { $1 }
+  | 'empty'     { Exp::Empty   }
   ;
 
 funExp -> Exp :
-    funExp add { app_($1, $2) }
-  | add        { $1 }
+    funExp atom { app_($1, $2) }
+  | 'head' atom { Exp::Head(Box::new($2)) }
+  | 'tail' atom { Exp::Tail(Box::new($2)) }
+  | atom        { $1 }
+  ;
+
+add -> Exp :
+    add '+' funExp { Exp::Add(maybe_to_any_($1), maybe_to_any_($3)) }
+  | funExp         { $1 }
   ;
 
 exp -> Exp :
     'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
-  | funExp          { $1 }
+  | add              { $1 }
   | 'if' exp 'then' exp 'else' exp {
-        Exp::If(
-            Box::new(Exp::MaybeFromAny(next_metavar(), Box::new($2))),
-            Box::new(Exp::MaybeToAny(next_metavar(), Box::new($4))),
-            Box::new(Exp::MaybeToAny(next_metavar(), Box::new($6)))
-        )
+        Exp::If(maybe_from_any_($2), maybe_to_any_($4), maybe_to_any_($6))
     }
   | 'let' id '=' exp 'in' exp {
         app_(Exp::Fun($2, next_metavar_typ(), Box::new($6)), $4)
     }
+  | add '::' exp     { Exp::Cons(maybe_to_any_($1), Box::new($3)) }
   ;
 
 %%
 
 fn app_(e1: Exp, e2: Exp) -> Exp {
-    Exp::App(
-        Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e1))),
-        Box::new(Exp::MaybeToAny(next_metavar(), Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e2)))))
-    )
+    Exp::App(maybe_from_any_(e1), maybe_to_from_any_(e2))
+}
+fn maybe_to_any_(e: Exp) -> Box<Exp> {
+    Box::new(Exp::MaybeToAny(next_metavar(), Box::new(e)))
+}
+fn maybe_from_any_(e: Exp) -> Box<Exp> {
+    Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e)))
+}
+fn maybe_to_from_any_(e: Exp) -> Box<Exp> {
+    maybe_to_any_(Exp::MaybeFromAny(next_metavar(), Box::new(e)))
 }
 
 use super::syntax::{Exp,Lit};
