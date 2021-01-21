@@ -33,8 +33,9 @@ atom -> Exp :
 
 funExp -> Exp :
     funExp atom { app_($1, $2) }
-  | 'head' atom { Exp::Head(Box::new($2)) }
-  | 'tail' atom { Exp::Tail(Box::new($2)) }
+  | 'head' atom { Exp::Head(maybe_from_any_($2)) }
+  | 'tail' atom { Exp::Tail(maybe_from_any_($2)) }
+  | 'is_empty' atom { Exp::IsEmpty(maybe_from_any_($2)) }
   | atom        { $1 }
   ;
 
@@ -52,7 +53,7 @@ exp -> Exp :
   | 'let' id '=' exp 'in' exp {
         app_(Exp::Fun($2, next_metavar_typ(), Box::new($6)), $4)
     }
-  | add '::' exp     { Exp::Cons(maybe_to_any_($1), Box::new($3)) }
+  | add '::' exp     { Exp::Cons(maybe_to_any_($1), maybe_from_any_($3)) }
   ;
 
 %%

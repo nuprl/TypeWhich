@@ -47,6 +47,7 @@ pub enum Exp {
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     Cons(Box<Exp>, Box<Exp>),
     Empty,
+    IsEmpty(Box<Exp>),
     Head(Box<Exp>),
     Tail(Box<Exp>),
     /// This `u32` is the index of a boolean metavariable. When `true`, the

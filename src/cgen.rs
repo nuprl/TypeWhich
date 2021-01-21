@@ -150,7 +150,7 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
-            // Γ ⊢ Head (e) : (α, φ && List(α) = T)
+            // Γ ⊢ head e : (α, φ && List(α) = T)
             Exp::Head(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar_typ();
@@ -161,10 +161,25 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
-            // Γ ⊢ Tail (e) : (T, φ)
+            // Γ ⊢ tail e : (T, φ && List(α) = T)
             Exp::Tail(e) => {
                 let (t, phi1) = self.cgen(env, e);
-                (t, phi1)
+                let alpha = next_metavar_typ();
+                let phi2 = self
+                    .t2z3(&Typ::List(Box::new(alpha.clone())))
+                    ._eq(&self.t2z3(&t));
+                (t, Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ is_empty e : (bool, φ && List(α) = T)
+            Exp::IsEmpty(e) => {
+                let (t, phi1) = self.cgen(env, e);
+                let alpha = next_metavar_typ();
+                let phi2 = self
+                    .t2z3(&Typ::List(Box::new(alpha.clone())))
+                    ._eq(&self.t2z3(&t));
+                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -329,7 +344,7 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
                 *exp = e.take();
             }
         }
-        Exp::ToAny(e) | Exp::FromAny(e) | Exp::Head(e) | Exp::Tail(e) => {
+        Exp::ToAny(e) | Exp::FromAny(e) | Exp::Head(e) | Exp::Tail(e) | Exp::IsEmpty(e) => {
             annotate(env, coercions, e);
         }
         Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {

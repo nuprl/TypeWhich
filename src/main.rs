@@ -34,7 +34,9 @@ mod tests_631 {
                 panic!("should have been eliminated by typeinf")
             }
             Exp::Lit(..) | Exp::Var(..) | Exp::Empty => false,
-            Exp::Fun(_, _, e) | Exp::Head(e) | Exp::Tail(e) => contains_coercions(*e),
+            Exp::Fun(_, _, e) | Exp::Head(e) | Exp::Tail(e) | Exp::IsEmpty(e) => {
+                contains_coercions(*e)
+            }
             Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {
                 contains_coercions(*e1) || contains_coercions(*e2)
             }
@@ -132,6 +134,18 @@ mod tests_631 {
     #[test]
     fn numeric_const() {
         succeeds("908");
+    }
+    /// i believe this test counters the hypothesis: although is_empty 500
+    /// fails in HM, it also fails in our language, because we statically know that
+    /// 500 is not a list, and there is no opportunity for it to become an any
+    #[test]
+    #[should_panic]
+    fn is_empty_number() {
+        coerces("is_empty 500");
+    }
+    #[test]
+    fn is_empty_list() {
+        succeeds("is_empty (1 :: empty)");
     }
     #[test]
     fn double() {
