@@ -107,18 +107,31 @@ impl<'a> State<'a> {
                 )
             }
             Exp::ToAny(calpha, e) => {
-                let (t1, phi1) = self.cgen(env, e);
-                let alpha = next_metavar_typ();
-                // if t is already any, calpha is false, otherwise who knows
-                let phi2 = (self.typ_to_z3ast(&t1)._eq(&self.typ_to_z3ast(&Typ::Any)))
-                    .implies(&Bool::not(&self.coercion_to_z3(*calpha)));
-                // if calpha is true, then alpha, the result type, is Any,
-                // otherwise it's the original type
-                let phi3 = self.coercion_to_z3(*calpha).ite(
-                    &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
-                    &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&t1)),
+                let (alpha, phi1) = self.cgen(env, e);
+                let beta = next_metavar_typ();
+                let phi2 = Bool::or(
+                    self.cxt,
+                    &[
+                        &Bool::and(
+                            self.cxt,
+                            &[
+                                &Bool::not(&self.coercion_to_z3(*calpha)),
+                                &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&alpha)),
+                            ],
+                        ),
+                        &Bool::and(
+                            self.cxt,
+                            &[
+                                &self.coercion_to_z3(*calpha),
+                                &self.typ_to_z3ast(&beta)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                &Bool::not(
+                                    &self.typ_to_z3ast(&alpha)._eq(&self.typ_to_z3ast(&Typ::Any)),
+                                ),
+                            ],
+                        ),
+                    ],
                 );
-                (alpha, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
+                (beta, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
         }
     }
