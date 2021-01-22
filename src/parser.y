@@ -56,6 +56,7 @@ add -> Exp :
 
 exp -> Exp :
     'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
+  | 'fix' id '.' exp { Exp::Fix($2, next_metavar_typ(), Box::new($4)) }
   | add              { $1 }
   | 'if' exp 'then' exp 'else' exp {
         Exp::If(maybe_from_any_($2), maybe_to_any_($4), maybe_to_any_($6))

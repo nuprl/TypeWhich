@@ -2,6 +2,7 @@
 [\t\r\n ]+ ;
 //[^\n]* ;
 fun "fun"
+fix "fix"
 false "false"
 true "true"
 \+ "+"

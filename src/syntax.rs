@@ -20,7 +20,7 @@ impl Typ {
     pub fn is_arr(&self) -> bool {
         match self {
             Typ::Arr(..) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -56,6 +56,7 @@ pub enum Exp {
     Lit(Lit),
     Var(Id),
     Fun(Id, Typ, Box<Exp>),
+    Fix(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
     Let(Id, Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
@@ -88,9 +89,16 @@ impl Exp {
     pub fn is_app_like(&self) -> bool {
         match self {
             Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_app_like(),
-            Exp::App(..) | Exp::Cons(..) | Exp::Head(..) | Exp::Tail(..) |
-            Exp::IsBool(..) | Exp::IsInt(..) | Exp::IsString(..) | Exp::IsFun(..) |
-            Exp::ToAny(..) | Exp::FromAny(..) => true,
+            Exp::App(..)
+            | Exp::Cons(..)
+            | Exp::Head(..)
+            | Exp::Tail(..)
+            | Exp::IsBool(..)
+            | Exp::IsInt(..)
+            | Exp::IsString(..)
+            | Exp::IsFun(..)
+            | Exp::ToAny(..)
+            | Exp::FromAny(..) => true,
             _ => false,
         }
     }
@@ -98,14 +106,14 @@ impl Exp {
         match self {
             Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_fun_exp(),
             Exp::Fun(..) => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn is_atom(&self) -> bool {
         match self {
             Exp::Lit(..) | Exp::Var(_) | Exp::Empty => true,
-            _ => false
+            _ => false,
         }
     }
 }

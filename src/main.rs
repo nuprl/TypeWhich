@@ -1,7 +1,7 @@
 mod cgen;
 mod parser;
-mod syntax;
 mod pretty;
+mod syntax;
 
 use std::io::*;
 
@@ -19,7 +19,7 @@ fn main() -> Result<()> {
             out
         }
     };
-    println!("{}", cgen::typeinf(&parser::parse(source)).unwrap()) ;
+    println!("{}", cgen::typeinf(&parser::parse(source)).unwrap());
     Ok(())
 }
 
@@ -36,6 +36,7 @@ mod tests_631 {
             }
             Exp::Lit(..) | Exp::Var(..) | Exp::Empty => false,
             Exp::Fun(_, _, e)
+            | Exp::Fix(_, _, e)
             | Exp::Head(e)
             | Exp::Tail(e)
             | Exp::IsEmpty(e)
@@ -44,9 +45,11 @@ mod tests_631 {
             | Exp::IsString(e)
             | Exp::IsList(e)
             | Exp::IsFun(e) => contains_coercions(*e),
-            Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) | Exp::Let(_, e1, e2) => {
-                contains_coercions(*e1) || contains_coercions(*e2)
-            }
+            Exp::App(e1, e2)
+            | Exp::Add(e1, e2)
+            | Exp::Mul(e1, e2)
+            | Exp::Cons(e1, e2)
+            | Exp::Let(_, e1, e2) => contains_coercions(*e1) || contains_coercions(*e2),
             Exp::If(e1, e2, e3) => {
                 contains_coercions(*e1) || contains_coercions(*e2) || contains_coercions(*e3)
             }
@@ -96,6 +99,14 @@ mod tests_631 {
         );
     }
     #[test]
+    fn lots_of_conditionals() {
+        coerces(
+            "fun x . fun y . fun z .
+               (if true then x else y) :: (if true then y else z) ::
+                  (if true then z else (fun w . w) 5) :: (if x then empty else empty)",
+        );
+    }
+    #[test]
     fn bool_const() {
         succeeds("true");
     }
@@ -108,24 +119,17 @@ mod tests_631 {
         succeeds("100 :: empty");
     }
     #[test]
-    fn extract_list() {
-        succeeds("head (2 :: empty) + 5");
-    }
-    #[test]
-    fn bogus_map() {
+    fn factorial() {
+        // should be if n == 0 instead of if false but it's probably not a
+        // particularly important operation to have
         succeeds(
-            "let map = fun f . fun lst .
-               f(head(lst)) :: f(head(tail(lst))) :: empty in
-                   map (fun n . n + 1) (1 :: 2 :: 3 :: empty)",
+            "let fac = fix fac . fun n . if false then 1 else n * fac (n + -1) in
+             fac 50 + fac 100",
         );
     }
     #[test]
-    fn tail_wag() {
-        succeeds("12 :: (tail (12 :: empty))");
-    }
-    #[test]
-    fn tail_toggle() {
-        succeeds("tail (1 :: empty)");
+    fn extract_list() {
+        succeeds("head (2 :: empty) + 5");
     }
     #[test]
     fn identity_polymorphic() {
@@ -159,12 +163,42 @@ mod tests_631 {
         succeeds("is_empty (1 :: empty)");
     }
     #[test]
+    fn real_map() {
+        succeeds(
+            "let map = fix map . fun f . fun lst .
+               if is_empty(lst) then
+                 empty
+               else
+                 f(head(lst)) :: (map f (tail(lst))) in
+               map (fun n . n + 1) (1 :: 2 :: 3 :: empty)",
+        );
+    }
+    #[test]
+    fn bogus_map() {
+        succeeds(
+            "let map = fun f . fun lst .
+               f(head(lst)) :: f(head(tail(lst))) :: empty in
+                   map (fun n . n + 1) (1 :: 2 :: 3 :: empty)",
+        );
+    }
+    // = not yet supported: extract a value from a record =
+    // = not yet supported: extract a value from a non-record =
+    #[test]
     fn double() {
         succeeds(
             "let square = fun n . if false then 0 else n + n in
             square 10 + square 5",
         );
     }
+    #[test]
+    fn tail_wag() {
+        succeeds("12 :: (tail (12 :: empty))");
+    }
+    #[test]
+    fn tail_toggle() {
+        succeeds("tail (1 :: empty)");
+    }
+    // = not yet supported: arrays are homogenous =
     #[test]
     fn dyn_list_single_level() {
         coerces("1 :: (false :: empty)");
@@ -175,9 +209,11 @@ mod tests_631 {
     }
     #[test]
     fn flatten_body() {
-        coerces("let flatten = fun append . fun f . fun x . 
-                    if is_list x then append (f (head x)) (f (tail x)) else x :: empty in
-                 let l = 1 :: (false :: ((2 :: (true :: empty)) :: empty)) in
-                 flatten (fun x . fun y. x) (fun x. x) l");
+        coerces(
+            "let flatten = fun append . fun f . fun x .
+               if is_list x then append (f (head x)) (f (tail x)) else x :: empty in
+               let l = 1 :: (false :: ((2 :: (true :: empty)) :: empty)) in
+               flatten (fun x . fun y. x) (fun x. x) l",
+        );
     }
 }

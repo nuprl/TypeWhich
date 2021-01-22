@@ -82,6 +82,16 @@ impl<'a> State<'a> {
                 let (t_body, phi) = self.cgen(&env, body);
                 (Typ::Arr(Box::new(t.clone()), Box::new(t_body)), phi)
             }
+            // Γ,x:T_1 ⊢ e : (T_2, φ)
+            // ---------------------------------------
+            // Γ ⊢ fix (x : T_1) . e : (T_1, φ && T_1 = T_2)
+            Exp::Fix(x, t1, body) => {
+                let mut env = env.clone();
+                env.insert(x.clone(), t1.clone());
+                let (t2, phi1) = self.cgen(&env, body);
+                let phi2 = self.t2z3(t1)._eq(&self.t2z3(&t2));
+                (t1.clone(), Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
@@ -351,7 +361,7 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
         }
-        Exp::Fun(_, t, e) => {
+        Exp::Fun(_, t, e) | Exp::Fix(_, t, e) => {
             *t = env.get(&t.expect_metavar()).unwrap().clone();
             annotate(env, coercions, e);
         }
