@@ -75,16 +75,13 @@ exp -> Exp :
 %%
 
 fn app_(e1: Exp, e2: Exp) -> Exp {
-    Exp::App(maybe_from_any_(e1), maybe_to_from_any_(e2))
+    Exp::App(maybe_from_any_(e1), maybe_to_any_(e2))
 }
 fn maybe_to_any_(e: Exp) -> Box<Exp> {
     Box::new(Exp::MaybeToAny(next_metavar(), Box::new(e)))
 }
 fn maybe_from_any_(e: Exp) -> Box<Exp> {
     Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e)))
-}
-fn maybe_to_from_any_(e: Exp) -> Box<Exp> {
-    maybe_to_any_(Exp::MaybeFromAny(next_metavar(), Box::new(e)))
 }
 
 use super::syntax::{Exp,Lit};

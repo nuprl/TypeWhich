@@ -28,13 +28,23 @@ mod tests_631 {
     use super::cgen::typeinf;
     use super::parser::parse;
     use super::syntax::Exp;
-    pub fn contains_coercions(e: Exp) -> bool {
+    trait PairOr {
+        fn or(&self, other: Self) -> Self;
+    }
+    impl PairOr for (bool, bool) {
+        fn or(&self, other: Self) -> Self {
+            (self.0 || other.0, self.1 || other.1)
+        }
+    }
+    // (to_any, from_any)
+    pub fn contains_coercions(e: Exp) -> (bool, bool) {
         match e {
-            Exp::FromAny(..) | Exp::ToAny(..) => true,
+            Exp::ToAny(.., e) => (true, contains_coercions(*e).1),
+            Exp::FromAny(.., e) => (contains_coercions(*e).0, true),
             Exp::MaybeFromAny(..) | Exp::MaybeToAny(..) => {
                 panic!("should have been eliminated by typeinf")
             }
-            Exp::Lit(..) | Exp::Var(..) | Exp::Empty => false,
+            Exp::Lit(..) | Exp::Var(..) | Exp::Empty => (false, false),
             Exp::Fun(_, _, e)
             | Exp::Fix(_, _, e)
             | Exp::Head(e)
@@ -50,10 +60,10 @@ mod tests_631 {
             | Exp::Mul(e1, e2)
             | Exp::Cons(e1, e2)
             | Exp::Pair(e1, e2)
-            | Exp::Let(_, e1, e2) => contains_coercions(*e1) || contains_coercions(*e2),
-            Exp::If(e1, e2, e3) => {
-                contains_coercions(*e1) || contains_coercions(*e2) || contains_coercions(*e3)
-            }
+            | Exp::Let(_, e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
+            Exp::If(e1, e2, e3) => contains_coercions(*e1)
+                .or(contains_coercions(*e2))
+                .or(contains_coercions(*e3)),
         }
     }
     pub fn succeeds(program: &str) {
@@ -61,14 +71,24 @@ mod tests_631 {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(&orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
-        assert!(!contains_coercions(e));
+        let coercions = contains_coercions(e);
+        assert!(!coercions.0 && !coercions.1);
+    }
+    pub fn no_from_any(program: &str) {
+        let orig = parse(program);
+        println!("\nOriginal program:\n{}", &orig);
+        let e = typeinf(&orig).unwrap();
+        println!("\nAfter type inference:\n{}", e);
+        let coercions = contains_coercions(e);
+        assert!(!coercions.1);
     }
     pub fn coerces(program: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(&orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
-        assert!(contains_coercions(e));
+        let coercions = contains_coercions(e);
+        assert!(coercions.0 || coercions.1);
     }
     #[test]
     fn addition() {

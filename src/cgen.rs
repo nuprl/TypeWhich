@@ -598,4 +598,20 @@ mod test {
     fn make_pair() {
         succeeds("(fun x . fun y . x, y) 5 true");
     }
+
+    #[test]
+    fn over_optimized() {
+        no_from_any(
+            "// this should be (any -> int)
+             // but it gets mislabeled as (int -> int)
+             let accepts_any = fun x . 5 in
+             // this is used to get the optimizer to mislabel accepts_any
+             accepts_any 5 + accepts_any 5 + accepts_any 5 +
+             // now this was correct before our inference, but now is incorrect
+             // a runtime error will be thrown as false is from_any_to_any'd, when it could
+             // have stayed any just fine
+             // the conditional is here to allow the to_any
+             accepts_any (if true then true else false)",
+        );
+    }
 }
