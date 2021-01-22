@@ -161,9 +161,18 @@ mod tests_631 {
         );
     }
     #[test]
+    fn dyn_list_single_level() {
+        coerces("1 :: (false :: empty)");
+    }
+    #[test]
+    fn dyn_list_nested() {
+        coerces("1 :: (false :: ((2 :: (true :: empty)) :: empty))");
+    }
+    #[test]
     fn flatten_body() {
         coerces("let flatten = fun append . fun f . fun x . 
-                    if is_list x then append (f (head x)) (f (tail x)) else x :: empty
-                  in flatten (1 :: empty)");
+                    if is_list x then append (f (head x)) (f (tail x)) else x :: empty in
+                 let l = 1 :: (false :: ((2 :: (true :: empty)) :: empty)) in
+                 flatten (fun x . fun y. x) (fun x. x) l");
     }
 }
