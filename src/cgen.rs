@@ -128,14 +128,37 @@ impl<'a> State<'a> {
             Exp::Add(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
+                let alpha = next_metavar_typ();
                 let t1 = self.t2z3(&t1);
                 let t2 = self.t2z3(&t2);
-                let int_case = Bool::and(self.cxt, &[&t1._eq(self.int_z3), &t2._eq(self.int_z3)]);
-                let str_case = Bool::and(self.cxt, &[&t1._eq(self.str_z3), &t2._eq(self.str_z3)]);
-                let any_case = Bool::and(self.cxt, &[&t1._eq(self.any_z3), &t2._eq(self.any_z3)]);
+                let a_z3 = self.t2z3(&alpha);
+                let int_case = Bool::and(
+                    self.cxt,
+                    &[
+                        &t1._eq(self.int_z3),
+                        &t2._eq(self.int_z3),
+                        &a_z3._eq(self.int_z3),
+                    ],
+                );
+                let str_case = Bool::and(
+                    self.cxt,
+                    &[
+                        &t1._eq(self.str_z3),
+                        &t2._eq(self.str_z3),
+                        &a_z3._eq(self.str_z3),
+                    ],
+                );
+                let any_case = Bool::and(
+                    self.cxt,
+                    &[
+                        &t1._eq(self.any_z3),
+                        &t2._eq(self.any_z3),
+                        &a_z3._eq(self.any_z3),
+                    ],
+                );
                 let add_constraints = Bool::or(self.cxt, &[&int_case, &str_case, &any_case]);
                 (
-                    Typ::Int,
+                    alpha,
                     Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
                 )
             }
