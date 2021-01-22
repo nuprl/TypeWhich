@@ -101,6 +101,14 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 (t2, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
+            Exp::Mul(e1, e2) => {
+                let (t1, phi1) = self.cgen(&env, e1);
+                let (t2, phi2) = self.cgen(&env, e2);
+                let t1 = self.t2z3(&t1);
+                let t2 = self.t2z3(&t2);
+                let int_case = Bool::and(self.cxt, &[&t1._eq(self.int_z3), &t2._eq(self.int_z3)]);
+                (Typ::Int, Bool::and(self.cxt, &[&phi1, &phi2, &int_case]))
+            }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
@@ -375,7 +383,7 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
         | Exp::IsFun(e) => {
             annotate(env, coercions, e);
         }
-        Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {
+        Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) | Exp::Mul(e1, e2) => {
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
         }

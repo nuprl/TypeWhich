@@ -59,6 +59,7 @@ pub enum Exp {
     App(Box<Exp>, Box<Exp>),
     Let(Id, Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
+    Mul(Box<Exp>, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     Cons(Box<Exp>, Box<Exp>),
     Empty,

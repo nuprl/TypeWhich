@@ -19,7 +19,7 @@ fn main() -> Result<()> {
             out
         }
     };
-    println!("{:?}", cgen::typeinf(&parser::parse(source)));
+    println!("{}", cgen::typeinf(&parser::parse(source)).unwrap()) ;
     Ok(())
 }
 

@@ -147,6 +147,11 @@ impl Pretty for Exp {
                 pp.text(" + "),
                 e2.pretty(pp)
             ]),
+            Exp::Mul(e1, e2) => pp.concat(vec![
+                e1.pretty(pp),
+                pp.text(" * "),
+                e2.pretty(pp)
+            ]),
             Exp::If(e1, e2, e3) => pp.concat(vec![
                 pp.text("if"),
                 pp.space(),

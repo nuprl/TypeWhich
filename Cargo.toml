@@ -16,4 +16,5 @@ cfgrammar = "*"
 lrlex = "*"
 lrpar = "*"
 im-rc = "*"
+pretty = "*"
 z3 = { git = "https://github.com/prove-rs/z3.rs" }

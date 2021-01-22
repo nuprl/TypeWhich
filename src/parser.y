@@ -44,9 +44,14 @@ funExp -> Exp :
   | atom        { $1 }
   ;
 
-add -> Exp :
-    add '+' funExp { Exp::Add(maybe_to_any_($1), maybe_to_any_($3)) }
+mul -> Exp :
+    mul '*' funExp { Exp::Mul(maybe_from_any_($1), maybe_from_any_($3)) }
   | funExp         { $1 }
+  ;
+
+add -> Exp :
+    add '+' mul { Exp::Add(maybe_to_any_($1), maybe_to_any_($3)) }
+  | mul         { $1 }
   ;
 
 exp -> Exp :
