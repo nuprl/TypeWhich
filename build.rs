@@ -3,6 +3,8 @@ use lrlex::LexerBuilder;
 use lrpar::CTParserBuilder;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!(r"cargo:rustc-link-search=/usr/local/lib/");
+    
     // '.error_on_conflicts(true)' does not print the conflicts that occur, which makes the error
     // hard to debug. Instead, we print the conflicts ourselves below.
     let mut parser_builder = CTParserBuilder::new()
