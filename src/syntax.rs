@@ -5,6 +5,7 @@ pub enum Typ {
     Str,
     Arr(Box<Typ>, Box<Typ>),
     List(Box<Typ>),
+    Pair(Box<Typ>, Box<Typ>),
     Any,
     Metavar(u32),
 }
@@ -27,7 +28,7 @@ impl Typ {
     pub fn is_atom(&self) -> bool {
         match self {
             Typ::Int | Typ::Bool | Typ::Str | Typ::Any | Typ::Metavar(..) => false,
-            Typ::Arr(..) | Typ::List(..) => true,
+            Typ::Arr(..) | Typ::List(..) | Typ::Pair(..) => true,
         }
     }
 }
@@ -62,6 +63,7 @@ pub enum Exp {
     Add(Box<Exp>, Box<Exp>),
     Mul(Box<Exp>, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
+    Pair(Box<Exp>, Box<Exp>),
     Cons(Box<Exp>, Box<Exp>),
     Empty,
     IsEmpty(Box<Exp>),
@@ -105,13 +107,28 @@ impl Exp {
     pub fn is_fun_exp(&self) -> bool {
         match self {
             Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_fun_exp(),
-            Exp::Fun(..) => true,
+            Exp::Fun(..) | Exp::Fix(..) | Exp::If(..) | Exp::Let(..) | Exp::Cons(..) => true,
             _ => false,
+        }
+    }
+    pub fn is_add_or_looser(&self) -> bool {
+        match self {
+            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_add_or_looser(),
+            Exp::Add(..) => true,
+            _ => self.is_fun_exp(),
+        }
+    }
+    pub fn is_mul_or_looser(&self) -> bool {
+        match self {
+            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_mul_or_looser(),
+            Exp::Mul(..) => true,
+            _ => self.is_add_or_looser(),
         }
     }
 
     pub fn is_atom(&self) -> bool {
         match self {
+            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_atom(),
             Exp::Lit(..) | Exp::Var(_) | Exp::Empty => true,
             _ => false,
         }

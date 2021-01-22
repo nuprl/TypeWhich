@@ -28,7 +28,7 @@ mod tests_631 {
     use super::cgen::typeinf;
     use super::parser::parse;
     use super::syntax::Exp;
-    fn contains_coercions(e: Exp) -> bool {
+    pub fn contains_coercions(e: Exp) -> bool {
         match e {
             Exp::FromAny(..) | Exp::ToAny(..) => true,
             Exp::MaybeFromAny(..) | Exp::MaybeToAny(..) => {
@@ -49,20 +49,21 @@ mod tests_631 {
             | Exp::Add(e1, e2)
             | Exp::Mul(e1, e2)
             | Exp::Cons(e1, e2)
+            | Exp::Pair(e1, e2)
             | Exp::Let(_, e1, e2) => contains_coercions(*e1) || contains_coercions(*e2),
             Exp::If(e1, e2, e3) => {
                 contains_coercions(*e1) || contains_coercions(*e2) || contains_coercions(*e3)
             }
         }
     }
-    fn succeeds(program: &str) {
+    pub fn succeeds(program: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(&orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
         assert!(!contains_coercions(e));
     }
-    fn coerces(program: &str) {
+    pub fn coerces(program: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(&orig).unwrap();

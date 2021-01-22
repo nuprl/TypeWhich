@@ -54,17 +54,22 @@ add -> Exp :
   | mul         { $1 }
   ;
 
+pair -> Exp :
+    pair ',' add { Exp::Pair(Box::new($1), Box::new($3)) }
+  | add          { $1 }
+  ;
+
 exp -> Exp :
     'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
   | 'fix' id '.' exp { Exp::Fix($2, next_metavar_typ(), Box::new($4)) }
-  | add              { $1 }
+  | pair             { $1 }
   | 'if' exp 'then' exp 'else' exp {
         Exp::If(maybe_from_any_($2), maybe_to_any_($4), maybe_to_any_($6))
     }
   | 'let' id '=' exp 'in' exp {
       Exp::Let($2, maybe_from_any_($4), Box::new($6))
     }
-  | add '::' exp     { Exp::Cons(maybe_to_any_($1), maybe_from_any_($3)) }
+  | pair '::' exp    { Exp::Cons(maybe_to_any_($1), maybe_from_any_($3)) }
   ;
 
 %%

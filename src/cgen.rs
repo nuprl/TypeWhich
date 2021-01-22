@@ -15,6 +15,7 @@ struct State<'a> {
     str_z3: &'a Dynamic<'a>,
     arr_ctor: &'a z3::FuncDecl<'a>,
     list_ctor: &'a z3::FuncDecl<'a>,
+    pair_ctor: &'a z3::FuncDecl<'a>,
     any_z3: &'a Dynamic<'a>,
     typ: &'a z3::DatatypeSort<'a>,
     vars: RefCell<HashMap<u32, Dynamic<'a>>>,
@@ -30,6 +31,7 @@ impl<'a> State<'a> {
             Typ::Str => self.str_z3.clone(),
             Typ::Arr(t1, t2) => self.arr_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
             Typ::List(t) => self.list_ctor.apply(&[&self.t2z3(t)]),
+            Typ::Pair(t1, t2) => self.pair_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
             Typ::Any => self.any_z3.clone(),
             Typ::Metavar(n) => {
                 let mut vars = self.vars.borrow_mut();
@@ -182,7 +184,19 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
-            // Γ ⊢ e_1 + e_2 : (T_2, φ_1 && φ_2 && List(T_1) = T_2)
+            // Γ ⊢ e_1, e_2 : ((T_1, T_2), φ_1 && φ_2)
+            Exp::Pair(e1, e2) => {
+                let (t1, phi1) = self.cgen(&env, e1);
+                let (t2, phi2) = self.cgen(&env, e2);
+                (
+                    Typ::Pair(Box::new(t1), Box::new(t2)),
+                    Bool::and(self.cxt, &[&phi1, &phi2]),
+                )
+            }
+            // Γ ⊢ e_1 : (T_1, φ_1)
+            // Γ ⊢ e_2 : (T_2, φ_2)
+            // ----------------------------------------------
+            // Γ ⊢ e_1 :: e_2 : (T_2, φ_1 && φ_2 && List(T_1) = T_2)
             Exp::Cons(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -323,8 +337,11 @@ impl<'a> State<'a> {
     fn is_list(&self, model: &Model, e: &ast::Dynamic) -> bool {
         self.is_variant(4, model, e)
     }
-    fn is_any(&self, model: &Model, e: &ast::Dynamic) -> bool {
+    fn is_pair(&self, model: &Model, e: &ast::Dynamic) -> bool {
         self.is_variant(5, model, e)
+    }
+    fn is_any(&self, model: &Model, e: &ast::Dynamic) -> bool {
+        self.is_variant(6, model, e)
     }
 
     fn arr_arg<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
@@ -344,6 +361,18 @@ impl<'a> State<'a> {
         'a: 'b,
     {
         self.typ.variants[4].accessors[0].apply(&[e])
+    }
+    fn pair1<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
+    where
+        'a: 'b,
+    {
+        self.typ.variants[5].accessors[0].apply(&[e])
+    }
+    fn pair2<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
+    where
+        'a: 'b,
+    {
+        self.typ.variants[5].accessors[1].apply(&[e])
     }
 
     fn z3_to_typ<'b>(&'b self, model: &'b Model, e: ast::Dynamic) -> Typ
@@ -369,6 +398,12 @@ impl<'a> State<'a> {
             let t = model.eval(&t).unwrap();
             let t = self.z3_to_typ(model, t);
             Typ::List(Box::new(t))
+        } else if self.is_pair(model, &e) {
+            let t1 = model.eval(&self.pair1(&e)).unwrap();
+            let t2 = model.eval(&self.pair2(&e)).unwrap();
+            let t1 = self.z3_to_typ(model, t1);
+            let t2 = self.z3_to_typ(model, t2);
+            Typ::Pair(Box::new(t1), Box::new(t2))
         } else if self.is_any(model, &e) {
             Typ::Any
         } else {
@@ -416,7 +451,11 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
         | Exp::IsFun(e) => {
             annotate(env, coercions, e);
         }
-        Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) | Exp::Mul(e1, e2) => {
+        Exp::App(e1, e2)
+        | Exp::Add(e1, e2)
+        | Exp::Cons(e1, e2)
+        | Exp::Pair(e1, e2)
+        | Exp::Mul(e1, e2) => {
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
         }
@@ -447,6 +486,13 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
             "List",
             vec![("t", z3::DatatypeAccessor::Datatype("Typ".into()))],
         )
+        .variant(
+            "Pair",
+            vec![
+                ("t1", z3::DatatypeAccessor::Datatype("Typ".into())),
+                ("t2", z3::DatatypeAccessor::Datatype("Typ".into())),
+            ],
+        )
         .variant("Any", vec![])
         .finish();
 
@@ -457,7 +503,8 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
         str_z3: &typ.variants[2].constructor.apply(&[]),
         arr_ctor: &typ.variants[3].constructor,
         list_ctor: &typ.variants[4].constructor,
-        any_z3: &typ.variants[5].constructor.apply(&[]),
+        pair_ctor: &typ.variants[5].constructor,
+        any_z3: &typ.variants[6].constructor.apply(&[]),
         vars: Default::default(),
         coercions: Default::default(),
         typ_sort: &typ.sort,
@@ -498,6 +545,7 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
 mod test {
     use super::super::parser::parse;
     use super::typeinf;
+    use crate::tests_631::*;
 
     #[test]
     fn test_typeinf() {
@@ -544,5 +592,10 @@ mod test {
     #[test]
     fn heterogenous_list() {
         println!("{:?}", typeinf(&parse("true :: 10 :: empty")).unwrap());
+    }
+
+    #[test]
+    fn make_pair() {
+        succeeds("(fun x . fun y . x, y) 5 true");
     }
 }

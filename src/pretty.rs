@@ -64,6 +64,14 @@ impl Pretty for Typ {
                 pp.space(),
                 parens_if(pp, &**t, t.is_atom()),
             ]),
+            Typ::Pair(t1, t2) => pp
+                .concat(vec![
+                    parens_if(pp, &**t1, t1.is_atom()),
+                    pp.text(","),
+                    pp.space(),
+                    parens_if(pp, &**t2, t2.is_atom()),
+                ])
+                .parens(),
             Typ::Any => pp.text("any"),
             Typ::Metavar(_) => pp.text("?"),
         }
@@ -143,8 +151,17 @@ impl Pretty for Exp {
                 pp.space(),
                 parens_if(pp, &**e2, e2.is_atom() == false),
             ]),
-            Exp::Add(e1, e2) => pp.concat(vec![e1.pretty(pp), pp.text(" + "), e2.pretty(pp)]),
-            Exp::Mul(e1, e2) => pp.concat(vec![e1.pretty(pp), pp.text(" * "), e2.pretty(pp)]),
+            Exp::Add(e1, e2) => pp.concat(vec![
+                // should be pair or looser
+                parens_if(pp, &**e1, e1.is_fun_exp()),
+                pp.text(" + "),
+                parens_if(pp, &**e2, e2.is_add_or_looser()),
+            ]),
+            Exp::Mul(e1, e2) => pp.concat(vec![
+                parens_if(pp, &**e1, e1.is_add_or_looser()),
+                pp.text(" * "),
+                parens_if(pp, &**e2, e2.is_mul_or_looser()),
+            ]),
             Exp::If(e1, e2, e3) => pp.concat(vec![
                 pp.text("if"),
                 pp.space(),
@@ -155,6 +172,13 @@ impl Pretty for Exp {
                 pp.line(),
                 pp.concat(vec![pp.text("else"), pp.line(), e3.pretty(pp)])
                     .nest(2),
+            ]),
+            Exp::Pair(e1, e2) => pp.concat(vec![
+                parens_if(pp, &**e1, e1.is_fun_exp()),
+                pp.text(","),
+                pp.space(),
+                // should be is pair or looser (because pair is left associative)
+                parens_if(pp, &**e2, e2.is_fun_exp()),
             ]),
             Exp::Cons(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_app_like()),
