@@ -183,6 +183,14 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
+            // Γ ⊢ is_GROUND e : (bool, φ)
+            Exp::IsBool(e) | Exp::IsInt(e) | Exp::IsString(e) | Exp::IsList(e) | Exp::IsFun(e) => {
+                // 2021-01-21 MMG we could make this stronger (if t is known not to be GROUND or Any)
+                let (_t, phi1) = self.cgen(env, e);
+                (Typ::Bool, phi1)
+            }
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
             // Γ ⊢ MaybeToAny (cα, e) : (α, φ && ((cα = false && α = T) ||
             //                                    (cα = true && α = any && T != any)))
             Exp::MaybeToAny(calpha, e) => {
@@ -344,7 +352,16 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
                 *exp = e.take();
             }
         }
-        Exp::ToAny(e) | Exp::FromAny(e) | Exp::Head(e) | Exp::Tail(e) | Exp::IsEmpty(e) => {
+        Exp::ToAny(e)
+        | Exp::FromAny(e)
+        | Exp::Head(e)
+        | Exp::Tail(e)
+        | Exp::IsEmpty(e)
+        | Exp::IsBool(e)
+        | Exp::IsInt(e)
+        | Exp::IsString(e)
+        | Exp::IsList(e)
+        | Exp::IsFun(e) => {
             annotate(env, coercions, e);
         }
         Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {

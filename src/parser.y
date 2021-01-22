@@ -36,6 +36,11 @@ funExp -> Exp :
   | 'head' atom { Exp::Head(maybe_from_any_($2)) }
   | 'tail' atom { Exp::Tail(maybe_from_any_($2)) }
   | 'is_empty' atom { Exp::IsEmpty(maybe_from_any_($2)) }
+  | 'is_bool' atom { Exp::IsBool(maybe_from_any_($2)) }
+  | 'is_int' atom { Exp::IsInt(maybe_from_any_($2)) }
+  | 'is_string' atom { Exp::IsString(maybe_from_any_($2)) }
+  | 'is_list' atom { Exp::IsList(maybe_from_any_($2)) }
+  | 'is_fun' atom { Exp::IsFun(maybe_from_any_($2)) }
   | atom        { $1 }
   ;
 

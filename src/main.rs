@@ -34,9 +34,15 @@ mod tests_631 {
                 panic!("should have been eliminated by typeinf")
             }
             Exp::Lit(..) | Exp::Var(..) | Exp::Empty => false,
-            Exp::Fun(_, _, e) | Exp::Head(e) | Exp::Tail(e) | Exp::IsEmpty(e) => {
-                contains_coercions(*e)
-            }
+            Exp::Fun(_, _, e)
+            | Exp::Head(e)
+            | Exp::Tail(e)
+            | Exp::IsEmpty(e)
+            | Exp::IsBool(e)
+            | Exp::IsInt(e)
+            | Exp::IsString(e)
+            | Exp::IsList(e)
+            | Exp::IsFun(e) => contains_coercions(*e),
             Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {
                 contains_coercions(*e1) || contains_coercions(*e2)
             }
@@ -153,5 +159,11 @@ mod tests_631 {
             "let square = fun n . if false then 0 else n + n in
             square 10 + square 5",
         );
+    }
+    #[test]
+    fn flatten_body() {
+        coerces("let flatten = fun append . fun f . fun x . 
+                    if is_list x then append (f (head x)) (f (tail x)) else x :: empty
+                  in flatten (1 :: empty)");
     }
 }

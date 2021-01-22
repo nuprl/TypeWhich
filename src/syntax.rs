@@ -50,6 +50,12 @@ pub enum Exp {
     IsEmpty(Box<Exp>),
     Head(Box<Exp>),
     Tail(Box<Exp>),
+    /// Type tests
+    IsBool(Box<Exp>),
+    IsInt(Box<Exp>),
+    IsString(Box<Exp>),
+    IsList(Box<Exp>),
+    IsFun(Box<Exp>),
     /// This `u32` is the index of a boolean metavariable. When `true`, the
     /// cast is needed. When `false`, it can be safely removed.
     MaybeToAny(u32, Box<Exp>),
