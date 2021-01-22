@@ -94,6 +94,13 @@ impl<'a> State<'a> {
                 let phi = self.t2z3(&t1)._eq(&self.t2z3(&t));
                 (alpha, Bool::and(self.cxt, &[&phi1, &phi2, &phi]))
             }
+            Exp::Let(x, e1, e2) => {
+                let (t1, phi1) = self.cgen(&env, e1);
+                let mut env = env.clone();
+                env.insert(x.clone(), t1);
+                let (t2, phi2) = self.cgen(&env, e2);
+                (t2, Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
@@ -332,6 +339,10 @@ impl<'a> State<'a> {
 fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &mut Exp) {
     match &mut *exp {
         Exp::Lit(..) | Exp::Var(..) | Exp::Empty => {}
+        Exp::Let(_, e1, e2) => {
+            annotate(env, coercions, e1);
+            annotate(env, coercions, e2);
+        }
         Exp::Fun(_, t, e) => {
             *t = env.get(&t.expect_metavar()).unwrap().clone();
             annotate(env, coercions, e);

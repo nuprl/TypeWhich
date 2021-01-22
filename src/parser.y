@@ -56,7 +56,7 @@ exp -> Exp :
         Exp::If(maybe_from_any_($2), maybe_to_any_($4), maybe_to_any_($6))
     }
   | 'let' id '=' exp 'in' exp {
-        app_(Exp::Fun($2, next_metavar_typ(), Box::new($6)), $4)
+      Exp::Let($2, maybe_from_any_($4), Box::new($6))
     }
   | add '::' exp     { Exp::Cons(maybe_to_any_($1), maybe_from_any_($3)) }
   ;

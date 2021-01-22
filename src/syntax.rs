@@ -16,6 +16,20 @@ impl Typ {
             _ => panic!("expected a Typ::Metavar"),
         }
     }
+
+    pub fn is_arr(&self) -> bool {
+        match self {
+            Typ::Arr(..) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_atom(&self) -> bool {
+        match self {
+            Typ::Int | Typ::Bool | Typ::Str | Typ::Any | Typ::Metavar(..) => false,
+            Typ::Arr(..) | Typ::List(..) => true,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -43,6 +57,7 @@ pub enum Exp {
     Var(Id),
     Fun(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
+    Let(Id, Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     Cons(Box<Exp>, Box<Exp>),
@@ -67,5 +82,29 @@ pub enum Exp {
 impl Exp {
     pub fn take(&mut self) -> Self {
         std::mem::replace(self, Exp::Lit(Lit::Int(0)))
+    }
+
+    pub fn is_app_like(&self) -> bool {
+        match self {
+            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_app_like(),
+            Exp::App(..) | Exp::Cons(..) | Exp::Head(..) | Exp::Tail(..) |
+            Exp::IsBool(..) | Exp::IsInt(..) | Exp::IsString(..) | Exp::IsFun(..) |
+            Exp::ToAny(..) | Exp::FromAny(..) => true,
+            _ => false,
+        }
+    }
+    pub fn is_fun_exp(&self) -> bool {
+        match self {
+            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_fun_exp(),
+            Exp::Fun(..) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_atom(&self) -> bool {
+        match self {
+            Exp::Lit(..) | Exp::Var(_) | Exp::Empty => true,
+            _ => false
+        }
     }
 }

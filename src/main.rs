@@ -1,6 +1,7 @@
 mod cgen;
 mod parser;
 mod syntax;
+mod pretty;
 
 use std::io::*;
 
@@ -43,7 +44,7 @@ mod tests_631 {
             | Exp::IsString(e)
             | Exp::IsList(e)
             | Exp::IsFun(e) => contains_coercions(*e),
-            Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) => {
+            Exp::App(e1, e2) | Exp::Add(e1, e2) | Exp::Cons(e1, e2) | Exp::Let(_, e1, e2) => {
                 contains_coercions(*e1) || contains_coercions(*e2)
             }
             Exp::If(e1, e2, e3) => {
@@ -52,13 +53,17 @@ mod tests_631 {
         }
     }
     fn succeeds(program: &str) {
-        let e = typeinf(&parse(program)).unwrap();
-        println!("{:?}", e);
+        let orig = parse(program);
+        println!("\nOriginal program:\n{}", &orig);
+        let e = typeinf(&orig).unwrap();
+        println!("\nAfter type inference:\n{}", e);
         assert!(!contains_coercions(e));
     }
     fn coerces(program: &str) {
-        let e = typeinf(&parse(program)).unwrap();
-        println!("{:?}", e);
+        let orig = parse(program);
+        println!("\nOriginal program:\n{}", &orig);
+        let e = typeinf(&orig).unwrap();
+        println!("\nAfter type inference:\n{}", e);
         assert!(contains_coercions(e));
     }
     #[test]
