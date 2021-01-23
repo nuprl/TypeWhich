@@ -57,6 +57,7 @@ mod tests_631 {
             | Exp::IsFun(e) => contains_coercions(*e),
             Exp::App(e1, e2)
             | Exp::Add(e1, e2)
+            | Exp::AddOverload(e1, e2)
             | Exp::Mul(e1, e2)
             | Exp::Cons(e1, e2)
             | Exp::Pair(e1, e2)
@@ -94,9 +95,18 @@ mod tests_631 {
     fn addition() {
         succeeds("200 + 9101");
     }
+    /// this is a case like is_empty 900, there is no possible way for this to
+    /// work, so type inference fails early
     #[test]
+    #[should_panic]
     fn num_plus_bool() {
         coerces("1 + true");
+    }
+    /// this isn't really what the 631 test was saying, but it's added here to
+    /// make sure the above isn't a bug
+    #[test]
+    fn num_plus_bool_janky() {
+        coerces("1 +? true");
     }
     #[test]
     fn indir_int_equal_bool() {
@@ -236,5 +246,78 @@ mod tests_631 {
                let l = 1 :: (false :: ((2 :: (true :: empty)) :: empty)) in
                flatten (fun x . fun y. x) (fun x. x) l",
         );
+    }
+}
+
+#[cfg(never)]
+mod tests_migeed_and_parsberg {
+    use super::cgen::typeinf;
+    use super::parser::parse;
+    use super::tests_631::coerces;
+    fn assert_maximal(program: &str, annotated: &str) {
+        let orig = parse(program);
+        println!("\nOriginal program:\n{}", &orig);
+        let e = typeinf(&orig).unwrap();
+        println!("\nAfter type inference:\n{}", e);
+        let correct = typeinf(&parse(annotated)).unwrap();
+        println!("\nCorrect:\n{}", correct);
+        assert_eq!(e, correct);
+    }
+    #[test]
+    fn apply_add() {
+        assert_maximal("fun x . x (x + 1)", "fun x: any . x (x + 1)");
+    }
+    #[test]
+    fn add_applied() {
+        assert_maximal(
+            "fun x             . x ((x true) + 1)",
+            "fun x: any -> int . x ((x true) + 1)",
+        );
+    }
+    #[test]
+    fn add_two_applies() {
+        assert_maximal(
+            "fun x             . x 4 + x true",
+            "fun x: any -> int . x 4 + x true",
+        );
+    }
+    #[test]
+    fn identity_four() {
+        assert_maximal("(fun x . x) 4", "(fun x: int . x) 4");
+    }
+    #[test]
+    fn succ_id_id() {
+        assert_maximal(
+            "1 + ((fun y    .y) ((fun x    .x) true))",
+            "1 + ((fun y:int.y) ((fun x:any.x) true))",
+        );
+    }
+    #[test]
+    fn identity() {
+        assert_maximal("fun x.x", "fun x: int . x");
+    }
+    #[test]
+    fn apply2() {
+        assert_maximal(
+            "fun x    .fun y                    .y x x",
+            "fun x:int.fun y:(int -> int -> int).y x x",
+        );
+    }
+    #[test]
+    fn indirect_apply_self() {
+        assert_maximal("fun x.(fun y.x) x x", "fun x:any.(fun y:int.x) x x");
+    }
+    #[test]
+    fn the_long_one() {
+        assert_maximal(
+            "fun x    .(fun f    .(fun x    .fun y    .x)f(f x))(fun z    .1)",
+            "fun x:int.(fun f:any.(fun x:int.fun y:int.x)f(f x))(fun z:int.1)",
+        );
+    }
+    /// the paper says, "no maximal migration", and not having read the
+    /// whole thing, i'm not sure what that means
+    #[test]
+    fn apply_self() {
+        coerces("fun x.x x");
     }
 }

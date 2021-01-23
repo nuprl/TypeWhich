@@ -11,20 +11,12 @@ pub enum Typ {
 }
 
 impl Typ {
-    pub fn expect_metavar(&self) -> u32 {
-        match self {
-            Typ::Metavar(n) => *n,
-            _ => panic!("expected a Typ::Metavar"),
-        }
-    }
-
     pub fn is_arr(&self) -> bool {
         match self {
             Typ::Arr(..) => true,
             _ => false,
         }
     }
-
     pub fn is_atom(&self) -> bool {
         match self {
             Typ::Int | Typ::Bool | Typ::Str | Typ::Any | Typ::Metavar(..) => false,
@@ -60,6 +52,7 @@ pub enum Exp {
     Fix(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
     Let(Id, Box<Exp>, Box<Exp>),
+    AddOverload(Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
     Mul(Box<Exp>, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),

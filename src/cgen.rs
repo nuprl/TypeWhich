@@ -106,6 +106,10 @@ impl<'a> State<'a> {
                 let phi = self.t2z3(&t1)._eq(&self.t2z3(&t));
                 (alpha, Bool::and(self.cxt, &[&phi1, &phi2, &phi]))
             }
+            // Γ ⊢ e1 : (T_1, φ_1)
+            // Γ,x:T_1 ⊢ e2 : (T_2, φ_2)
+            // ---------------------------------------
+            // Γ ⊢ let x = e1 in e2 : (T_2, φ_1 && φ_2)
             Exp::Let(x, e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let mut env = env.clone();
@@ -113,6 +117,22 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 (t2, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
+            // Γ ⊢ e_1 : (T_1, φ_1)
+            // Γ ⊢ e_2 : (T_2, φ_2)
+            // ----------------------------------------------
+            // Γ ⊢ e_1 + e_2 : (int, φ_1 && φ_2 && T_1 = T_2 = int)
+            Exp::Add(e1, e2) => {
+                let (t1, phi1) = self.cgen(&env, e1);
+                let (t2, phi2) = self.cgen(&env, e2);
+                let t1 = self.t2z3(&t1);
+                let t2 = self.t2z3(&t2);
+                let int_case = Bool::and(self.cxt, &[&t1._eq(self.int_z3), &t2._eq(self.int_z3)]);
+                (Typ::Int, Bool::and(self.cxt, &[&phi1, &phi2, &int_case]))
+            }
+            // Γ ⊢ e_1 : (T_1, φ_1)
+            // Γ ⊢ e_2 : (T_2, φ_2)
+            // ----------------------------------------------
+            // Γ ⊢ e_1 + e_2 : (int, φ_1 && φ_2 && T_1 = T_2 = int)
             Exp::Mul(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -124,10 +144,10 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
-            // Γ ⊢ e_1 + e_2 : (α, φ_1 && φ_2 && (T_1 = T_2 = α = int ||
-            //                                    T_1 = T_2 = α = str ||
-            //                                    T_1 = T_2 = α = any))
-            Exp::Add(e1, e2) => {
+            // Γ ⊢ e_1 +? e_2 : (α, φ_1 && φ_2 && (T_1 = T_2 = α = int ||
+            //                                     T_1 = T_2 = α = str ||
+            //                                     T_1 = T_2 = α = any))
+            Exp::AddOverload(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let alpha = next_metavar_typ();
@@ -420,7 +440,20 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
             annotate(env, coercions, e2);
         }
         Exp::Fun(_, t, e) | Exp::Fix(_, t, e) => {
-            *t = env.get(&t.expect_metavar()).unwrap().clone();
+            // if type already exists, nothing to do
+            match t {
+                Typ::Metavar(i) => {
+                    *t = match env.get(i) {
+                        Some(t) => t.clone(),
+                        // there is no constraint whatsoever on what this type
+                        // can be. Migeed and Parsberg seem to choose Int in this
+                        // case, though i haven't read enough to know if they
+                        // explicitly mention that
+                        None => Typ::Int,
+                    }
+                }
+                _ => (),
+            }
             annotate(env, coercions, e);
         }
         Exp::MaybeToAny(coercion, e) => {
@@ -453,6 +486,7 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
         }
         Exp::App(e1, e2)
         | Exp::Add(e1, e2)
+        | Exp::AddOverload(e1, e2)
         | Exp::Cons(e1, e2)
         | Exp::Pair(e1, e2)
         | Exp::Mul(e1, e2) => {
@@ -553,6 +587,11 @@ mod test {
     }
 
     #[test]
+    fn identity_alone() {
+        println!("{:?}", typeinf(&parse("fun x . x")).unwrap())
+    }
+
+    #[test]
     fn occurs_check_fun_any() {
         // In HM, this would be an occurs-check failure
         println!("{:?}", typeinf(&parse("fun f . f f")).unwrap())
@@ -560,14 +599,14 @@ mod test {
 
     #[test]
     fn test_typeinf_add() {
-        typeinf(&parse("(fun x . x + 20) 10 ")).unwrap();
+        typeinf(&parse("(fun x . x +? 20) 10 ")).unwrap();
     }
 
     #[test]
     fn str_add() {
         println!(
             "{:?}",
-            typeinf(&parse(r#"(fun x . x + x) "everything is ""#)).unwrap()
+            typeinf(&parse(r#"(fun x . x +? x) "everything is ""#)).unwrap()
         );
     }
 
@@ -575,7 +614,7 @@ mod test {
     fn add_str_int_any() {
         println!(
             "{:?}",
-            typeinf(&parse(r#"(fun x . fun y . x + y) "everything is " 10"#)).unwrap()
+            typeinf(&parse(r#"(fun x . fun y . x +? y) "everything is " 10"#)).unwrap()
         );
     }
 
@@ -586,7 +625,7 @@ mod test {
 
     #[test]
     fn ambiguous_add() {
-        println!("{:?}", typeinf(&parse("fun x . x + x")).unwrap());
+        println!("{:?}", typeinf(&parse("fun x . x +? x")).unwrap());
     }
 
     #[test]

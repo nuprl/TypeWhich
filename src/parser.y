@@ -24,6 +24,17 @@ lit -> Lit :
   | str { Lit::Str($1) }
   ;
 
+typ_atom -> Typ :
+    'any'       { Typ::Any }
+  | 'int_typ'   { Typ::Int }
+  | '(' typ ')' { $2 }
+  ;
+
+typ -> Typ :
+    typ_atom '->' typ { Typ::Arr(Box::new($1), Box::new($3)) }
+  | typ_atom          { $1 }
+  ;
+
 atom -> Exp :
     '(' exp ')' { $2 }
   | lit         { Exp::Lit($1) }
@@ -50,8 +61,9 @@ mul -> Exp :
   ;
 
 add -> Exp :
-    add '+' mul { Exp::Add(maybe_to_any_($1), maybe_to_any_($3)) }
-  | mul         { $1 }
+    add '+' mul  { Exp::Add(maybe_from_any_($1), maybe_from_any_($3)) }
+  | add '+?' mul { Exp::AddOverload(maybe_to_any_($1), maybe_to_any_($3)) }
+  | mul          { $1 }
   ;
 
 pair -> Exp :
@@ -61,6 +73,7 @@ pair -> Exp :
 
 exp -> Exp :
     'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
+  | 'fun' id ':' typ '.' exp { Exp::Fun($2, $4, Box::new($6)) }
   | 'fix' id '.' exp { Exp::Fix($2, next_metavar_typ(), Box::new($4)) }
   | pair             { $1 }
   | 'if' exp 'then' exp 'else' exp {
@@ -84,5 +97,5 @@ fn maybe_from_any_(e: Exp) -> Box<Exp> {
     Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e)))
 }
 
-use super::syntax::{Exp,Lit};
+use super::syntax::{Exp, Lit, Typ};
 use super::parser::{next_metavar, next_metavar_typ};

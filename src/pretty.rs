@@ -157,6 +157,12 @@ impl Pretty for Exp {
                 pp.text(" + "),
                 parens_if(pp, &**e2, e2.is_add_or_looser()),
             ]),
+            Exp::AddOverload(e1, e2) => pp.concat(vec![
+                // should be pair or looser
+                parens_if(pp, &**e1, e1.is_fun_exp()),
+                pp.text(" +? "),
+                parens_if(pp, &**e2, e2.is_add_or_looser()),
+            ]),
             Exp::Mul(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_add_or_looser()),
                 pp.text(" * "),
