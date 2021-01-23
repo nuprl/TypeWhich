@@ -52,6 +52,8 @@ funExp -> Exp :
   | 'is_string' atom { Exp::IsString(maybe_from_any_($2)) }
   | 'is_list' atom { Exp::IsList(maybe_from_any_($2)) }
   | 'is_fun' atom { Exp::IsFun(maybe_from_any_($2)) }
+  | 'to_any' atom { Exp::ToAny(Box::new($2)) }
+  | 'from_any' atom { Exp::FromAny(Box::new($2)) }
   | atom        { $1 }
   ;
 
@@ -72,7 +74,7 @@ pair -> Exp :
   ;
 
 exp -> Exp :
-    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
+    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), maybe_to_any_($4)) }
   | 'fun' id ':' typ '.' exp { Exp::Fun($2, $4, Box::new($6)) }
   | 'fix' id '.' exp { Exp::Fix($2, next_metavar_typ(), Box::new($4)) }
   | pair             { $1 }
