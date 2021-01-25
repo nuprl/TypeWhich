@@ -249,17 +249,21 @@ mod tests_631 {
     }
 }
 
-#[cfg(never)]
+#[cfg(test)]
 mod tests_migeed_and_parsberg {
     use super::cgen::typeinf;
     use super::parser::parse;
     use super::tests_631::coerces;
+
+    // TODO(arjun): _maximal in the name is not accurate. Alternative name:
+    // assert_ti_ok
     fn assert_maximal(program: &str, annotated: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
-        let e = typeinf(&orig).unwrap();
+        let e = typeinf(&orig).expect("type inference failed on the original program");
         println!("\nAfter type inference:\n{}", e);
-        let correct = typeinf(&parse(annotated)).unwrap();
+        let correct =
+            typeinf(&parse(annotated)).expect("type inference failed on the expected program");
         println!("\nCorrect:\n{}", correct);
         assert_eq!(e, correct);
     }
@@ -267,15 +271,21 @@ mod tests_migeed_and_parsberg {
     fn apply_add() {
         assert_maximal("fun x . x (x + 1)", "fun x: any . x (x + 1)");
     }
+
     #[test]
+    #[ignore]
     fn add_applied() {
+        // TODO(arjun): We get a different result. Worth discussing.
         assert_maximal(
             "fun x             . x ((x true) + 1)",
             "fun x: any -> int . x ((x true) + 1)",
         );
     }
+
     #[test]
+    #[ignore]
     fn add_two_applies() {
+        // TODO(arjun): We get a different result. Worth discussing.
         assert_maximal(
             "fun x             . x 4 + x true",
             "fun x: any -> int . x 4 + x true",
@@ -285,6 +295,7 @@ mod tests_migeed_and_parsberg {
     fn identity_four() {
         assert_maximal("(fun x . x) 4", "(fun x: int . x) 4");
     }
+
     #[test]
     fn succ_id_id() {
         assert_maximal(
@@ -296,8 +307,12 @@ mod tests_migeed_and_parsberg {
     fn identity() {
         assert_maximal("fun x.x", "fun x: int . x");
     }
+
     #[test]
+    #[ignore]
     fn apply2() {
+        // TODO(arjun): We get any -> any -> any as the type on the arrow, which
+        // results in just as few coercions.
         assert_maximal(
             "fun x    .fun y                    .y x x",
             "fun x:int.fun y:(int -> int -> int).y x x",

@@ -296,7 +296,10 @@ impl<'a> State<'a> {
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ MaybeFromAny (cα, e) : (α, φ && ((cα = false && α = T) ||
-            //                                      (cα = true && α != any && T = any)))
+            //                                      (cα = true &&
+            //                                       T = any &&
+            //                                       α != any &&
+            //                                       is_fun α => α = any -> any)))
             Exp::MaybeFromAny(calpha, e) => {
                 let calpha = self.c2z3(*calpha);
                 let (t, phi1) = self.cgen(env, e);
@@ -304,12 +307,16 @@ impl<'a> State<'a> {
                 let alpha = next_metavar_typ();
                 let dont_coerce_case =
                     Bool::and(self.cxt, &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)]);
+                let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
                 let do_coerce_case = Bool::and(
                     self.cxt,
                     &[
                         &calpha,
-                        &Bool::not(&self.t2z3(&alpha)._eq(self.any_z3)),
                         &t._eq(self.any_z3),
+                        &Bool::not(&self.t2z3(&alpha)._eq(self.any_z3)),
+                        &self
+                            .z3_is_arr(&self.t2z3(&alpha))
+                            .implies(&self.t2z3(&alpha)._eq(&self.t2z3(&any_to_any))),
                     ],
                 );
                 let phi2 = Bool::or(self.cxt, &[&dont_coerce_case, &do_coerce_case]);
@@ -342,6 +349,11 @@ impl<'a> State<'a> {
             .as_bool()
             .unwrap()
     }
+
+    fn z3_is_arr<'b>(&'b self, e: &ast::Dynamic<'b>) -> ast::Bool<'b> {
+        self.typ.variants[3].tester.apply(&[&e]).as_bool().unwrap()
+    }
+
     fn is_int(&self, model: &Model, e: &ast::Dynamic) -> bool {
         self.is_variant(0, model, e)
     }
