@@ -70,6 +70,7 @@ add -> Exp :
 
 pair -> Exp :
     pair ',' add { Exp::Pair(Box::new($1), Box::new($3)) }
+  | pair '=' add { Exp::IntEq(maybe_from_any_($1), maybe_from_any_($3)) }
   | add          { $1 }
   ;
 
@@ -82,7 +83,7 @@ exp -> Exp :
         Exp::If(maybe_from_any_($2), maybe_to_any_($4), maybe_to_any_($6))
     }
   | 'let' id '=' exp 'in' exp {
-      Exp::Let($2, maybe_from_any_($4), Box::new($6))
+      Exp::Let($2, next_metavar_typ(), maybe_from_any_($4), Box::new($6))
     }
   | pair '::' exp    { Exp::Cons(maybe_to_any_($1), maybe_from_any_($3)) }
   ;

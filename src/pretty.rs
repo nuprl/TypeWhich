@@ -104,10 +104,13 @@ impl Pretty for Exp {
         match self {
             Exp::Lit(l) => l.pretty(pp),
             Exp::Var(x) => pp.text(x),
-            Exp::Let(x, e1, e2) => pp.concat(vec![
+            Exp::Let(x, ty, e1, e2) => pp.concat(vec![
                 pp.text("let"),
                 pp.space(),
                 pp.text(x),
+                pp.text(":"),
+                pp.space(),
+                ty.pretty(pp),
                 pp.space(),
                 pp.text("="),
                 pp.space(),
@@ -167,6 +170,13 @@ impl Pretty for Exp {
                 parens_if(pp, &**e1, e1.is_add_or_looser()),
                 pp.text(" * "),
                 parens_if(pp, &**e2, e2.is_mul_or_looser()),
+            ]),
+            Exp::IntEq(e1, e2) => pp.concat(vec![
+                parens_if(pp, &**e1, e1.is_fun_exp()),
+                pp.text(","),
+                pp.space(),
+                // should be is pair or looser (because pair is left associative)
+                parens_if(pp, &**e2, e2.is_fun_exp()),
             ]),
             Exp::If(e1, e2, e3) => pp.concat(vec![
                 pp.text("if"),

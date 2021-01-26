@@ -59,9 +59,10 @@ mod tests_631 {
             | Exp::Add(e1, e2)
             | Exp::AddOverload(e1, e2)
             | Exp::Mul(e1, e2)
+            | Exp::IntEq(e1, e2)
             | Exp::Cons(e1, e2)
             | Exp::Pair(e1, e2)
-            | Exp::Let(_, e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
+            | Exp::Let(.., e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
             Exp::If(e1, e2, e3) => contains_coercions(*e1)
                 .or(contains_coercions(*e2))
                 .or(contains_coercions(*e3)),
