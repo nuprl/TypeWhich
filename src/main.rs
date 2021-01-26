@@ -300,7 +300,7 @@ mod tests_migeed_and_parsberg {
     fn succ_id_id() {
         assert_maximal(
             "1 + ((fun y    .y) ((fun x    .x) true))",
-            "1 + ((fun y:int.y) ((fun x:any.x) true))",
+            "1 + ((fun y:int.y) (from_any ((fun x:any.x) true)))",
         );
     }
     #[test]
@@ -329,10 +329,27 @@ mod tests_migeed_and_parsberg {
             "fun x:int.(fun f:any.(fun x:int.fun y:int.x)f(f x))(fun z:int.1)",
         );
     }
-    /// the paper says, "no maximal migration", and not having read the
-    /// whole thing, i'm not sure what that means
+    /// this benchmark has no maximal migration, which means that x could be
+    /// given an infinity recursive arrow type (t -> t -> t -> ...). we will
+    /// give it... something
     #[test]
     fn apply_self() {
         coerces("fun x.x x");
+    }
+    /// this benchmark has an unknown maximal migration. because Migeed's
+    /// algorithm is incomplete, it sometimes does not report whether a maximal
+    /// solution exists. in practice, this probably means that there is no maximal
+    /// migration. we still give it some type
+    #[test]
+    fn untypable_in_sys_f() {
+        coerces("(fun x.fun y.y(x(fun x.x))(x(fun b.fun c.b)))(fun d.d d)");
+    }
+    /// unknown to Migeed and Parsberg. self interpreter for the lambda calculus
+    #[test]
+    fn self_interpreter() {
+        coerces(
+            "(fun h.(fun x.h(x x))(fun x.h x x))
+             (fun e.fun m.m(fun x.x)(fun m.fun n.(e m)(e n))(fun m.fun v.e (m v)))",
+        );
     }
 }
