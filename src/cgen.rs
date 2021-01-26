@@ -132,7 +132,7 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
-            // Γ ⊢ e_1 + e_2 : (int, φ_1 && φ_2 && T_1 = T_2 = int)
+            // Γ ⊢ e_1 * e_2 : (int, φ_1 && φ_2 && T_1 = T_2 = int)
             Exp::Mul(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -188,8 +188,8 @@ impl<'a> State<'a> {
             // Γ ⊢ e_2 : (T_2, φ_2)
             // Γ ⊢ e_3 : (T_3, φ_3)
             // ----------------------------------------------
-            // Γ ⊢ e_1 + e_2 : (α, φ_1 && φ_2 && φ_3 && T_1 = bool &&
-            //                                          T_2 = T_3
+            // Γ ⊢ if e_1 then e_2 else e_3 : (α, φ_1 && φ_2 && φ_3 && 
+            //                                    T_1 = bool && T_2 = T_3)
             Exp::If(e1, e2, e3) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -267,9 +267,8 @@ impl<'a> State<'a> {
             // ----------------------------------------------
             // Γ ⊢ is_GROUND e : (bool, φ)
             Exp::IsBool(e) | Exp::IsInt(e) | Exp::IsString(e) | Exp::IsList(e) | Exp::IsFun(e) => {
-                // 2021-01-21 MMG we could make this stronger (if t is known not to be GROUND or Any)
-                let (_t, phi1) = self.cgen(env, e);
-                (Typ::Bool, phi1)
+                let (t1, phi1) = self.cgen(env, e);
+                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &self.t2z3(&t1)._eq(self.any_z3)]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
