@@ -3,6 +3,9 @@ mod parser;
 mod pretty;
 mod syntax;
 
+#[cfg(test)]
+mod grift;
+
 use std::io::*;
 
 lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
