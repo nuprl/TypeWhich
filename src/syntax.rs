@@ -55,6 +55,7 @@ pub enum Exp {
     AddOverload(Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
     Mul(Box<Exp>, Box<Exp>),
+    Not(Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     Pair(Box<Exp>, Box<Exp>),
     Cons(Box<Exp>, Box<Exp>),

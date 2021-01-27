@@ -168,6 +168,10 @@ impl Pretty for Exp {
                 pp.text(" * "),
                 parens_if(pp, &**e2, e2.is_mul_or_looser()),
             ]),
+            Exp::Not(e1) => pp.concat(vec![
+                pp.text("not "),
+                parens_if(pp, &**e1, e1.is_mul_or_looser()),
+            ]),
             Exp::If(e1, e2, e3) => pp.concat(vec![
                 pp.text("if"),
                 pp.space(),

@@ -49,6 +49,7 @@ mod tests_631 {
             | Exp::Fix(_, _, e)
             | Exp::Head(e)
             | Exp::Tail(e)
+            | Exp::Not(e)
             | Exp::IsEmpty(e)
             | Exp::IsBool(e)
             | Exp::IsInt(e)

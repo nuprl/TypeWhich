@@ -27,6 +27,7 @@ lit -> Lit :
 typ_atom -> Typ :
     'any'       { Typ::Any }
   | 'int_typ'   { Typ::Int }
+  | 'bool'      { Typ::Bool }
   | '(' typ ')' { $2 }
   ;
 
@@ -57,6 +58,7 @@ funExp -> Exp :
 
 mul -> Exp :
     mul '*' funExp { Exp::Mul(maybe_from_any_($1), maybe_from_any_($3)) }
+  | 'not' funExp   { Exp::Not(maybe_from_any_($2)) }
   | funExp         { $1 }
   ;
 

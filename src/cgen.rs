@@ -141,6 +141,14 @@ impl<'a> State<'a> {
                 let int_case = Bool::and(self.cxt, &[&t1._eq(self.int_z3), &t2._eq(self.int_z3)]);
                 (Typ::Int, Bool::and(self.cxt, &[&phi1, &phi2, &int_case]))
             }
+            // Γ ⊢ e : (T, φ)
+            // ----------------------------------------------
+            // Γ ⊢ not e : (bool, φ && T = bool)
+            Exp::Not(e) => {
+                let (t, phi1) = self.cgen(&env, e);
+                let phi2 = self.t2z3(&t)._eq(self.bool_z3);
+                (Typ::Int, Bool::and(self.cxt, &[&phi1, &phi2]))
+            }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
@@ -188,7 +196,7 @@ impl<'a> State<'a> {
             // Γ ⊢ e_2 : (T_2, φ_2)
             // Γ ⊢ e_3 : (T_3, φ_3)
             // ----------------------------------------------
-            // Γ ⊢ if e_1 then e_2 else e_3 : (α, φ_1 && φ_2 && φ_3 && 
+            // Γ ⊢ if e_1 then e_2 else e_3 : (α, φ_1 && φ_2 && φ_3 &&
             //                                    T_1 = bool && T_2 = T_3)
             Exp::If(e1, e2, e3) => {
                 let (t1, phi1) = self.cgen(&env, e1);
@@ -268,7 +276,10 @@ impl<'a> State<'a> {
             // Γ ⊢ is_GROUND e : (bool, φ)
             Exp::IsBool(e) | Exp::IsInt(e) | Exp::IsString(e) | Exp::IsList(e) | Exp::IsFun(e) => {
                 let (t1, phi1) = self.cgen(env, e);
-                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &self.t2z3(&t1)._eq(self.any_z3)]))
+                (
+                    Typ::Bool,
+                    Bool::and(self.cxt, &[&phi1, &self.t2z3(&t1)._eq(self.any_z3)]),
+                )
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -487,6 +498,7 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
         | Exp::FromAny(e)
         | Exp::Head(e)
         | Exp::Tail(e)
+        | Exp::Not(e)
         | Exp::IsEmpty(e)
         | Exp::IsBool(e)
         | Exp::IsInt(e)
@@ -662,6 +674,19 @@ mod test {
              // have stayed any just fine
              // the conditional is here to allow the to_any
              accepts_any (if true then true else false)",
+        );
+    }
+
+    #[test]
+    fn cond_int_bool() {
+        println!(
+            "{}",
+            typeinf(&parse(
+                "let f = fun b.fun x. if b then x + 1 else not x in
+                 let y = f true 5 in
+                 f false false"
+            ))
+            .unwrap()
         );
     }
 }
