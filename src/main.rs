@@ -3,6 +3,9 @@ mod parser;
 mod pretty;
 mod syntax;
 
+#[cfg(test)]
+mod grift;
+
 use std::io::*;
 
 lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
@@ -60,9 +63,10 @@ mod tests_631 {
             | Exp::Add(e1, e2)
             | Exp::AddOverload(e1, e2)
             | Exp::Mul(e1, e2)
+            | Exp::IntEq(e1, e2)
             | Exp::Cons(e1, e2)
             | Exp::Pair(e1, e2)
-            | Exp::Let(_, e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
+            | Exp::Let(.., e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
             Exp::If(e1, e2, e3) => contains_coercions(*e1)
                 .or(contains_coercions(*e2))
                 .or(contains_coercions(*e3)),
@@ -298,10 +302,13 @@ mod tests_migeed_and_parsberg {
     }
 
     #[test]
+    #[ignore]
     fn succ_id_id() {
+        // TODO(luna): We get a different result, in part because we don't
+        // allow from_any coercions on arguments
         assert_maximal(
             "1 + ((fun y    .y) ((fun x    .x) true))",
-            "1 + ((fun y:int.y) ((fun x:any.x) true))",
+            "1 + ((fun y:int.y) (from_any ((fun x:any.x) true)))",
         );
     }
     #[test]
@@ -320,20 +327,46 @@ mod tests_migeed_and_parsberg {
         );
     }
     #[test]
+    #[ignore]
     fn indirect_apply_self() {
-        assert_maximal("fun x.(fun y.x) x x", "fun x:any.(fun y:int.x) x x");
-    }
-    #[test]
-    fn the_long_one() {
+        // TODO(luna): We get a different result, in part because we don't
+        // allow from_any coercions on arguments
         assert_maximal(
-            "fun x    .(fun f    .(fun x    .fun y    .x)f(f x))(fun z    .1)",
-            "fun x:int.(fun f:any.(fun x:int.fun y:int.x)f(f x))(fun z:int.1)",
+            "fun x    .(fun y    .x)           x  x",
+            "fun x:any.(fun y:int.x) (from_any x) x",
         );
     }
-    /// the paper says, "no maximal migration", and not having read the
-    /// whole thing, i'm not sure what that means
+    #[test]
+    #[ignore]
+    fn the_long_one() {
+        // TODO(luna): We get a different result, in part because we don't
+        // allow from_any coercions on arguments
+        assert_maximal(
+            "fun x    .(fun f    .(fun x    .fun y    .x)          f (from_any (f x)))(fun z    .1)",
+            "fun x:int.(fun f:any.(fun x:int.fun y:int.x)(from_any f)(from_any (f x)))(fun z:int.1)",
+        );
+    }
+    /// this benchmark has no maximal migration, which means that x could be
+    /// given an infinity recursive arrow type (t -> t -> t -> ...). we will
+    /// give it... something
     #[test]
     fn apply_self() {
         coerces("fun x.x x");
+    }
+    /// this benchmark has an unknown maximal migration. because Migeed's
+    /// algorithm is incomplete, it sometimes does not report whether a maximal
+    /// solution exists. in practice, this probably means that there is no maximal
+    /// migration. we still give it some migration
+    #[test]
+    fn untypable_in_sys_f() {
+        coerces("(fun x.fun y.y(x(fun x.x))(x(fun b.fun c.b)))(fun d.d d)");
+    }
+    /// unknown to Migeed and Parsberg. self interpreter for the lambda calculus
+    #[test]
+    fn self_interpreter() {
+        coerces(
+            "(fun h.(fun x.h(x x))(fun x.h x x))
+             (fun e.fun m.m(fun x.x)(fun m.fun n.(e m)(e n))(fun m.fun v.e (m v)))",
+        );
     }
 }

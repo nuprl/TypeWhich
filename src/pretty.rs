@@ -104,10 +104,26 @@ impl Pretty for Exp {
         match self {
             Exp::Lit(l) => l.pretty(pp),
             Exp::Var(x) => pp.text(x),
-            Exp::Let(x, e1, e2) => pp.concat(vec![
+            Exp::Let(x, Typ::Metavar(_), e1, e2) => pp.concat(vec![
                 pp.text("let"),
                 pp.space(),
                 pp.text(x),
+                pp.space(),
+                pp.text("="),
+                pp.space(),
+                e1.pretty(pp).nest(2),
+                pp.space(),
+                pp.text("in"),
+                pp.line(),
+                e2.pretty(pp),
+            ]),
+            Exp::Let(x, ty, e1, e2) => pp.concat(vec![
+                pp.text("let"),
+                pp.space(),
+                pp.text(x),
+                pp.text(":"),
+                pp.space(),
+                ty.pretty(pp),
                 pp.space(),
                 pp.text("="),
                 pp.space(),
@@ -168,6 +184,13 @@ impl Pretty for Exp {
                 pp.text(" * "),
                 parens_if(pp, &**e2, e2.is_mul_or_looser()),
             ]),
+            Exp::IntEq(e1, e2) => pp.concat(vec![
+                parens_if(pp, &**e1, e1.is_fun_exp()),
+                pp.text(","),
+                pp.space(),
+                // should be is pair or looser (because pair is left associative)
+                parens_if(pp, &**e2, e2.is_fun_exp()),
+            ]),
             Exp::Not(e1) => pp.concat(vec![
                 pp.text("not "),
                 parens_if(pp, &**e1, e1.is_mul_or_looser()),
@@ -216,10 +239,16 @@ impl Pretty for Exp {
             Exp::IsFun(e) => pp.concat(vec![pp.text("is_fun"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::MaybeToAny(_, e) => e.pretty(pp),
             Exp::MaybeFromAny(_, e) => e.pretty(pp),
-            Exp::ToAny(e) => pp.concat(vec![pp.text("to_any"), pp.space(), e.pretty(pp).nest(2)]),
-            Exp::FromAny(e) => {
-                pp.concat(vec![pp.text("from_any"), pp.space(), e.pretty(pp).nest(2)])
-            }
+            Exp::ToAny(e) => pp.concat(vec![
+                pp.text("to_any"),
+                pp.space(),
+                parens_if(pp, &**e, !e.is_atom()).nest(2),
+            ]),
+            Exp::FromAny(e) => pp.concat(vec![
+                pp.text("from_any"),
+                pp.space(),
+                parens_if(pp, &**e, !e.is_atom()).nest(2),
+            ]),
         }
     }
 }

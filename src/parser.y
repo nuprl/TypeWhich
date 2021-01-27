@@ -53,6 +53,8 @@ funExp -> Exp :
   | 'is_string' atom { Exp::IsString(maybe_to_any_($2)) }
   | 'is_list' atom { Exp::IsList(maybe_to_any_($2)) }
   | 'is_fun' atom { Exp::IsFun(maybe_to_any_($2)) }
+  | 'to_any' atom { Exp::ToAny(Box::new($2)) }
+  | 'from_any' atom { Exp::FromAny(Box::new($2)) }
   | atom        { $1 }
   ;
 
@@ -70,11 +72,12 @@ add -> Exp :
 
 pair -> Exp :
     pair ',' add { Exp::Pair(Box::new($1), Box::new($3)) }
+  | pair '=' add { Exp::IntEq(maybe_from_any_($1), maybe_from_any_($3)) }
   | add          { $1 }
   ;
 
 exp -> Exp :
-    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
+    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), maybe_to_any_($4)) }
   | 'fun' id ':' typ '.' exp { Exp::Fun($2, $4, Box::new($6)) }
   | 'fix' id '.' exp { Exp::Fix($2, next_metavar_typ(), Box::new($4)) }
   | pair             { $1 }
@@ -82,7 +85,7 @@ exp -> Exp :
         Exp::If(maybe_from_any_($2), maybe_to_any_($4), maybe_to_any_($6))
     }
   | 'let' id '=' exp 'in' exp {
-      Exp::Let($2, maybe_from_any_($4), Box::new($6))
+      Exp::Let($2, next_metavar_typ(), maybe_from_any_($4), Box::new($6))
     }
   | pair '::' exp    { Exp::Cons(maybe_to_any_($1), maybe_from_any_($3)) }
   ;

@@ -72,7 +72,9 @@ impl<'a> State<'a> {
             // ---------------------------
             // Γ ⊢ x : (Γ(x), true)
             Exp::Var(x) => (
-                env.get(x).expect("unbound identifier").clone(),
+                env.get(x)
+                    .unwrap_or_else(|| panic!("unbound identifier {}", x))
+                    .clone(),
                 self.z3_true(),
             ),
             // Γ,x:T ⊢ e : (T_2, φ)
@@ -109,19 +111,20 @@ impl<'a> State<'a> {
             // Γ ⊢ e1 : (T_1, φ_1)
             // Γ,x:T_1 ⊢ e2 : (T_2, φ_2)
             // ---------------------------------------
-            // Γ ⊢ let x = e1 in e2 : (T_2, φ_1 && φ_2)
-            Exp::Let(x, e1, e2) => {
+            // Γ ⊢ let x: α = e1 in e2 : (T_2, φ_1 && φ_2 && α == T_1)
+            Exp::Let(x, alpha, e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
+                let phi3 = self.t2z3(alpha)._eq(&self.t2z3(&t1));
                 let mut env = env.clone();
                 env.insert(x.clone(), t1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                (t2, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (t2, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
-            // Γ ⊢ e_1 + e_2 : (int, φ_1 && φ_2 && T_1 = T_2 = int)
-            Exp::Add(e1, e2) => {
+            // Γ ⊢ e_1 [+*] e_2 : (int, φ_1 && φ_2 && T_1 = T_2 = int)
+            Exp::Add(e1, e2) | Exp::Mul(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let t1 = self.t2z3(&t1);
@@ -132,14 +135,14 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
             // ----------------------------------------------
-            // Γ ⊢ e_1 * e_2 : (int, φ_1 && φ_2 && T_1 = T_2 = int)
-            Exp::Mul(e1, e2) => {
+            // Γ ⊢ e_1 = e_2 : (bool, φ_1 && φ_2 && T_1 = T_2 = int)
+            Exp::IntEq(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let t1 = self.t2z3(&t1);
                 let t2 = self.t2z3(&t2);
                 let int_case = Bool::and(self.cxt, &[&t1._eq(self.int_z3), &t2._eq(self.int_z3)]);
-                (Typ::Int, Bool::and(self.cxt, &[&phi1, &phi2, &int_case]))
+                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &phi2, &int_case]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -454,28 +457,33 @@ impl<'a> State<'a> {
     }
 }
 
+fn annotate_typ<'a>(env: &HashMap<u32, Typ>, t: &mut Typ) {
+    // if type already exists, nothing to do
+    match t {
+        Typ::Metavar(i) => {
+            *t = match env.get(i) {
+                Some(t) => t.clone(),
+                // there is no constraint whatsoever on what this type
+                // can be. Migeed and Parsberg seem to choose Int in this
+                // case, though i haven't read enough to know if they
+                // explicitly mention that
+                None => Typ::Int,
+            }
+        }
+        _ => (),
+    }
+}
+
 fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &mut Exp) {
     match &mut *exp {
         Exp::Lit(..) | Exp::Var(..) | Exp::Empty => {}
-        Exp::Let(_, e1, e2) => {
+        Exp::Let(_, t, e1, e2) => {
+            annotate_typ(env, t);
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
         }
         Exp::Fun(_, t, e) | Exp::Fix(_, t, e) => {
-            // if type already exists, nothing to do
-            match t {
-                Typ::Metavar(i) => {
-                    *t = match env.get(i) {
-                        Some(t) => t.clone(),
-                        // there is no constraint whatsoever on what this type
-                        // can be. Migeed and Parsberg seem to choose Int in this
-                        // case, though i haven't read enough to know if they
-                        // explicitly mention that
-                        None => Typ::Int,
-                    }
-                }
-                _ => (),
-            }
+            annotate_typ(env, t);
             annotate(env, coercions, e);
         }
         Exp::MaybeToAny(coercion, e) => {
@@ -510,6 +518,7 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
         Exp::App(e1, e2)
         | Exp::Add(e1, e2)
         | Exp::AddOverload(e1, e2)
+        | Exp::IntEq(e1, e2)
         | Exp::Cons(e1, e2)
         | Exp::Pair(e1, e2)
         | Exp::Mul(e1, e2) => {
