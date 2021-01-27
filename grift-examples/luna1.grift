@@ -1,0 +1,4 @@
+;; This is a translation of Luna's untyped example into Grift
+((lambda (i)
+    (((lambda (a) (lambda (b) b)) (i 10)) (i #t)))
+ (lambda (x) x))
