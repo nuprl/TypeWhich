@@ -220,7 +220,8 @@ impl Pretty for Exp {
                 pp.space(),
                 e2.pretty(pp).nest(2),
             ]),
-            Exp::Empty => pp.text("empty"),
+            Exp::Empty(Typ::Metavar(_)) => pp.text("empty"),
+            Exp::Empty(t) => pp.concat(vec![pp.text("empty:"), pp.space(), t.pretty(pp)]),
             Exp::IsEmpty(e) => {
                 pp.concat(vec![pp.text("is_empty"), pp.space(), e.pretty(pp).nest(2)])
             }
@@ -238,14 +239,16 @@ impl Pretty for Exp {
             Exp::IsList(e) => pp.concat(vec![pp.text("is_list"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::IsFun(e) => pp.concat(vec![pp.text("is_fun"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::MaybeToAny(_, e) => e.pretty(pp),
-            Exp::MaybeFromAny(_, e) => e.pretty(pp),
+            Exp::MaybeFromAny(.., e) => e.pretty(pp),
             Exp::ToAny(e) => pp.concat(vec![
                 pp.text("to_any"),
                 pp.space(),
                 parens_if(pp, &**e, !e.is_atom()).nest(2),
             ]),
-            Exp::FromAny(e) => pp.concat(vec![
-                pp.text("from_any"),
+            Exp::FromAny(t, e) => pp.concat(vec![
+                pp.text("from_any:"),
+                pp.space(),
+                t.pretty(pp),
                 pp.space(),
                 parens_if(pp, &**e, !e.is_atom()).nest(2),
             ]),

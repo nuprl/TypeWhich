@@ -128,9 +128,8 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             should_match(&Typ::List(Box::new(t1)), tcheck(&env, e2)?)
         }
         // ----------------------------------------------
-        // Γ ⊢ empty : ???
-        // TODO(luna): Exp::Empty probably needs an annotation
-        Exp::Empty => todo!(),
+        // Γ ⊢ empty: T : List(T)
+        Exp::Empty(t) => Ok(Typ::List(Box::new(t.clone()))),
         // Γ ⊢ e : List(T)
         // ----------------------------------------------
         // Γ ⊢ head e : T
@@ -168,6 +167,20 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             should_match(&Typ::Any, tcheck(env, e)?)?;
             Ok(Typ::Bool)
         }
+        // even though these should be removed by type inference, it's possible
+        // we never did type inference on this program. so consider these no-ops
+        Exp::MaybeToAny(_, e) => tcheck(env, e),
+        Exp::MaybeFromAny(_, t, e) => {
+            match t {
+                Typ::Metavar(..) => (),
+                _ => panic!(
+                    "a maybe_from_any appeared which indicates we didn't
+                    do type inference, but we got a type besides a
+                    metavariable..."
+                ),
+            }
+            tcheck(env, e)
+        }
         // Γ ⊢ e : T where T != any
         // ----------------------------------------------
         // Γ ⊢ to_any e : any
@@ -181,14 +194,11 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
         }
         // Γ ⊢ e : any
         // ----------------------------------------------
-        // Γ ⊢ from_any e : ???
-        // TODO(luna): i think from_any needs a typ annotation
-        Exp::FromAny(e) => {
+        // Γ ⊢ from_any: T e : T
+        Exp::FromAny(t, e) => {
             should_match(&Typ::Any, tcheck(env, e)?)?;
-            todo!("from_any annotation")
+            Ok(t.clone())
         }
-        Exp::MaybeToAny(..) => panic!("maybe_to_any not removed by type inference"),
-        Exp::MaybeFromAny(..) => panic!("maybe_from_any not removed by type inference"),
     }
 }
 

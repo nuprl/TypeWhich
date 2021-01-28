@@ -236,11 +236,8 @@ impl<'a> State<'a> {
                 (t2, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
             }
             // ----------------------------------------------
-            // Γ ⊢ empty : (List(α), true)
-            Exp::Empty => {
-                let alpha = next_metavar_typ();
-                (Typ::List(Box::new(alpha)), self.z3_true())
-            }
+            // Γ ⊢ empty α : (List(α), true)
+            Exp::Empty(alpha) => (Typ::List(Box::new(alpha.clone())), self.z3_true()),
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ head e : (α, φ && List(α) = T)
@@ -308,16 +305,15 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
-            // Γ ⊢ MaybeFromAny (cα, e) : (α, φ && ((cα = false && α = T) ||
+            // Γ ⊢ MaybeFromAny (cα, α, e) : (α, φ && ((cα = false && α = T) ||
             //                                      (cα = true &&
             //                                       T = any &&
             //                                       α != any &&
             //                                       is_fun α => α = any -> any)))
-            Exp::MaybeFromAny(calpha, e) => {
+            Exp::MaybeFromAny(calpha, alpha, e) => {
                 let calpha = self.c2z3(*calpha);
                 let (t, phi1) = self.cgen(env, e);
                 let t = self.t2z3(&t);
-                let alpha = next_metavar_typ();
                 let dont_coerce_case =
                     Bool::and(self.cxt, &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)]);
                 let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
@@ -333,7 +329,7 @@ impl<'a> State<'a> {
                     ],
                 );
                 let phi2 = Bool::or(self.cxt, &[&dont_coerce_case, &do_coerce_case]);
-                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (alpha.clone(), Bool::and(self.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -346,11 +342,10 @@ impl<'a> State<'a> {
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ ToAny (e) : (α, φ && T = any)
-            Exp::FromAny(e) => {
+            Exp::FromAny(t, e) => {
                 let (t1, phi1) = self.cgen(env, e);
                 let phi2 = self.t2z3(&t1)._eq(self.any_z3);
-                let alpha = next_metavar_typ();
-                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (t.clone(), Bool::and(self.cxt, &[&phi1, &phi2]))
             }
         }
     }
@@ -476,7 +471,8 @@ fn annotate_typ<'a>(env: &HashMap<u32, Typ>, t: &mut Typ) {
 
 fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &mut Exp) {
     match &mut *exp {
-        Exp::Lit(..) | Exp::Var(..) | Exp::Empty => {}
+        Exp::Lit(..) | Exp::Var(..) => {}
+        Exp::Empty(t) => annotate_typ(env, t),
         Exp::Let(_, t, e1, e2) => {
             annotate_typ(env, t);
             annotate(env, coercions, e1);
@@ -494,16 +490,17 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
                 *exp = e.take();
             }
         }
-        Exp::MaybeFromAny(coercion, e) => {
+        Exp::MaybeFromAny(coercion, t, e) => {
             annotate(env, coercions, e);
             if *coercions.get(&coercion).unwrap() {
-                *exp = Exp::FromAny(Box::new(e.take()));
+                annotate_typ(env, t);
+                *exp = Exp::FromAny(t.clone(), Box::new(e.take()));
             } else {
                 *exp = e.take();
             }
         }
         Exp::ToAny(e)
-        | Exp::FromAny(e)
+        | Exp::FromAny(_, e)
         | Exp::Head(e)
         | Exp::Tail(e)
         | Exp::Not(e)

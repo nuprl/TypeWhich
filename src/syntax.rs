@@ -60,7 +60,8 @@ pub enum Exp {
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     Pair(Box<Exp>, Box<Exp>),
     Cons(Box<Exp>, Box<Exp>),
-    Empty,
+    // Γ ⊢ empty: T : List(T)
+    Empty(Typ),
     IsEmpty(Box<Exp>),
     Head(Box<Exp>),
     Tail(Box<Exp>),
@@ -73,9 +74,11 @@ pub enum Exp {
     /// This `u32` is the index of a boolean metavariable. When `true`, the
     /// cast is needed. When `false`, it can be safely removed.
     MaybeToAny(u32, Box<Exp>),
-    MaybeFromAny(u32, Box<Exp>),
+    /// The typ is the type that the any is coerced into if enabled
+    MaybeFromAny(u32, Typ, Box<Exp>),
     ToAny(Box<Exp>),
-    FromAny(Box<Exp>),
+    /// The typ is the type that the any is coerced into
+    FromAny(Typ, Box<Exp>),
 }
 
 impl Exp {
@@ -85,7 +88,7 @@ impl Exp {
 
     pub fn is_app_like(&self) -> bool {
         match self {
-            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_app_like(),
+            Exp::MaybeFromAny(.., e) | Exp::MaybeToAny(_, e) => e.is_app_like(),
             Exp::App(..)
             | Exp::Cons(..)
             | Exp::Head(..)
@@ -101,21 +104,21 @@ impl Exp {
     }
     pub fn is_fun_exp(&self) -> bool {
         match self {
-            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_fun_exp(),
+            Exp::MaybeFromAny(.., e) | Exp::MaybeToAny(_, e) => e.is_fun_exp(),
             Exp::Fun(..) | Exp::Fix(..) | Exp::If(..) | Exp::Let(..) | Exp::Cons(..) => true,
             _ => false,
         }
     }
     pub fn is_add_or_looser(&self) -> bool {
         match self {
-            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_add_or_looser(),
+            Exp::MaybeFromAny(.., e) | Exp::MaybeToAny(_, e) => e.is_add_or_looser(),
             Exp::Add(..) => true,
             _ => self.is_fun_exp(),
         }
     }
     pub fn is_mul_or_looser(&self) -> bool {
         match self {
-            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_mul_or_looser(),
+            Exp::MaybeFromAny(.., e) | Exp::MaybeToAny(_, e) => e.is_mul_or_looser(),
             Exp::Mul(..) => true,
             _ => self.is_add_or_looser(),
         }
@@ -123,8 +126,8 @@ impl Exp {
 
     pub fn is_atom(&self) -> bool {
         match self {
-            Exp::MaybeFromAny(_, e) | Exp::MaybeToAny(_, e) => e.is_atom(),
-            Exp::Lit(..) | Exp::Var(_) | Exp::Empty => true,
+            Exp::MaybeFromAny(.., e) | Exp::MaybeToAny(_, e) => e.is_atom(),
+            Exp::Lit(..) | Exp::Var(..) | Exp::Empty(..) => true,
             _ => false,
         }
     }

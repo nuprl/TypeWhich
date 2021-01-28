@@ -54,7 +54,7 @@ mod tests_631 {
             Exp::MaybeFromAny(..) | Exp::MaybeToAny(..) => {
                 panic!("should have been eliminated by typeinf")
             }
-            Exp::Lit(..) | Exp::Var(..) | Exp::Empty => (false, false),
+            Exp::Lit(..) | Exp::Var(..) | Exp::Empty(..) => (false, false),
             Exp::Fun(_, _, e)
             | Exp::Fix(_, _, e)
             | Exp::Head(e)
@@ -84,6 +84,7 @@ mod tests_631 {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(&orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
+        println!("\nProgram type:\n{:?}", type_check(&e));
         let coercions = contains_coercions(e);
         assert!(!coercions.0 && !coercions.1);
     }
@@ -92,6 +93,7 @@ mod tests_631 {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(&orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
+        println!("\nProgram type:\n{:?}", type_check(&e));
         let coercions = contains_coercions(e);
         assert!(!coercions.1);
     }
@@ -100,6 +102,7 @@ mod tests_631 {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(&orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
+        println!("\nProgram type:\n{:?}", type_check(&e));
         let coercions = contains_coercions(e);
         assert!(coercions.0 || coercions.1);
     }
@@ -266,6 +269,7 @@ mod tests_migeed_and_parsberg {
     use super::cgen::typeinf;
     use super::parser::parse;
     use super::tests_631::coerces;
+    use super::type_check::type_check;
 
     // TODO(arjun): _maximal in the name is not accurate. Alternative name:
     // assert_ti_ok
@@ -276,6 +280,7 @@ mod tests_migeed_and_parsberg {
         println!("\nAfter type inference:\n{}", e);
         let correct =
             typeinf(&parse(annotated)).expect("type inference failed on the expected program");
+        println!("\nProgram type:\n{:?}", type_check(&e));
         println!("\nCorrect:\n{}", correct);
         assert_eq!(e, correct);
     }

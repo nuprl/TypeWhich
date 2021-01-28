@@ -37,10 +37,11 @@ typ -> Typ :
   ;
 
 atom -> Exp :
-    '(' exp ')' { $2 }
-  | lit         { Exp::Lit($1) }
-  | id          { Exp::Var($1) }
-  | 'empty'     { Exp::Empty   }
+    '(' exp ')'     { $2 }
+  | lit             { Exp::Lit($1) }
+  | id              { Exp::Var($1) }
+  | 'empty'         { Exp::Empty(next_metavar_typ()) }
+  | 'empty' ':' typ { Exp::Empty($3) }
   ;
 
 funExp -> Exp :
@@ -54,7 +55,7 @@ funExp -> Exp :
   | 'is_list' atom { Exp::IsList(maybe_to_any_($2)) }
   | 'is_fun' atom { Exp::IsFun(maybe_to_any_($2)) }
   | 'to_any' atom { Exp::ToAny(Box::new($2)) }
-  | 'from_any' atom { Exp::FromAny(Box::new($2)) }
+  | 'from_any' ':' typ atom { Exp::FromAny($3, Box::new($4)) }
   | atom        { $1 }
   ;
 
@@ -99,7 +100,7 @@ fn maybe_to_any_(e: Exp) -> Box<Exp> {
     Box::new(Exp::MaybeToAny(next_metavar(), Box::new(e)))
 }
 fn maybe_from_any_(e: Exp) -> Box<Exp> {
-    Box::new(Exp::MaybeFromAny(next_metavar(), Box::new(e)))
+    Box::new(Exp::MaybeFromAny(next_metavar(), next_metavar_typ(), Box::new(e)))
 }
 
 use super::syntax::{Exp, Lit, Typ};
