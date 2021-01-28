@@ -150,7 +150,7 @@ impl<'a> State<'a> {
             Exp::Not(e) => {
                 let (t, phi1) = self.cgen(&env, e);
                 let phi2 = self.t2z3(&t)._eq(self.bool_z3);
-                (Typ::Int, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
