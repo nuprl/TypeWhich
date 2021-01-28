@@ -2,6 +2,7 @@ mod cgen;
 mod parser;
 mod pretty;
 mod syntax;
+mod type_check;
 
 #[cfg(test)]
 mod grift;
@@ -22,7 +23,12 @@ fn main() -> Result<()> {
             out
         }
     };
-    println!("{}", cgen::typeinf(&parser::parse(source)).unwrap());
+    let inferred = cgen::typeinf(&parser::parse(source)).unwrap();
+    println!("{}", &inferred);
+    match type_check::type_check(&inferred) {
+        Ok(typ) => println!("program type: {}", typ),
+        Err(e) => panic!("type inference produced a poorly-typed program:\n{}", e),
+    }
     Ok(())
 }
 
@@ -31,6 +37,7 @@ mod tests_631 {
     use super::cgen::typeinf;
     use super::parser::parse;
     use super::syntax::Exp;
+    use super::type_check::type_check;
     trait PairOr {
         fn or(&self, other: Self) -> Self;
     }
