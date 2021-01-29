@@ -3,6 +3,7 @@ mod parser;
 mod pretty;
 mod syntax;
 mod type_check;
+mod z3_state;
 
 #[cfg(test)]
 mod grift;

@@ -1,44 +1,39 @@
 use super::parser::next_metavar_typ;
 use super::syntax::*;
+use super::z3_state::Z3State;
 use im_rc::HashMap;
 use std::cell::RefCell;
-use z3;
-use z3::ast::{Ast, Bool};
-use z3::{ast, ast::Dynamic, Model, SatResult, Sort};
+use z3::ast::{Ast, Bool, Dynamic};
+use z3::{Optimize, SatResult};
 
 type Env = HashMap<String, Typ>;
 
 struct State<'a> {
-    cxt: &'a z3::Context,
-    int_z3: &'a Dynamic<'a>,
-    bool_z3: &'a Dynamic<'a>,
-    str_z3: &'a Dynamic<'a>,
-    arr_ctor: &'a z3::FuncDecl<'a>,
-    list_ctor: &'a z3::FuncDecl<'a>,
-    pair_ctor: &'a z3::FuncDecl<'a>,
-    any_z3: &'a Dynamic<'a>,
-    typ: &'a z3::DatatypeSort<'a>,
     vars: RefCell<HashMap<u32, Dynamic<'a>>>,
     coercions: RefCell<HashMap<u32, Bool<'a>>>,
-    typ_sort: &'a Sort<'a>,
+    z3: Z3State<'a>,
 }
 
 impl<'a> State<'a> {
     fn t2z3(&self, typ: &Typ) -> Dynamic<'a> {
         match typ {
-            Typ::Int => self.int_z3.clone(),
-            Typ::Bool => self.bool_z3.clone(),
-            Typ::Str => self.str_z3.clone(),
-            Typ::Arr(t1, t2) => self.arr_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
-            Typ::List(t) => self.list_ctor.apply(&[&self.t2z3(t)]),
-            Typ::Pair(t1, t2) => self.pair_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
-            Typ::Any => self.any_z3.clone(),
+            Typ::Int => self.z3.int_z3.clone(),
+            Typ::Bool => self.z3.bool_z3.clone(),
+            Typ::Str => self.z3.str_z3.clone(),
+            Typ::Arr(t1, t2) => self.z3.arr_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
+            Typ::List(t) => self.z3.list_ctor.apply(&[&self.t2z3(t)]),
+            Typ::Pair(t1, t2) => self.z3.pair_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
+            Typ::Any => self.z3.any_z3.clone(),
             Typ::Metavar(n) => {
                 let mut vars = self.vars.borrow_mut();
                 match vars.get(n) {
                     Some(ast) => ast.clone(),
                     None => {
-                        let t = z3::ast::Datatype::fresh_const(&self.cxt, "metavar", self.typ_sort);
+                        let t = z3::ast::Datatype::fresh_const(
+                            self.z3.cxt,
+                            "metavar",
+                            self.z3.typ_sort,
+                        );
                         let x = Dynamic::from_ast(&t);
                         vars.insert(*n, x.clone());
                         x
@@ -53,29 +48,25 @@ impl<'a> State<'a> {
         match coercions.get(&coercion) {
             Some(ast) => ast.clone(),
             None => {
-                let t = Bool::fresh_const(&self.cxt, "coercion-metavar");
+                let t = Bool::fresh_const(self.z3.cxt, "coercion-metavar");
                 coercions.insert(coercion, t.clone());
                 t
             }
         }
     }
 
-    fn z3_true(&self) -> Bool<'_> {
-        Bool::from_bool(self.cxt, true)
-    }
-
     fn cgen(&self, env: &Env, exp: &Exp) -> (Typ, Bool<'_>) {
         match exp {
             // ---------------------------
             // Γ ⊢ lit : (lit.typ(), true)
-            Exp::Lit(lit) => (lit.typ(), self.z3_true()),
+            Exp::Lit(lit) => (lit.typ(), self.z3.true_z3()),
             // ---------------------------
             // Γ ⊢ x : (Γ(x), true)
             Exp::Var(x) => (
                 env.get(x)
                     .unwrap_or_else(|| panic!("unbound identifier {}", x))
                     .clone(),
-                self.z3_true(),
+                self.z3.true_z3(),
             ),
             // Γ,x:T ⊢ e : (T_2, φ)
             // ---------------------------------------
@@ -94,7 +85,7 @@ impl<'a> State<'a> {
                 env.insert(x.clone(), t1.clone());
                 let (t2, phi1) = self.cgen(&env, body);
                 let phi2 = self.t2z3(t1)._eq(&self.t2z3(&t2));
-                (t1.clone(), Bool::and(self.cxt, &[&phi1, &phi2]))
+                (t1.clone(), Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -106,7 +97,7 @@ impl<'a> State<'a> {
                 let alpha = next_metavar_typ();
                 let t = Typ::Arr(Box::new(t2), Box::new(alpha.clone()));
                 let phi = self.t2z3(&t1)._eq(&self.t2z3(&t));
-                (alpha, Bool::and(self.cxt, &[&phi1, &phi2, &phi]))
+                (alpha, Bool::and(self.z3.cxt, &[&phi1, &phi2, &phi]))
             }
             // Γ ⊢ e1 : (T_1, φ_1)
             // Γ,x:T_1 ⊢ e2 : (T_2, φ_2)
@@ -118,7 +109,7 @@ impl<'a> State<'a> {
                 let mut env = env.clone();
                 env.insert(x.clone(), t1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                (t2, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
+                (t2, Bool::and(self.z3.cxt, &[&phi1, &phi2, &phi3]))
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -129,8 +120,11 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 let t1 = self.t2z3(&t1);
                 let t2 = self.t2z3(&t2);
-                let int_case = Bool::and(self.cxt, &[&t1._eq(self.int_z3), &t2._eq(self.int_z3)]);
-                (Typ::Int, Bool::and(self.cxt, &[&phi1, &phi2, &int_case]))
+                let int_case = Bool::and(
+                    self.z3.cxt,
+                    &[&t1._eq(&self.z3.int_z3), &t2._eq(&self.z3.int_z3)],
+                );
+                (Typ::Int, Bool::and(self.z3.cxt, &[&phi1, &phi2, &int_case]))
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -141,16 +135,22 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 let t1 = self.t2z3(&t1);
                 let t2 = self.t2z3(&t2);
-                let int_case = Bool::and(self.cxt, &[&t1._eq(self.int_z3), &t2._eq(self.int_z3)]);
-                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &phi2, &int_case]))
+                let int_case = Bool::and(
+                    self.z3.cxt,
+                    &[&t1._eq(&self.z3.int_z3), &t2._eq(&self.z3.int_z3)],
+                );
+                (
+                    Typ::Bool,
+                    Bool::and(self.z3.cxt, &[&phi1, &phi2, &int_case]),
+                )
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ not e : (bool, φ && T = bool)
             Exp::Not(e) => {
                 let (t, phi1) = self.cgen(&env, e);
-                let phi2 = self.t2z3(&t)._eq(self.bool_z3);
-                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &phi2]))
+                let phi2 = self.t2z3(&t)._eq(&self.z3.bool_z3);
+                (Typ::Bool, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -166,33 +166,33 @@ impl<'a> State<'a> {
                 let t2 = self.t2z3(&t2);
                 let a_z3 = self.t2z3(&alpha);
                 let int_case = Bool::and(
-                    self.cxt,
+                    self.z3.cxt,
                     &[
-                        &t1._eq(self.int_z3),
-                        &t2._eq(self.int_z3),
-                        &a_z3._eq(self.int_z3),
+                        &t1._eq(&self.z3.int_z3),
+                        &t2._eq(&self.z3.int_z3),
+                        &a_z3._eq(&self.z3.int_z3),
                     ],
                 );
                 let str_case = Bool::and(
-                    self.cxt,
+                    self.z3.cxt,
                     &[
-                        &t1._eq(self.str_z3),
-                        &t2._eq(self.str_z3),
-                        &a_z3._eq(self.str_z3),
+                        &t1._eq(&self.z3.str_z3),
+                        &t2._eq(&self.z3.str_z3),
+                        &a_z3._eq(&self.z3.str_z3),
                     ],
                 );
                 let any_case = Bool::and(
-                    self.cxt,
+                    self.z3.cxt,
                     &[
-                        &t1._eq(self.any_z3),
-                        &t2._eq(self.any_z3),
-                        &a_z3._eq(self.any_z3),
+                        &t1._eq(&self.z3.any_z3),
+                        &t2._eq(&self.z3.any_z3),
+                        &a_z3._eq(&self.z3.any_z3),
                     ],
                 );
-                let add_constraints = Bool::or(self.cxt, &[&int_case, &str_case, &any_case]);
+                let add_constraints = Bool::or(self.z3.cxt, &[&int_case, &str_case, &any_case]);
                 (
                     alpha,
-                    Bool::and(self.cxt, &[&phi1, &phi2, &add_constraints]),
+                    Bool::and(self.z3.cxt, &[&phi1, &phi2, &add_constraints]),
                 )
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
@@ -205,11 +205,11 @@ impl<'a> State<'a> {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let (t3, phi3) = self.cgen(&env, e3);
-                let phi4 = self.t2z3(&t1)._eq(self.bool_z3);
+                let phi4 = self.t2z3(&t1)._eq(&self.z3.bool_z3);
                 let phi5 = self.t2z3(&t2)._eq(&self.t2z3(&t3));
                 (
                     t2,
-                    Bool::and(self.cxt, &[&phi1, &phi2, &phi3, &phi4, &phi5]),
+                    Bool::and(self.z3.cxt, &[&phi1, &phi2, &phi3, &phi4, &phi5]),
                 )
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
@@ -221,7 +221,7 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 (
                     Typ::Pair(Box::new(t1), Box::new(t2)),
-                    Bool::and(self.cxt, &[&phi1, &phi2]),
+                    Bool::and(self.z3.cxt, &[&phi1, &phi2]),
                 )
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
@@ -233,11 +233,11 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 let list_t1 = self.t2z3(&Typ::List(Box::new(t1)));
                 let phi3 = list_t1._eq(&self.t2z3(&t2));
-                (t2, Bool::and(self.cxt, &[&phi1, &phi2, &phi3]))
+                (t2, Bool::and(self.z3.cxt, &[&phi1, &phi2, &phi3]))
             }
             // ----------------------------------------------
             // Γ ⊢ empty α : (List(α), true)
-            Exp::Empty(alpha) => (Typ::List(Box::new(alpha.clone())), self.z3_true()),
+            Exp::Empty(alpha) => (Typ::List(Box::new(alpha.clone())), self.z3.true_z3()),
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ head e : (α, φ && List(α) = T)
@@ -247,7 +247,7 @@ impl<'a> State<'a> {
                 let phi2 = self
                     .t2z3(&Typ::List(Box::new(alpha.clone())))
                     ._eq(&self.t2z3(&t));
-                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (alpha, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -258,7 +258,7 @@ impl<'a> State<'a> {
                 let phi2 = self
                     .t2z3(&Typ::List(Box::new(alpha.clone())))
                     ._eq(&self.t2z3(&t));
-                (t, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (t, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -269,7 +269,7 @@ impl<'a> State<'a> {
                 let phi2 = self
                     .t2z3(&Typ::List(Box::new(alpha.clone())))
                     ._eq(&self.t2z3(&t));
-                (Typ::Bool, Bool::and(self.cxt, &[&phi1, &phi2]))
+                (Typ::Bool, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -278,7 +278,7 @@ impl<'a> State<'a> {
                 let (t1, phi1) = self.cgen(env, e);
                 (
                     Typ::Bool,
-                    Bool::and(self.cxt, &[&phi1, &self.t2z3(&t1)._eq(self.any_z3)]),
+                    Bool::and(self.z3.cxt, &[&phi1, &self.t2z3(&t1)._eq(&self.z3.any_z3)]),
                 )
             }
             // Γ ⊢ e : (T, φ)
@@ -290,18 +290,20 @@ impl<'a> State<'a> {
                 let (t, phi1) = self.cgen(env, e);
                 let t = self.t2z3(&t);
                 let alpha = next_metavar_typ();
-                let dont_coerce_case =
-                    Bool::and(self.cxt, &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)]);
+                let dont_coerce_case = Bool::and(
+                    self.z3.cxt,
+                    &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)],
+                );
                 let do_coerce_case = Bool::and(
-                    self.cxt,
+                    self.z3.cxt,
                     &[
                         &calpha,
-                        &self.t2z3(&alpha)._eq(self.any_z3),
-                        &Bool::not(&t._eq(&self.any_z3)),
+                        &self.t2z3(&alpha)._eq(&self.z3.any_z3),
+                        &Bool::not(&t._eq(&self.z3.any_z3)),
                     ],
                 );
-                let phi2 = Bool::or(self.cxt, &[&dont_coerce_case, &do_coerce_case]);
-                (alpha, Bool::and(self.cxt, &[&phi1, &phi2]))
+                let phi2 = Bool::or(self.z3.cxt, &[&dont_coerce_case, &do_coerce_case]);
+                (alpha, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -314,140 +316,42 @@ impl<'a> State<'a> {
                 let calpha = self.c2z3(*calpha);
                 let (t, phi1) = self.cgen(env, e);
                 let t = self.t2z3(&t);
-                let dont_coerce_case =
-                    Bool::and(self.cxt, &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)]);
+                let dont_coerce_case = Bool::and(
+                    self.z3.cxt,
+                    &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)],
+                );
                 let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
                 let do_coerce_case = Bool::and(
-                    self.cxt,
+                    self.z3.cxt,
                     &[
                         &calpha,
-                        &t._eq(self.any_z3),
-                        &Bool::not(&self.t2z3(&alpha)._eq(self.any_z3)),
+                        &t._eq(&self.z3.any_z3),
+                        &Bool::not(&self.t2z3(&alpha)._eq(&self.z3.any_z3)),
                         &self
-                            .z3_is_arr(&self.t2z3(&alpha))
+                            .z3
+                            .z3_is_arr(self.t2z3(&alpha))
                             .implies(&self.t2z3(&alpha)._eq(&self.t2z3(&any_to_any))),
                     ],
                 );
-                let phi2 = Bool::or(self.cxt, &[&dont_coerce_case, &do_coerce_case]);
-                (alpha.clone(), Bool::and(self.cxt, &[&phi1, &phi2]))
+                let phi2 = Bool::or(self.z3.cxt, &[&dont_coerce_case, &do_coerce_case]);
+                (alpha.clone(), Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ ToAny (e) : (any, φ && T != any)
             Exp::ToAny(e) => {
                 let (t1, phi1) = self.cgen(env, e);
-                let phi2 = Bool::not(&self.t2z3(&t1)._eq(self.any_z3));
-                (Typ::Any, Bool::and(self.cxt, &[&phi1, &phi2]))
+                let phi2 = Bool::not(&self.t2z3(&t1)._eq(&self.z3.any_z3));
+                (Typ::Any, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
             // Γ ⊢ ToAny (e) : (α, φ && T = any)
             Exp::FromAny(t, e) => {
                 let (t1, phi1) = self.cgen(env, e);
-                let phi2 = self.t2z3(&t1)._eq(self.any_z3);
-                (t.clone(), Bool::and(self.cxt, &[&phi1, &phi2]))
+                let phi2 = self.t2z3(&t1)._eq(&self.z3.any_z3);
+                (t.clone(), Bool::and(self.z3.cxt, &[&phi1, &phi2]))
             }
-        }
-    }
-
-    fn is_variant(&self, i: usize, model: &Model, e: &ast::Dynamic) -> bool {
-        model
-            .eval(&self.typ.variants[i].tester.apply(&[&e]).as_bool().unwrap())
-            .unwrap()
-            .as_bool()
-            .unwrap()
-    }
-
-    fn z3_is_arr<'b>(&'b self, e: &ast::Dynamic<'b>) -> ast::Bool<'b> {
-        self.typ.variants[3].tester.apply(&[&e]).as_bool().unwrap()
-    }
-
-    fn is_int(&self, model: &Model, e: &ast::Dynamic) -> bool {
-        self.is_variant(0, model, e)
-    }
-    fn is_bool(&self, model: &Model, e: &ast::Dynamic) -> bool {
-        self.is_variant(1, model, e)
-    }
-    fn is_str(&self, model: &Model, e: &ast::Dynamic) -> bool {
-        self.is_variant(2, model, e)
-    }
-    fn is_arr(&self, model: &Model, e: &ast::Dynamic) -> bool {
-        self.is_variant(3, model, e)
-    }
-    fn is_list(&self, model: &Model, e: &ast::Dynamic) -> bool {
-        self.is_variant(4, model, e)
-    }
-    fn is_pair(&self, model: &Model, e: &ast::Dynamic) -> bool {
-        self.is_variant(5, model, e)
-    }
-    fn is_any(&self, model: &Model, e: &ast::Dynamic) -> bool {
-        self.is_variant(6, model, e)
-    }
-
-    fn arr_arg<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
-    where
-        'a: 'b,
-    {
-        self.typ.variants[3].accessors[0].apply(&[e])
-    }
-    fn arr_ret<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
-    where
-        'a: 'b,
-    {
-        self.typ.variants[3].accessors[1].apply(&[e])
-    }
-    fn list_typ<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
-    where
-        'a: 'b,
-    {
-        self.typ.variants[4].accessors[0].apply(&[e])
-    }
-    fn pair1<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
-    where
-        'a: 'b,
-    {
-        self.typ.variants[5].accessors[0].apply(&[e])
-    }
-    fn pair2<'b>(&'b self, e: &'b ast::Dynamic) -> ast::Dynamic
-    where
-        'a: 'b,
-    {
-        self.typ.variants[5].accessors[1].apply(&[e])
-    }
-
-    fn z3_to_typ<'b>(&'b self, model: &'b Model, e: ast::Dynamic) -> Typ
-    where
-        'a: 'b,
-    {
-        if self.is_int(model, &e) {
-            Typ::Int
-        } else if self.is_bool(model, &e) {
-            Typ::Bool
-        } else if self.is_str(model, &e) {
-            Typ::Str
-        } else if self.is_arr(model, &e) {
-            let arg = self.arr_arg(&e);
-            let arg = model.eval(&arg).unwrap();
-            let ret = self.arr_ret(&e);
-            let ret = model.eval(&ret).unwrap();
-            let t1 = self.z3_to_typ(model, arg);
-            let t2 = self.z3_to_typ(model, ret);
-            Typ::Arr(Box::new(t1), Box::new(t2))
-        } else if self.is_list(model, &e) {
-            let t = self.list_typ(&e);
-            let t = model.eval(&t).unwrap();
-            let t = self.z3_to_typ(model, t);
-            Typ::List(Box::new(t))
-        } else if self.is_pair(model, &e) {
-            let t1 = model.eval(&self.pair1(&e)).unwrap();
-            let t2 = model.eval(&self.pair2(&e)).unwrap();
-            let t1 = self.z3_to_typ(model, t1);
-            let t2 = self.z3_to_typ(model, t2);
-            Typ::Pair(Box::new(t1), Box::new(t2))
-        } else if self.is_any(model, &e) {
-            Typ::Any
-        } else {
-            panic!("missing case in z3_to_typ");
         }
     }
 }
@@ -533,48 +437,13 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
 pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
     let cfg = z3::Config::new();
     let cxt = z3::Context::new(&cfg);
-
-    let typ = z3::DatatypeBuilder::new(&cxt, "Typ")
-        .variant("Int", vec![])
-        .variant("Bool", vec![])
-        .variant("Str", vec![])
-        .variant(
-            "Arr",
-            vec![
-                ("arg", z3::DatatypeAccessor::Datatype("Typ".into())),
-                ("ret", z3::DatatypeAccessor::Datatype("Typ".into())),
-            ],
-        )
-        .variant(
-            "List",
-            vec![("t", z3::DatatypeAccessor::Datatype("Typ".into()))],
-        )
-        .variant(
-            "Pair",
-            vec![
-                ("t1", z3::DatatypeAccessor::Datatype("Typ".into())),
-                ("t2", z3::DatatypeAccessor::Datatype("Typ".into())),
-            ],
-        )
-        .variant("Any", vec![])
-        .finish();
-
+    let typ = Z3State::typ(&cxt);
     let s = State {
-        cxt: &cxt,
-        int_z3: &typ.variants[0].constructor.apply(&[]),
-        bool_z3: &typ.variants[1].constructor.apply(&[]),
-        str_z3: &typ.variants[2].constructor.apply(&[]),
-        arr_ctor: &typ.variants[3].constructor,
-        list_ctor: &typ.variants[4].constructor,
-        pair_ctor: &typ.variants[5].constructor,
-        any_z3: &typ.variants[6].constructor.apply(&[]),
+        z3: Z3State::new(&cxt, &typ),
         vars: Default::default(),
         coercions: Default::default(),
-        typ_sort: &typ.sort,
-        typ: &typ,
     };
-
-    let solver = z3::Optimize::new(&cxt);
+    let solver = Optimize::new(&s.z3.cxt);
     let (_, phi) = s.cgen(&Default::default(), exp);
     solver.assert(&phi);
     for (_, x) in s.coercions.borrow().iter() {
@@ -589,7 +458,7 @@ pub fn typeinf(exp: &Exp) -> Result<Exp, ()> {
     let mut result = HashMap::new();
     for (x, x_ast) in s.vars.borrow().iter() {
         let x_val_ast = model.eval(x_ast).expect("evaluating metavar");
-        result.insert(*x, s.z3_to_typ(&model, x_val_ast));
+        result.insert(*x, s.z3.z3_to_typ(&model, x_val_ast));
     }
     let mut coercions = HashMap::new();
     for (x, x_ast) in s.coercions.borrow().iter() {
