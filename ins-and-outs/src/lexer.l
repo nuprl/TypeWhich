@@ -1,0 +1,20 @@
+%%
+[\t\r\n ]+ ;
+//[^\n]* ;
+fun "fun"
+\. "."
+\( "("
+\) ")"
+if "if"
+then "then"
+else "else"
+let "let"
+in "in"
+= "="
+:: "::"
+, ","
+: ":"
+-> "->"
+any "any"
+null "null"
+[A-Za-z_\$][A-Za-z_\$0-9]* "ID"

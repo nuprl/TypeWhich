@@ -1,0 +1,87 @@
+
+running 5 tests
+test parser::test::test_parse ... ok
+test tests::identity_public ... ok
+test tests::identity_twice ... ok
+test tests::call_identity ... ok
+test tests::broke_migeed ... FAILED
+
+failures:
+
+---- tests::broke_migeed stdout ----
+
+Original program:
+(fun i:η.
+(fun a:γ.
+  fun b:α.
+    b:β:δ) (i null) (i (fun y:ε.
+  y:ζ)):θ) (fun x:ι.
+x:κ)
+⟨η -> θ ▷ η -> θ⟩ (fun i:η.
+⟨δ! ▷ θ⟩ ⟨δ ▷ δ? -> δ!⟩ ⟨γ -> δ ▷ γ -> δ⟩ (fun a:γ.
+  ⟨α -> β ▷ δ⟩ (fun b:α.
+    ⟨α ▷ β⟩ b:β):δ) (⟨η! ▷ γ⟩ ⟨η ▷ η? -> η!⟩ i (⟨null ▷ η?⟩ null)) (⟨η! ▷ δ?⟩ ⟨η ▷ η? -> η!⟩ i (⟨ε -> ζ ▷ η?⟩ (fun y:ε.
+  ⟨ε ▷ ζ⟩ y:ζ))):θ) (⟨ι -> κ ▷ η⟩ (fun x:ι.
+⟨ι ▷ κ⟩ x:κ))
+coercions:
+γ -> δ ▷ γ -> δ, α -> β ▷ δ, null ▷ η?, η! ▷ δ?,
+η -> θ ▷ η -> θ, δ ▷ δ? -> δ!, ι -> κ ▷ η, δ! ▷ θ,
+ε -> ζ ▷ η?, ε ▷ ζ, θ! ▷ any, η ▷ η? -> η!, ι ▷ κ,
+η! ▷ γ, any ▷ θ?, α ▷ β
+closure:
+γ -> δ ▷ γ -> δ, β ▷ δ!, α -> β ▷ δ, δ? -> δ! ▷ δ? -> δ!,
+null ▷ η?, ι -> κ ▷ η? -> η!, null ▷ η!, δ? ▷ δ?, η! ▷ δ?,
+η -> θ ▷ η -> θ, δ ▷ δ? -> δ!, κ ▷ η!, null ▷ δ?,
+ι -> κ ▷ η, η? ▷ ι, δ! ▷ θ, γ ▷ γ, null ▷ θ,
+ε -> ζ ▷ η?, δ! ▷ δ!, θ ▷ θ, ε ▷ ζ, null ▷ α,
+δ? -> δ! ▷ δ, null ▷ γ, θ! ▷ any, η? -> η! ▷ η,
+α -> β ▷ δ? -> δ!, δ? ▷ α, null ▷ δ!, δ ▷ δ, null ▷ κ,
+null ▷ ι, null ▷ null, η ▷ η? -> η!, ι ▷ κ, η? ▷ η?,
+null ▷ β, η! ▷ γ, η! ▷ η!, any ▷ θ?, α ▷ β,
+η? -> η! ▷ η? -> η!, η ▷ η
+inflows (T+): {α: [null], ι: [null], δ: [α -> β, δ? -> δ!], δ?: [null], θ: [null], κ: [null], γ: [null], η?: [null, ε -> ζ], β: [null], δ!: [null], η!: [null], θ?: [any], η: [ι -> κ, η? -> η!]}
+solving α
+solving ι
+solving δ
+solving δ?
+solving θ
+solving κ
+solving γ
+solving η?
+solving β
+solving δ!
+solving η!
+solving θ?
+solving η
+thread 'tests::broke_migeed' panicked at 'while resolving a higher kinded type, the lower-kinded type η?? was not solved', src/solve.rs:48:21
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/e1884a8e3c3e813aada8254edfa120e85bf5ffca/library/std/src/panicking.rs:495:5
+   1: std::panicking::begin_panic_fmt
+             at /rustc/e1884a8e3c3e813aada8254edfa120e85bf5ffca/library/std/src/panicking.rs:437:5
+   2: typeinf_playground::solve::solve_recursively
+             at ./src/solve.rs:48:21
+   3: typeinf_playground::solve::solve_recursively
+             at ./src/solve.rs:43:22
+   4: typeinf_playground::solve::solve_closure
+             at ./src/solve.rs:29:28
+   5: typeinf_playground::typeinf
+             at ./src/main.rs:42:20
+   6: typeinf_playground::tests::succeeds
+             at ./src/main.rs:69:17
+   7: typeinf_playground::tests::broke_migeed
+             at ./src/main.rs:100:9
+   8: typeinf_playground::tests::broke_migeed::{{closure}}
+             at ./src/main.rs:99:5
+   9: core::ops::function::FnOnce::call_once
+             at /home/luna/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:227:5
+  10: core::ops::function::FnOnce::call_once
+             at /rustc/e1884a8e3c3e813aada8254edfa120e85bf5ffca/library/core/src/ops/function.rs:227:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+
+failures:
+    tests::broke_migeed
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
+
