@@ -1,6 +1,8 @@
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub enum Typ {
     Null,
+    Int,
+    Bool,
     Arr(Box<Typ>, Box<Typ>),
     Any,
     Metavar(u32),
@@ -24,6 +26,12 @@ impl Typ {
     pub fn is_metavar(&self) -> bool {
         match self {
             Typ::Metavar(..) | Typ::MetavarArg(..) | Typ::MetavarRet(..) => true,
+            _ => false,
+        }
+    }
+    pub fn is_base(&self) -> bool {
+        match self {
+            Typ::Bool | Typ::Int | Typ::Null => true,
             _ => false,
         }
     }
@@ -67,17 +75,19 @@ impl Typ {
             {
                 self.clone()
             }
-            _ => panic!(
-                "somehow the paper thinks this covers our bases. tried to LUB:\n{} |_| {}",
-                self, k
-            ),
+            // the paper avoids having to do this by having only two
+            // incompatible types: objects and arrows. their specified behavior is
+            // arrow |_| obj = any. we generalize this to t1 |_| t2 where t1 !=
+            // t2 = any
+            _ if self == k => self.clone(),
+            _ => Typ::Any,
         }
     }
     /// ||T||x where T = self
     pub fn kind_of_typ_var(&self, x: &Typ) -> Typ {
-        assert!(matches!(Typ::Metavar, x));
+        assert!(x.is_metavar());
         match self {
-            Typ::Null => Typ::Null,
+            Typ::Null | Typ::Int | Typ::Bool => self.clone(),
             Typ::Any => Typ::Any,
             Typ::Arr(..) => Typ::Arr(Box::new(x.get_arg()), Box::new(x.get_ret())),
             Typ::Metavar(..) | Typ::MetavarArg(..) | Typ::MetavarRet(..) => {
@@ -90,8 +100,24 @@ impl Typ {
 pub type Id = String;
 
 #[derive(PartialEq, Clone)]
-pub enum Exp {
+pub enum Lit {
     Null,
+    Int(i32),
+    Bool(bool),
+}
+impl Lit {
+    pub fn typ(&self) -> Typ {
+        match self {
+            Lit::Null => Typ::Null,
+            Lit::Int(_) => Typ::Int,
+            Lit::Bool(_) => Typ::Bool,
+        }
+    }
+}
+
+#[derive(PartialEq, Clone)]
+pub enum Exp {
+    Lit(Lit),
     Var(Id),
     Assign(Id, Box<Exp>),
     Fun(Id, Typ, Box<Exp>, Typ),
@@ -103,7 +129,7 @@ pub enum Exp {
 
 impl Exp {
     pub fn take(&mut self) -> Self {
-        std::mem::replace(self, Exp::Null)
+        std::mem::replace(self, Exp::Lit(Lit::Null))
     }
 
     pub fn is_app_like(&self) -> bool {
@@ -121,7 +147,7 @@ impl Exp {
     }
     pub fn is_atom(&self) -> bool {
         match self {
-            Exp::Null | Exp::Var(..) => true,
+            Exp::Lit(..) | Exp::Var(..) => true,
             _ => false,
         }
     }

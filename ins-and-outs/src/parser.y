@@ -1,6 +1,15 @@
 %start exp
 %%
 
+i32 -> i32 :
+    'INT' { $lexer.span_str($1.unwrap().span()).parse::<i32>().unwrap() }
+    ;
+
+bool -> bool :
+    'true'  { true }
+  | 'false' { false }
+  ;
+
 id -> String :
     'ID' { $lexer.span_str($1.unwrap().span()).to_string() }
   ;
@@ -8,6 +17,8 @@ id -> String :
 typ_atom -> Typ :
     'any'       { Typ::Any }
   | 'null'      { Typ::Null }
+  | 'int_typ'   { Typ::Int }
+  | 'bool_typ'  { Typ::Bool }
   | '(' typ ')' { $2 }
   ;
 
@@ -16,9 +27,15 @@ typ -> Typ :
   | typ_atom          { $1 }
   ;
 
+lit -> Lit :
+    'null' { Lit::Null }
+  | i32    { Lit::Int($1) }
+  | bool   { Lit::Bool($1) }
+  ;
+
 atom -> Exp :
     '(' exp ')' { $2 }
-  | 'null'      { Exp::Null }
+  | lit         { Exp::Lit($1) }
   | id          { Exp::Var($1) }
   ;
 

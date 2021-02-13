@@ -1,4 +1,4 @@
-use crate::syntax::{Id, Typ};
+use crate::syntax::Typ;
 use crate::Closure;
 use im_rc::HashMap;
 

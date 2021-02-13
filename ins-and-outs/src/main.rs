@@ -55,7 +55,7 @@ mod tests {
     pub fn contains_coercions(e: Exp) -> bool {
         match e {
             Exp::Coerce(..) => true,
-            Exp::Null | Exp::Var(..) => false,
+            Exp::Lit(..) | Exp::Var(..) => false,
             Exp::Fun(_, _, e, _) | Exp::Assign(_, e) => contains_coercions(*e),
             Exp::App(e1, e2) => contains_coercions(*e1) || contains_coercions(*e2),
             Exp::If(e1, e2, e3) => {
@@ -78,6 +78,32 @@ mod tests {
         println!("\nAfter type inference:\n{}", e);
         let coercions = contains_coercions(e);
         assert!(coercions);
+    }
+    #[test]
+    fn an_int() {
+        succeeds("5");
+    }
+    #[test]
+    fn fun_app_int() {
+        succeeds("(fun x.x) 5");
+    }
+    #[test]
+    fn fun_fun_app_int_int() {
+        succeeds("(fun x.fun y.y) 5 8");
+    }
+    #[test]
+    fn local_variables_having_base_types() {
+        // we don't worry about elimination forms since ins and outs doesn't
+        // even use them!
+        succeeds(
+            "fun n:int.
+                let index = 0 in
+                let sum = index in
+                // while (index < sum) <- index |> int, sum |> int aren't used (outflows)
+                //     index = index + 1 <- index |> int (outflow); int |> index (already there)
+                //     sum = sum + index <- index |> int, sum |> int (outflows); int |> sum (already there)
+                sum",
+        );
     }
     #[test]
     fn identity_twice() {
@@ -106,6 +132,6 @@ mod tests {
     }
     #[test]
     fn broke_migeed() {
-        succeeds("(fun i.(fun a.fun b.b) (i null) (i (fun y.y))) (fun x.x)");
+        coerces("(fun i.(fun a.fun b.b) (i 5) (i true)) (fun x.x)");
     }
 }

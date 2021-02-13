@@ -17,6 +17,12 @@ pub fn compute_closure(cs: Closure) -> Closure {
 /// think it should make a difference
 fn e(e: &mut Closure, t1: Typ, t2: Typ) {
     if t1 != t2 {
+        assert!(
+            !t1.is_base() || !t2.is_base(),
+            "flow should not produce base |> base coercions: {} |> {}",
+            t1,
+            t2
+        );
         e.insert((t1, t2));
     }
 }
@@ -27,13 +33,13 @@ fn pull_and_factor(cs: Closure) -> Closure {
     let mut expanded = cs.clone();
     for c in cs.clone().into_iter() {
         match c {
-            (from, to @ Typ::Metavar(..)) if !from.is_metavar() => {
+            (from, to) if !from.is_metavar() && to.is_metavar() => {
                 // K |> X
                 // Pull
                 // surely this doesn't have to be O(n^2)? check complexity analysis
                 for c in cs.clone().into_iter() {
                     match c {
-                        (from2, to2 @ Typ::Metavar(..)) if from2 == to => {
+                        (from2, to2) if from2 == to && to2.is_metavar() => {
                             e(&mut expanded, from.clone(), to2);
                         }
                         _ => (),

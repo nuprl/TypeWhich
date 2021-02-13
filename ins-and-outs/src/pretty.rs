@@ -56,19 +56,30 @@ impl Pretty for Typ {
     {
         match self {
             Typ::Null => pp.text("null"),
-            Typ::Arr(t1, t2) => pp.concat(vec![
-                parens_if(pp, &**t1, t1.is_arr()),
-                pp.space(),
-                pp.text("->"),
-                pp.space(),
-                t2.pretty(pp),
-            ]),
+            Typ::Int => pp.text("int"),
+            Typ::Bool => pp.text("bool"),
+            Typ::Arr(t1, t2) => pretty_arr(t1, t2, pp),
             Typ::Any => pp.text("any"),
             Typ::Metavar(i) => pp.text(greek(*i)),
             Typ::MetavarArg(t) => t.pretty(pp).append(pp.text("?")),
             Typ::MetavarRet(t) => t.pretty(pp).append(pp.text("!")),
         }
     }
+}
+
+fn pretty_arr<'b, D, A>(t1: &'b Typ, t2: &'b Typ, pp: &'b D) -> pretty::DocBuilder<'b, D, A>
+where
+    D: pretty::DocAllocator<'b, A>,
+    A: std::clone::Clone,
+    <D as pretty::DocAllocator<'b, A>>::Doc: std::clone::Clone,
+{
+    pp.concat(vec![
+        parens_if(pp, &*t1, t1.is_arr()),
+        pp.space(),
+        pp.text("->"),
+        pp.space(),
+        t2.pretty(pp),
+    ])
 }
 
 /// produces lowercase greek letters in alphabetic order, then produced <i>
@@ -96,20 +107,17 @@ impl Pretty for Exp {
         <D as pretty::DocAllocator<'b, A>>::Doc: std::clone::Clone,
     {
         match self {
-            Exp::Null => pp.text("null"),
+            Exp::Lit(x) => x.pretty(pp),
             Exp::Var(x) => pp.text(x),
             Exp::Assign(x, v) => pp.concat(vec![pp.text(x), pp.text(": "), v.pretty(pp)]),
             Exp::Fun(x, t1, e, t2) => pp.concat(vec![
-                pp.text("fun"),
+                pp.text("fun "),
+                pretty_arr(t1, t2, pp),
                 pp.space(),
                 pp.text(x),
-                pp.text(":"),
-                t1.pretty(pp),
                 pp.text("."),
-                pp.line(),
+                pp.softline(),
                 e.pretty(pp).nest(2),
-                pp.text(":"),
-                t2.pretty(pp),
             ]),
             Exp::App(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_fun_exp()),
@@ -120,11 +128,11 @@ impl Pretty for Exp {
                 pp.text("if"),
                 pp.space(),
                 e1.pretty(pp).nest(2),
-                pp.line(),
-                pp.concat(vec![pp.text("then"), pp.line(), e2.pretty(pp)])
+                pp.softline(),
+                pp.concat(vec![pp.text("then"), pp.softline(), e2.pretty(pp)])
                     .nest(2),
-                pp.line(),
-                pp.concat(vec![pp.text("else"), pp.line(), e3.pretty(pp)])
+                pp.softline(),
+                pp.concat(vec![pp.text("else"), pp.softline(), e3.pretty(pp)])
                     .nest(2),
             ]),
             Exp::Coerce(t1, t2, e) => pp.concat(vec![
@@ -132,7 +140,7 @@ impl Pretty for Exp {
                 pretty_coercion(t1, t2, pp),
                 pp.text("⟩"),
                 pp.space(),
-                parens_if(pp, &**e, e.is_fun_exp()),
+                parens_if(pp, &**e, e.is_app_like()),
             ]),
         }
     }
@@ -151,6 +159,22 @@ where
         pp.space(),
         t2.pretty(pp),
     ])
+}
+
+impl Pretty for Lit {
+    fn pretty<'b, D, A>(&'b self, pp: &'b D) -> pretty::DocBuilder<'b, D, A>
+    where
+        D: pretty::DocAllocator<'b, A>,
+        A: std::clone::Clone,
+        <D as pretty::DocAllocator<'b, A>>::Doc: std::clone::Clone,
+    {
+        match self {
+            Lit::Null => pp.text("null"),
+            Lit::Int(n) => pp.as_string(n),
+            Lit::Bool(true) => pp.text("true"),
+            Lit::Bool(false) => pp.text("false"),
+        }
+    }
 }
 
 impl Pretty for (Typ, Typ) {

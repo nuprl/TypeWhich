@@ -3,7 +3,7 @@ use im_rc::HashMap;
 
 pub fn decorate(exp: &mut Exp, solution: &HashMap<Typ, Typ>) {
     match exp {
-        Exp::Null | Exp::Var(_) => (),
+        Exp::Lit(_) | Exp::Var(_) => (),
         Exp::Assign(_, e) => {
             decorate(e, &solution);
         }
@@ -50,9 +50,7 @@ fn decorate_typ(t: &mut Typ, solution: &HashMap<Typ, Typ>) {
                 decorate_typ(t, solution);
             }
             None => {
-                eprintln!("no solution for {}", t);
-                // this is definitely probly wrong
-                *t = Typ::Any
+                panic!("no solution for {}", t);
             }
         },
         _ => (),

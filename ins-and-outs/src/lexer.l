@@ -2,6 +2,8 @@
 [\t\r\n ]+ ;
 //[^\n]* ;
 fun "fun"
+false "false"
+true "true"
 \. "."
 \( "("
 \) ")"
@@ -17,4 +19,7 @@ in "in"
 -> "->"
 any "any"
 null "null"
+int "int_typ"
+bool "bool_typ"
+-?[0-9]+ "INT"
 [A-Za-z_\$][A-Za-z_\$0-9]* "ID"

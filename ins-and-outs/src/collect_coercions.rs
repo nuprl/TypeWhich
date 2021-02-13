@@ -7,11 +7,20 @@ pub fn compile_coercions(x: Exp) -> (Exp, HashSet<(Typ, Typ)>) {
     // Base
     let (e, t, mut c) = compile(x, &HashMap::new());
     // Comp
-    c.insert((t.get_ret(), Typ::Any));
-    c.insert((Typ::Any, t.get_arg()));
-    let as_arrow = Typ::Arr(Box::new(t.get_arg()), Box::new(t.get_ret()));
-    c.insert((as_arrow.clone(), t.clone()));
-    c.insert((t, as_arrow));
+    // ignore base types
+    if t.is_arr() || t.is_metavar() {
+        // the paper doesn't support type annotations, so it doesn't take into
+        // account that this can produce, for example, any |> int, which makes
+        // not a lot of sense. it would probably be possible to fortify the flow
+        // calculations for that case (and it might happen organically?) but this
+        // particular one breaks things, and can be easily sidestepped
+        if !t.get_ret().is_base() {
+            c.insert((t.get_ret(), Typ::Any));
+        }
+        if !t.get_arg().is_base() {
+            c.insert((Typ::Any, t.get_arg()));
+        }
+    }
     (e, c)
 }
 
@@ -21,8 +30,11 @@ pub fn compile_coercions(x: Exp) -> (Exp, HashSet<(Typ, Typ)>) {
 fn compile(exp: Exp, env: &HashMap<Id, Typ>) -> (Exp, Typ, HashSet<(Typ, Typ)>) {
     match exp {
         // -------------------------
-        // Γ ⊢ null ↪ null :: null
-        Exp::Null => (exp, Typ::Null, empty()),
+        // Γ ⊢ Lit(l) ↪ Lit(l) :: l.typ()
+        Exp::Lit(ref l) => {
+            let t = l.typ();
+            (exp, t, empty())
+        }
         // ------------------
         // Γ ⊢ x : (Γ(x), ∅)
         Exp::Var(ref x) => {
