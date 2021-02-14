@@ -29,6 +29,30 @@ impl Typ {
             _ => false,
         }
     }
+    /// Rastogi et al define:
+    ///
+    /// > Kinds for a type variable X, ranged over by K^X, are types of the
+    /// > form null, X?->X!, [object stuff], or any
+    ///
+    /// Let's focus on X?->X!, which I consider a bit ambiguous. The definition
+    /// says kinds *for a type variable X*, which should mean that X in this
+    /// notation isn't an arbitrary notation, but rather refers specifically to a
+    /// type variable described by X. So that would mean when we see K^X in the
+    /// figures, it doesn't mean any non-metavar, it means non-metavars with a
+    /// very particular property on arrows. Earlier versions of my
+    /// implementation used the former. The introduction of the below function,
+    /// which represents the stricter "with respect to X" sense, works to the same
+    /// extent. Since it's stricter and we're dealing with infinite loop issues,
+    /// I'll stick with this until it breaks something
+    pub fn is_kind(&self, x: &Typ) -> bool {
+        assert!(x.is_metavar());
+        match self {
+            _ if self.is_metavar() => false,
+            Typ::Arr(t1, t2) if &**t1 == &x.get_arg() && &**t2 == &x.get_ret() => true,
+            Typ::Arr(..) => false,
+            _ => true,
+        }
+    }
     pub fn is_base(&self) -> bool {
         match self {
             Typ::Any | Typ::Bool | Typ::Int | Typ::Null => true,

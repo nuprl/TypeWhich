@@ -51,41 +51,45 @@ fn pull_and_factor(cs: Closure) -> Closure {
     let mut expanded = cs.clone();
     for c in cs.clone().into_iter() {
         match c {
-            (from, to) if !from.is_metavar() && to.is_metavar() => {
-                // K |> X
-                // Pull
-                // surely this doesn't have to be O(n^2)? check complexity analysis
-                for c in cs.clone().into_iter() {
-                    match c {
-                        (from2, to2) if from2 == to && to2.is_metavar() => {
-                            p(
-                                &mut expanded,
-                                "Pull",
-                                vec![(&from, &to), (&from2, &to2.clone())],
-                                from.clone(),
-                                to2,
-                            );
+            (from, to) if to.is_metavar() => {
+                if from.is_kind(&to) {
+                    // K |> X
+                    // Pull
+                    // surely this doesn't have to be O(n^2)? check complexity analysis
+                    for c in cs.clone().into_iter() {
+                        match c {
+                            (from2, to2) if from2 == to && to2.is_metavar() => {
+                                p(
+                                    &mut expanded,
+                                    "Pull",
+                                    vec![(&from, &to), (&from2, &to2.clone())],
+                                    from.clone(),
+                                    to2,
+                                );
+                            }
+                            _ => (),
                         }
-                        _ => (),
                     }
                 }
                 // Factor
-                // TODO(luna): why doesn't the figure specify K |> X when it specifies T |> X?
-                let kind = from.kind_of_typ_var(&to);
-                p(
-                    &mut expanded,
-                    "Factor",
-                    vec![(&from, &to)],
-                    from.clone(),
-                    kind.clone(),
-                );
-                p(
-                    &mut expanded,
-                    "Factor",
-                    vec![(&from, &to.clone())],
-                    kind,
-                    to,
-                );
+                // T |> X
+                if !from.is_metavar() {
+                    let kind = from.kind_of_typ_var(&to);
+                    p(
+                        &mut expanded,
+                        "Factor",
+                        vec![(&from, &to)],
+                        from.clone(),
+                        kind.clone(),
+                    );
+                    p(
+                        &mut expanded,
+                        "Factor",
+                        vec![(&from, &to.clone())],
+                        kind,
+                        to,
+                    );
+                }
             }
             _ => (),
         }
@@ -124,7 +128,7 @@ fn tran_and_exp_fun(cs: Closure) -> Closure {
                 );
             }
             // Tran
-            (k, x) if !k.is_metavar() && x.is_metavar() => {
+            (k, x) if x.is_metavar() && k.is_kind(&x) => {
                 // surely this doesn't have x be O(n^2)? check complexity analysis
                 for c in cs.clone().into_iter() {
                     match c {
