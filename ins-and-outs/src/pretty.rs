@@ -142,11 +142,21 @@ impl Pretty for Exp {
                 pp.space(),
                 parens_if(pp, &**e, e.is_app_like()),
             ]),
+            Exp::Seq(e1, e2) => pp.concat(vec![
+                e1.pretty(pp),
+                pp.text(";"),
+                pp.softline(),
+                e2.pretty(pp),
+            ]),
         }
     }
 }
 
-fn pretty_coercion<'b, D, A>(t1: &'b Typ, t2: &'b Typ, pp: &'b D) -> pretty::DocBuilder<'b, D, A>
+pub fn pretty_coercion<'b, D, A>(
+    t1: &'b Typ,
+    t2: &'b Typ,
+    pp: &'b D,
+) -> pretty::DocBuilder<'b, D, A>
 where
     D: pretty::DocAllocator<'b, A>,
     A: std::clone::Clone,

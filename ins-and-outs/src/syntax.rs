@@ -31,7 +31,7 @@ impl Typ {
     }
     pub fn is_base(&self) -> bool {
         match self {
-            Typ::Bool | Typ::Int | Typ::Null => true,
+            Typ::Any | Typ::Bool | Typ::Int | Typ::Null => true,
             _ => false,
         }
     }
@@ -124,6 +124,7 @@ pub enum Exp {
     App(Box<Exp>, Box<Exp>),
     Coerce(Typ, Typ, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
+    Seq(Box<Exp>, Box<Exp>),
     // TODO(luna): objects
 }
 

@@ -59,6 +59,7 @@ exp -> Exp :
       app_(Exp::Fun($2, next_metavar_typ(), Box::new($6), next_metavar_typ()), $4)
     }
   | assignExp { $1 }
+  | assignExp ';' exp { Exp::Seq(Box::new($1), Box::new($3)) }
   ;
 
 %%

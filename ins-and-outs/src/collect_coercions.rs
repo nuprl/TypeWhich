@@ -105,6 +105,16 @@ fn compile(exp: Exp, env: &HashMap<Id, Typ>) -> (Exp, Typ, HashSet<(Typ, Typ)>) 
             let res_e = Exp::If(Box::new(ep), Box::new(e1pp), Box::new(e2pp));
             (res_e, alpha, c1.union(c2).union(c3).union(c4).union(c5))
         }
+        // Γ ⊢ e1 ↪ e1' :: t1
+        // Γ ⊢ e2 ↪ e2' :: t2
+        // ----------------------------
+        // Γ ⊢ e1; e2 ↪ e1'; e2' :: t2
+        Exp::Seq(e1, e2) => {
+            let (e1p, _, c1) = compile(*e1, env);
+            let (e2p, t2, c2) = compile(*e2, env);
+            let res_e = Exp::Seq(Box::new(e1p), Box::new(e2p));
+            (res_e, t2, c1.union(c2))
+        }
         Exp::Coerce(..) => panic!("coercions don't exist during compilation"),
     }
 }

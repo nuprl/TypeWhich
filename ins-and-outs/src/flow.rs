@@ -15,7 +15,7 @@ pub fn compute_closure(cs: Closure) -> Closure {
 
 /// this isn't in the spec, but makes it easier to read closures, and i don't
 /// think it should make a difference
-fn e(e: &mut Closure, t1: Typ, t2: Typ) {
+fn e(c: &mut Closure, t1: Typ, t2: Typ) {
     if t1 != t2 {
         assert!(
             !t1.is_base() || !t2.is_base(),
@@ -23,7 +23,25 @@ fn e(e: &mut Closure, t1: Typ, t2: Typ) {
             t1,
             t2
         );
-        e.insert((t1, t2));
+        c.insert((t1, t2));
+    }
+}
+
+/// for debugging, this prints the coercion (or two) that combine to produce
+/// the coercion that is added to the closure, along with that coercion
+fn p(c: &mut Closure, description: &'static str, reasons: Vec<(&Typ, &Typ)>, t1: Typ, t2: Typ) {
+    if t1 != t2 {
+        let mut reasoning = String::from(description);
+        reasoning.push_str(": ");
+        for reason in reasons {
+            reasoning.push_str(&format!("{} |> {}, ", reason.0, reason.1));
+        }
+        reasoning.push_str(&format!("==> {} |> {}", t1, t2));
+        let as_tup = (t1, t2);
+        if !c.contains(&as_tup) {
+            eprintln!("{}", reasoning);
+            e(c, as_tup.0, as_tup.1);
+        }
     }
 }
 
@@ -40,7 +58,13 @@ fn pull_and_factor(cs: Closure) -> Closure {
                 for c in cs.clone().into_iter() {
                     match c {
                         (from2, to2) if from2 == to && to2.is_metavar() => {
-                            e(&mut expanded, from.clone(), to2);
+                            p(
+                                &mut expanded,
+                                "Pull",
+                                vec![(&from, &to), (&from2, &to2.clone())],
+                                from.clone(),
+                                to2,
+                            );
                         }
                         _ => (),
                     }
@@ -48,8 +72,20 @@ fn pull_and_factor(cs: Closure) -> Closure {
                 // Factor
                 // TODO(luna): why doesn't the figure specify K |> X when it specifies T |> X?
                 let kind = from.kind_of_typ_var(&to);
-                e(&mut expanded, from, kind.clone());
-                e(&mut expanded, kind, to);
+                p(
+                    &mut expanded,
+                    "Factor",
+                    vec![(&from, &to)],
+                    from.clone(),
+                    kind.clone(),
+                );
+                p(
+                    &mut expanded,
+                    "Factor",
+                    vec![(&from, &to.clone())],
+                    kind,
+                    to,
+                );
             }
             _ => (),
         }
@@ -69,19 +105,44 @@ fn tran_and_exp_fun(cs: Closure) -> Closure {
         match c {
             // ExpFunL
             (Typ::Any, to @ Typ::Arr(..)) => {
-                e(&mut expanded, any_to_any.clone(), to.clone());
+                p(
+                    &mut expanded,
+                    "ExpFunL",
+                    vec![(&Typ::Any, &to)],
+                    any_to_any.clone(),
+                    to.clone(),
+                );
             }
             // ExpFunR
             (from @ Typ::Arr(..), Typ::Any) => {
-                e(&mut expanded, from.clone(), any_to_any.clone());
+                p(
+                    &mut expanded,
+                    "ExpFunR",
+                    vec![(&from, &Typ::Any)],
+                    from.clone(),
+                    any_to_any.clone(),
+                );
             }
             // Tran
-            (k, x) if !k.is_metavar() => {
+            (k, x) if !k.is_metavar() && x.is_metavar() => {
                 // surely this doesn't have x be O(n^2)? check complexity analysis
                 for c in cs.clone().into_iter() {
                     match c {
                         (x2, t) if x2 == x && k.dyn_consistent(&t) => {
-                            e(&mut expanded, k.clone(), t);
+                            // it isn't seen in the paper formulation because
+                            // they only have one base type, but a base |> base
+                            // makes no sense. it doesn't cause any problems
+                            // based on the rules, but it makes closures bigger
+                            // than they have to be
+                            if !(k.is_base() && t.is_base()) {
+                                p(
+                                    &mut expanded,
+                                    "Tran",
+                                    vec![(&k, &x), (&x2, &t.clone())],
+                                    k.clone(),
+                                    t,
+                                );
+                            }
                         }
                         _ => (),
                     }
@@ -107,8 +168,26 @@ fn split_fun(cs: Closure) -> Closure {
             // repeat, but if it never happens, don't bother checking equality
             // and exit
             (Typ::Arr(t1, t2), Typ::Arr(t1p, t2p)) => {
-                e(&mut expanded, *t1p.clone(), *t1.clone());
-                e(&mut expanded, *t2.clone(), *t2p.clone());
+                p(
+                    &mut expanded,
+                    "SplitFun",
+                    vec![(
+                        &Typ::Arr(t1.clone(), t2.clone()),
+                        &Typ::Arr(t1p.clone(), t2p.clone()),
+                    )],
+                    *t1p.clone(),
+                    *t1.clone(),
+                );
+                p(
+                    &mut expanded,
+                    "SplitFun",
+                    vec![(
+                        &Typ::Arr(t1.clone(), t2.clone()),
+                        &Typ::Arr(t1p.clone(), t2p.clone()),
+                    )],
+                    *t2.clone(),
+                    *t2p.clone(),
+                );
             }
             _ => (),
         }

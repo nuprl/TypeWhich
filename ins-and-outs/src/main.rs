@@ -57,7 +57,9 @@ mod tests {
             Exp::Coerce(..) => true,
             Exp::Lit(..) | Exp::Var(..) => false,
             Exp::Fun(_, _, e, _) | Exp::Assign(_, e) => contains_coercions(*e),
-            Exp::App(e1, e2) => contains_coercions(*e1) || contains_coercions(*e2),
+            Exp::App(e1, e2) | Exp::Seq(e1, e2) => {
+                contains_coercions(*e1) || contains_coercions(*e2)
+            }
             Exp::If(e1, e2, e3) => {
                 contains_coercions(*e1) || contains_coercions(*e2) || contains_coercions(*e3)
             }
@@ -99,11 +101,38 @@ mod tests {
             "fun n:int.
                 let index = 0 in
                 let sum = index in
-                // while (index < sum) <- index |> int, sum |> int aren't used (outflows)
-                //     index = index + 1 <- index |> int (outflow); int |> index (already there)
-                //     sum = sum + index <- index |> int, sum |> int (outflows); int |> sum (already there)
+                // while (index < sum) { <- index |> int, sum |> int aren't used (outflows)
+                       index = index; // was index + 1 which produces index |> int (outflow)
+                       sum = sum; // was sum + index which produces outflows, and int |> sum (already there)
+                // }
                 sum",
         );
+    }
+    #[test]
+    fn conditional_int_arr_int() {
+        succeeds(
+            "let b = null in
+            let elim_int = fun x: int. x in // an elimanation form for int, for use rather than +
+            let foo = fun x.
+                if b then
+                    elim_int x
+                else
+                    0 in
+            foo 1",
+        )
+    }
+    #[test]
+    fn callable_by_existing_code() {
+        coerces(
+            "let b = null in
+            let foo = fun x.
+                if b then
+                    (fun i: int. i) x // an elimanation form for int, for use rather than +
+                else
+                    0 in
+            let app1 = foo 1 in
+            foo",
+        )
     }
     #[test]
     fn identity_twice() {
