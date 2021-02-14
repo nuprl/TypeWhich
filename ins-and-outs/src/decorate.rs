@@ -50,7 +50,11 @@ fn decorate_typ(t: &mut Typ, solution: &HashMap<Typ, Typ>) {
                 decorate_typ(t, solution);
             }
             None => {
-                panic!("no solution for {}", t);
+                eprintln!(
+                    "WARNING: no solution for {}. this probably means
+                there are no constrainst on the type. Leaving undecorated",
+                    t
+                );
             }
         },
         _ => (),

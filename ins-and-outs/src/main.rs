@@ -94,6 +94,43 @@ mod tests {
         succeeds("(fun x.fun y.y) 5 8");
     }
     #[test]
+    fn indir_int_equal_bool() {
+        coerces(
+            "fun p .
+                (fun foo . foo 10 p true)
+                    (fun x . fun y . fun z .
+                        if true then z
+                        else
+                            (fun w . w) (if true then y else (fun w0 . w0) x))",
+        );
+    }
+    #[test]
+    fn key_is_bool_and_int() {
+        // previously ended in else key > 10 which would yield bool and
+        // constrain key to int, so we make something similar type-wise without
+        // adding comparisons
+        coerces(
+            "let elim_int = fun i: int.i in
+            fun key . if true then if true then key else true else
+                (fun i . true) (elim_int key)",
+        );
+    }
+    #[test]
+    fn identity_polymorphic() {
+        coerces(
+            "let id = fun x . x in
+            let f = fun anid .
+                let n = anid 10 in
+                let b = anid true in
+                5 in
+            f id",
+        );
+    }
+    #[test]
+    fn bool_const() {
+        succeeds("true");
+    }
+    #[test]
     fn local_variables_having_base_types() {
         // we don't worry about elimination forms since ins and outs doesn't
         // even use them!
@@ -163,4 +200,87 @@ mod tests {
     fn broke_migeed() {
         coerces("(fun i.(fun a.fun b.b) (i 5) (i true)) (fun x.x)");
     }
+    // =======================================
+    // ~~~~~~~~~ migeed and palsberg ~~~~~~~~~
+    #[test]
+    fn apply_add() {
+        coerces(
+            "let elim_add = fun x: int.x in
+            fun x . x (elim_add x)",
+        );
+    }
+    #[test]
+    fn add_applied() {
+        coerces(
+            "let elim_add = fun x: int.x in
+            fun x             . x (elim_add (x true))",
+        );
+    }
+    #[test]
+    fn add_two_applies() {
+        coerces(
+            "let elim_add = fun x: int. x in
+            fun x             . elim_add (x 4); elim_add (x true)",
+        );
+    }
+    #[test]
+    fn identity_four() {
+        succeeds("(fun x . x) 4");
+    }
+    #[test]
+    fn succ_id_id() {
+        coerces(
+            "let elim_int = fun x: int. x in
+            elim_int ((fun y    .y) ((fun x    .x) true))",
+        );
+    }
+    #[test]
+    fn identity() {
+        succeeds("fun x.x");
+    }
+    #[test]
+    fn apply2() {
+        coerces("fun x    .fun y                    .y x x");
+    }
+    #[test]
+    fn indirect_apply_self() {
+        coerces("fun x    .(fun y    .x)           x  x");
+    }
+    #[test]
+    fn the_long_one() {
+        succeeds("fun x    .(fun f    .(fun x    .fun y    .x)          f (f x))(fun z    .1)");
+    }
+    /// this benchmark has no maximal migration, which means that x could be
+    /// given an infinity recursive arrow type (t -> t -> t -> ...). we will
+    /// give it... something
+    #[test]
+    fn apply_self() {
+        coerces("fun x.x x");
+    }
+    /// this benchmark has an unknown maximal migration. because Migeed's
+    /// algorithm is incomplete, it sometimes does not report whether a maximal
+    /// solution exists. in practice, this probably means that there is no maximal
+    /// migration. we still give it some migration
+    /// TODO(luna): this test hangs fsr
+    #[test]
+    #[ignore]
+    fn untypable_in_sys_f() {
+        coerces("(fun x.fun y.y(x(fun x.x))(x(fun b.fun c.b)))(fun d.d d)");
+    }
+    #[test]
+    fn self_apply_applied() {
+        coerces("(fun x.x x) (fun i.i)");
+        coerces("(fun x: any.<any |> any -> any>x x) (fun i: any.i)");
+    }
+    /// unknown to Migeed and Parsberg. self interpreter for the lambda calculus
+    /// TODO(luna): this test hangs adding a bunch of ?!?!?!s fsr
+    #[test]
+    #[ignore]
+    fn self_interpreter() {
+        coerces(
+            "(fun h.(fun x.h(x x))(fun x.h x x))
+             (fun e.fun m.m(fun x.x)(fun m.fun n.(e m)(e n))(fun m.fun v.e (m v)))",
+        );
+    }
+    // =======================================
 }
