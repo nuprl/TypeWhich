@@ -2,6 +2,16 @@ use crate::syntax::Typ;
 use ast::{Bool, Dynamic};
 use z3::*;
 
+//pub trait MyZ3 {
+//    fn _or(&self, other: &Bool) -> Bool;
+//}
+//
+//impl<'a> MyZ3 for Bool<'a> {
+//    fn _or(&self, other: &Bool) -> Bool {
+//        Bool::or(&[self, other])
+//    }
+//}
+
 pub struct Z3State<'a> {
     pub cxt: &'a Context,
     pub typ: &'a DatatypeSort<'a>,
@@ -101,6 +111,9 @@ impl<'a> Z3State<'a> {
     }
     pub fn z3_is_arr(&self, e: Dynamic<'a>) -> Bool<'a> {
         self.typ.variants[3].tester.apply(&[&e]).as_bool().unwrap()
+    }
+    pub fn z3_is_list(&self, e: Dynamic<'a>) -> Bool<'a> {
+        self.typ.variants[4].tester.apply(&[&e]).as_bool().unwrap()
     }
     fn is_int(&self, model: &Model, e: &Dynamic) -> bool {
         self.is_variant(0, model, e)

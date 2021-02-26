@@ -71,13 +71,24 @@ pub enum Exp {
     IsString(Box<Exp>),
     IsList(Box<Exp>),
     IsFun(Box<Exp>),
+    Coerce(Typ, Typ, Box<Exp>),
+    /// Deprecated. Write rules for a given construct in cgen instead and
+    /// generate a Coerce. You may use the helpers like self.maybe_to_any()
+    ///
     /// This `u32` is the index of a boolean metavariable. When `true`, the
     /// cast is needed. When `false`, it can be safely removed.
+    #[deprecated = "Write rules for a given construct in cgen instead"]
     MaybeToAny(u32, Box<Exp>),
+    /// Deprecated. Write rules for a given construct in cgen instead and
+    /// generate a Coerce. You may use the helpers like self.from_any()
+    ///
     /// The typ is the type that the any is coerced into if enabled
+    #[deprecated = "Write rules for a given construct in cgen instead"]
     MaybeFromAny(u32, Typ, Box<Exp>),
+    #[deprecated = "Use Coerce(a, Any, e)"]
     ToAny(Box<Exp>),
     /// The typ is the type that the any is coerced into
+    #[deprecated = "Use Coerce(Any, a, e)"]
     FromAny(Typ, Box<Exp>),
 }
 

@@ -66,7 +66,7 @@ mul -> Exp :
   ;
 
 add -> Exp :
-    add '+' mul  { Exp::Add(maybe_from_any_($1), maybe_from_any_($3)) }
+    add '+' mul  { Exp::Add(Box::new($1), Box::new($3)) }
   | add '+?' mul { Exp::AddOverload(maybe_to_any_($1), maybe_to_any_($3)) }
   | mul          { $1 }
   ;
@@ -88,7 +88,7 @@ exp -> Exp :
   | 'let' id '=' exp 'in' exp {
       Exp::Let($2, next_metavar_typ(), maybe_from_any_($4), Box::new($6))
     }
-  | pair '::' exp    { Exp::Cons(maybe_to_any_($1), maybe_from_any_($3)) }
+  | pair '::' exp    { Exp::Cons(Box::new($1), Box::new($3)) }
   ;
 
 %%

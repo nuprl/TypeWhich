@@ -238,6 +238,15 @@ impl Pretty for Exp {
             }
             Exp::IsList(e) => pp.concat(vec![pp.text("is_list"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::IsFun(e) => pp.concat(vec![pp.text("is_fun"), pp.space(), e.pretty(pp).nest(2)]),
+            Exp::Coerce(from, to, e) => pp.concat(vec![
+                pp.text("coerce("),
+                from.pretty(pp),
+                pp.text(", "),
+                to.pretty(pp),
+                pp.text(")"),
+                pp.space(),
+                e.pretty(pp).nest(2),
+            ]),
             Exp::MaybeToAny(_, e) => e.pretty(pp),
             Exp::MaybeFromAny(.., e) => e.pretty(pp),
             Exp::ToAny(e) => pp.concat(vec![

@@ -24,7 +24,7 @@ fn main() -> Result<()> {
             out
         }
     };
-    let inferred = cgen::typeinf(&parser::parse(source)).unwrap();
+    let inferred = cgen::typeinf(parser::parse(source)).unwrap();
     println!("{}", &inferred);
     match type_check::type_check(&inferred) {
         Ok(typ) => println!("program type: {}", typ),
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
 mod tests_631 {
     use super::cgen::typeinf;
     use super::parser::parse;
-    use super::syntax::Exp;
+    use super::syntax::{Exp, Typ};
     use super::type_check::type_check;
     trait PairOr {
         fn or(&self, other: Self) -> Self;
@@ -50,6 +50,18 @@ mod tests_631 {
     // (to_any, from_any)
     pub fn contains_coercions(e: Exp) -> (bool, bool) {
         match e {
+            Exp::Coerce(t1, t2, e) => {
+                let cts = contains_coercions(*e);
+                if t1 == t2 {
+                    // this probably shouldn't happen after proper annotation
+                    cts
+                } else {
+                    // a coercion between two non-anys counts as a from_any
+                    // because it is possibly unsafe (which is what we really
+                    // mean by from_any)
+                    (t2 == Typ::Any, t2 != Typ::Any)
+                }
+            }
             Exp::ToAny(.., e) => (true, contains_coercions(*e).1),
             Exp::FromAny(.., e) => (contains_coercions(*e).0, true),
             Exp::MaybeFromAny(..) | Exp::MaybeToAny(..) => {
@@ -83,7 +95,7 @@ mod tests_631 {
     pub fn succeeds(program: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
-        let e = typeinf(&orig).unwrap();
+        let e = typeinf(orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
         println!("\nProgram type:\n{:?}", type_check(&e));
         let coercions = contains_coercions(e);
@@ -92,7 +104,7 @@ mod tests_631 {
     pub fn no_from_any(program: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
-        let e = typeinf(&orig).unwrap();
+        let e = typeinf(orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
         println!("\nProgram type:\n{:?}", type_check(&e));
         let coercions = contains_coercions(e);
@@ -101,7 +113,7 @@ mod tests_631 {
     pub fn coerces(program: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
-        let e = typeinf(&orig).unwrap();
+        let e = typeinf(orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
         println!("\nProgram type:\n{:?}", type_check(&e));
         let coercions = contains_coercions(e);
@@ -277,10 +289,10 @@ mod tests_migeed_and_parsberg {
     fn assert_maximal(program: &str, annotated: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
-        let e = typeinf(&orig).expect("type inference failed on the original program");
+        let e = typeinf(orig).expect("type inference failed on the original program");
         println!("\nAfter type inference:\n{}", e);
         let correct =
-            typeinf(&parse(annotated)).expect("type inference failed on the expected program");
+            typeinf(parse(annotated)).expect("type inference failed on the expected program");
         println!("\nProgram type:\n{:?}", type_check(&e));
         println!("\nCorrect:\n{}", correct);
         assert_eq!(e, correct);

@@ -167,6 +167,13 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             should_match(&Typ::Any, tcheck(env, e)?)?;
             Ok(Typ::Bool)
         }
+        // Γ ⊢ e : T_1
+        // ----------------------------------------------
+        // Γ ⊢ coerce(T_1, T_2) e : T_2
+        Exp::Coerce(t1, t2, e) => {
+            should_match(t1, tcheck(env, e)?);
+            Ok(t2.clone())
+        }
         // even though these should be removed by type inference, it's possible
         // we never did type inference on this program. so consider these no-ops
         Exp::MaybeToAny(_, e) => tcheck(env, e),
