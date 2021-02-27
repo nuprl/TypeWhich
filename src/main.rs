@@ -333,7 +333,7 @@ mod tests_migeed_and_parsberg {
     }
     #[test]
     fn identity() {
-        assert_maximal("fun x.x", "fun x: int . x");
+        assert_maximal("fun x.x", "fun x: any . x");
     }
 
     #[test]

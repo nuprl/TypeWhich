@@ -247,6 +247,43 @@ impl<'a> State<'a> {
         }
     }
 
+    fn solve_model(&self, model: z3::Model) -> HashMap<u32, Typ> {
+        let mut result = HashMap::new();
+        for (x, x_ast) in self.vars.borrow().iter() {
+            let x_val_ast = model.eval(x_ast).expect("evaluating metavar");
+            result.insert(*x, self.z3.z3_to_typ(&model, x_val_ast));
+        }
+        result
+    }
+
+    /// Provide the solution, a typ, and false. Returns a constraint that
+    /// ensures that every type in a negative position is any
+    fn negative_any(&self, env: &HashMap<u32, Typ>, t: &Typ, is_neg: bool) -> Bool<'a> {
+        match t {
+            Typ::Metavar(v) => {
+                if is_neg {
+                    self.t2z3(t)._eq(&self.z3.any_z3)
+                } else {
+                    match env.get(&v) {
+                        Some(t) => self.negative_any(env, t, is_neg),
+                        // We could choose anything for this type, and it's
+                        // positive. If we were to choose an arrow, we would need
+                        // to recurse. So we simply don't
+                        None => !self.z3.z3_is_arr(self.t2z3(&t)),
+                    }
+                }
+            }
+            Typ::Arr(t1, t2) => {
+                self.negative_any(env, t1, !is_neg) & self.negative_any(env, t2, is_neg)
+            }
+            Typ::List(t) => self.negative_any(env, t, is_neg),
+            Typ::Pair(t1, t2) => {
+                self.negative_any(env, t1, is_neg) & self.negative_any(env, t2, is_neg)
+            }
+            Typ::Int | Typ::Bool | Typ::Str | Typ::Any => self.z3.true_z3(),
+        }
+    }
+
     fn coerce(&self, t1: Typ, t2: Typ, exp: &mut Exp) {
         self.solver
             .assert_soft(&self.t2z3(&t1)._eq(&self.t2z3(&t2)), 1, None);
@@ -377,20 +414,30 @@ pub fn typeinf(mut exp: Exp) -> Result<Exp, ()> {
         vars: Default::default(),
         solver: Optimize::new(&cxt),
     };
-    //let solver = Optimize::new(&s.z3.cxt);
-    let (_, phi) = s.cgen(&Default::default(), &mut exp);
+    let (t, phi) = s.cgen(&Default::default(), &mut exp);
     s.solver.assert(&phi);
+    s.solver.push();
     match s.solver.check(&[]) {
         SatResult::Unsat => return Err(()),
         SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
         SatResult::Sat => (),
     }
     let model = s.solver.get_model().expect("model not available");
-    let mut result = HashMap::new();
-    for (x, x_ast) in s.vars.borrow().iter() {
-        let x_val_ast = model.eval(x_ast).expect("evaluating metavar");
-        result.insert(*x, s.z3.z3_to_typ(&model, x_val_ast));
+    s.solver.pop();
+    let result = s.solve_model(model);
+    let negative_any = s.negative_any(&result, &t, false);
+    println!("{}", negative_any);
+    s.solver.assert(&negative_any);
+    match s.solver.check(&[]) {
+        SatResult::Unsat => return Err(()),
+        SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
+        SatResult::Sat => (),
     }
+    let model = s
+        .solver
+        .get_model()
+        .expect("model not available after context");
+    let result = s.solve_model(model);
     annotate(&result, &mut exp);
     return Ok(exp);
 }
