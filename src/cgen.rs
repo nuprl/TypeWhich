@@ -90,7 +90,7 @@ impl<'a> State<'a> {
                 env.insert(x.clone(), t1.clone());
                 let (t2, phi1) = self.cgen(&env, body);
                 let phi2 = self.t2z3(t1)._eq(&self.t2z3(&t2));
-                (t1.clone(), Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                (t1.clone(), phi1 & phi2)
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -103,7 +103,7 @@ impl<'a> State<'a> {
                 let alpha = next_metavar_typ();
                 let t = Typ::Arr(Box::new(t2), Box::new(alpha.clone()));
                 let phi = self.t2z3(&t1)._eq(&self.t2z3(&t));
-                (alpha, Bool::and(self.z3.cxt, &[&phi1, &phi2, &phi]))
+                (alpha, phi1 & phi2 & phi)
             }
             // Γ ⊢ e1 : (T_1, φ_1)
             // Γ,x:T_1 ⊢ e2 : (T_2, φ_2)
@@ -116,7 +116,7 @@ impl<'a> State<'a> {
                 let mut env = env.clone();
                 env.insert(x.clone(), t1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                (t2, Bool::and(self.z3.cxt, &[&phi1, &phi2, &phi3]))
+                (t2, phi1 & phi2 & phi3)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
@@ -140,14 +140,8 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 let t1 = self.t2z3(&t1);
                 let t2 = self.t2z3(&t2);
-                let int_case = Bool::and(
-                    self.z3.cxt,
-                    &[&t1._eq(&self.z3.int_z3), &t2._eq(&self.z3.int_z3)],
-                );
-                (
-                    Typ::Bool,
-                    Bool::and(self.z3.cxt, &[&phi1, &phi2, &int_case]),
-                )
+                let int_case = t1._eq(&self.z3.int_z3) & t2._eq(&self.z3.int_z3);
+                (Typ::Bool, phi1 & phi2 & int_case)
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -156,7 +150,7 @@ impl<'a> State<'a> {
             Exp::Not(e) => {
                 let (t, phi1) = self.cgen(&env, e);
                 let phi2 = self.t2z3(&t)._eq(&self.z3.bool_z3);
-                (Typ::Bool, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                (Typ::Bool, phi1 & phi2)
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -172,35 +166,14 @@ impl<'a> State<'a> {
                 let t1 = self.t2z3(&t1);
                 let t2 = self.t2z3(&t2);
                 let a_z3 = self.t2z3(&alpha);
-                let int_case = Bool::and(
-                    self.z3.cxt,
-                    &[
-                        &t1._eq(&self.z3.int_z3),
-                        &t2._eq(&self.z3.int_z3),
-                        &a_z3._eq(&self.z3.int_z3),
-                    ],
-                );
-                let str_case = Bool::and(
-                    self.z3.cxt,
-                    &[
-                        &t1._eq(&self.z3.str_z3),
-                        &t2._eq(&self.z3.str_z3),
-                        &a_z3._eq(&self.z3.str_z3),
-                    ],
-                );
-                let any_case = Bool::and(
-                    self.z3.cxt,
-                    &[
-                        &t1._eq(&self.z3.any_z3),
-                        &t2._eq(&self.z3.any_z3),
-                        &a_z3._eq(&self.z3.any_z3),
-                    ],
-                );
-                let add_constraints = Bool::or(self.z3.cxt, &[&int_case, &str_case, &any_case]);
-                (
-                    alpha,
-                    Bool::and(self.z3.cxt, &[&phi1, &phi2, &add_constraints]),
-                )
+                let int_case =
+                    t1._eq(&self.z3.int_z3) & t2._eq(&self.z3.int_z3) & a_z3._eq(&self.z3.int_z3);
+                let str_case =
+                    &t1._eq(&self.z3.str_z3) & t2._eq(&self.z3.str_z3) & a_z3._eq(&self.z3.str_z3);
+                let any_case =
+                    &t1._eq(&self.z3.any_z3) & t2._eq(&self.z3.any_z3) & a_z3._eq(&self.z3.any_z3);
+                let add_constraints = int_case | str_case | any_case;
+                (alpha, phi1 & phi2 & add_constraints)
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -215,10 +188,7 @@ impl<'a> State<'a> {
                 let (t3, phi3) = self.cgen(&env, e3);
                 let phi4 = self.t2z3(&t1)._eq(&self.z3.bool_z3);
                 let phi5 = self.t2z3(&t2)._eq(&self.t2z3(&t3));
-                (
-                    t2,
-                    Bool::and(self.z3.cxt, &[&phi1, &phi2, &phi3, &phi4, &phi5]),
-                )
+                (t2, phi1 & phi2 & phi3 & phi4 & phi5)
             }
             // Γ ⊢ e_1 : (T_1, φ_1)
             // Γ ⊢ e_2 : (T_2, φ_2)
@@ -228,10 +198,7 @@ impl<'a> State<'a> {
             Exp::Pair(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                (
-                    Typ::Pair(Box::new(t1), Box::new(t2)),
-                    Bool::and(self.z3.cxt, &[&phi1, &phi2]),
-                )
+                (Typ::Pair(Box::new(t1), Box::new(t2)), phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
@@ -259,7 +226,7 @@ impl<'a> State<'a> {
                 let phi2 = self
                     .t2z3(&Typ::List(Box::new(alpha.clone())))
                     ._eq(&self.t2z3(&t));
-                (alpha, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                (alpha, phi1 & phi2)
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -271,7 +238,7 @@ impl<'a> State<'a> {
                 let phi2 = self
                     .t2z3(&Typ::List(Box::new(alpha.clone())))
                     ._eq(&self.t2z3(&t));
-                (t, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                (t, phi1 & phi2)
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -283,7 +250,7 @@ impl<'a> State<'a> {
                 let phi2 = self
                     .t2z3(&Typ::List(Box::new(alpha.clone())))
                     ._eq(&self.t2z3(&t));
-                (Typ::Bool, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                (Typ::Bool, phi1 & phi2)
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -291,10 +258,7 @@ impl<'a> State<'a> {
             // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
             Exp::IsBool(e) | Exp::IsInt(e) | Exp::IsString(e) | Exp::IsList(e) | Exp::IsFun(e) => {
                 let (t1, phi1) = self.cgen(env, e);
-                (
-                    Typ::Bool,
-                    Bool::and(self.z3.cxt, &[&phi1, &self.t2z3(&t1)._eq(&self.z3.any_z3)]),
-                )
+                (Typ::Bool, phi1 & self.t2z3(&t1)._eq(&self.z3.any_z3))
             }
             // Γ ⊢ e : (T_3, φ)
             // ----------------------------------------------
@@ -314,20 +278,11 @@ impl<'a> State<'a> {
                 let (t, phi1) = self.cgen(env, e);
                 let t = self.t2z3(&t);
                 let alpha = next_metavar_typ();
-                let dont_coerce_case = Bool::and(
-                    self.z3.cxt,
-                    &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)],
-                );
-                let do_coerce_case = Bool::and(
-                    self.z3.cxt,
-                    &[
-                        &calpha,
-                        &self.t2z3(&alpha)._eq(&self.z3.any_z3),
-                        &Bool::not(&t._eq(&self.z3.any_z3)),
-                    ],
-                );
-                let phi2 = Bool::or(self.z3.cxt, &[&dont_coerce_case, &do_coerce_case]);
-                (alpha, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                let dont_coerce_case = !&calpha & self.t2z3(&alpha)._eq(&t);
+                let do_coerce_case =
+                    calpha & self.t2z3(&alpha)._eq(&self.z3.any_z3) & !&t._eq(&self.z3.any_z3);
+                let phi2 = dont_coerce_case | do_coerce_case;
+                (alpha, phi1 & phi2)
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -341,25 +296,17 @@ impl<'a> State<'a> {
                 let calpha = self.c2z3(*calpha);
                 let (t, phi1) = self.cgen(env, e);
                 let t = self.t2z3(&t);
-                let dont_coerce_case = Bool::and(
-                    self.z3.cxt,
-                    &[&Bool::not(&calpha), &self.t2z3(&alpha)._eq(&t)],
-                );
+                let dont_coerce_case = !&calpha & self.t2z3(&alpha)._eq(&t);
                 let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
-                let do_coerce_case = Bool::and(
-                    self.z3.cxt,
-                    &[
-                        &calpha,
-                        &t._eq(&self.z3.any_z3),
-                        &Bool::not(&self.t2z3(&alpha)._eq(&self.z3.any_z3)),
-                        &self
-                            .z3
-                            .z3_is_arr(self.t2z3(&alpha))
-                            .implies(&self.t2z3(&alpha)._eq(&self.t2z3(&any_to_any))),
-                    ],
-                );
-                let phi2 = Bool::or(self.z3.cxt, &[&dont_coerce_case, &do_coerce_case]);
-                (alpha.clone(), Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                let do_coerce_case = calpha
+                    & t._eq(&self.z3.any_z3)
+                    & !&self.t2z3(&alpha)._eq(&self.z3.any_z3)
+                    & self
+                        .z3
+                        .z3_is_arr(self.t2z3(&alpha))
+                        .implies(&self.t2z3(&alpha)._eq(&self.t2z3(&any_to_any)));
+                let phi2 = dont_coerce_case | do_coerce_case;
+                (alpha.clone(), phi1 & phi2)
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -367,8 +314,8 @@ impl<'a> State<'a> {
             // TODO(luna): 2021-02-26  Convert to Coerce(..) or deprecate
             Exp::ToAny(e) => {
                 let (t1, phi1) = self.cgen(env, e);
-                let phi2 = Bool::not(&self.t2z3(&t1)._eq(&self.z3.any_z3));
-                (Typ::Any, Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                let phi2 = !&self.t2z3(&t1)._eq(&self.z3.any_z3);
+                (Typ::Any, phi1 & phi2)
             }
             // Γ ⊢ e : (T, φ)
             // ----------------------------------------------
@@ -377,7 +324,7 @@ impl<'a> State<'a> {
             Exp::FromAny(t, e) => {
                 let (t1, phi1) = self.cgen(env, e);
                 let phi2 = self.t2z3(&t1)._eq(&self.z3.any_z3);
-                (t.clone(), Bool::and(self.z3.cxt, &[&phi1, &phi2]))
+                (t.clone(), phi1 & phi2)
             }
         }
     }
@@ -541,7 +488,7 @@ pub fn typeinf(mut exp: Exp) -> Result<Exp, ()> {
     s.solver.assert(&phi);
     // These should slowly be phased out
     for (_, x) in s.coercions.borrow().iter() {
-        s.solver.assert_soft(&Bool::not(x), 1, None);
+        s.solver.assert_soft(&!x, 1, None);
     }
     match s.solver.check(&[]) {
         SatResult::Unsat => return Err(()),
