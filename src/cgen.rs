@@ -59,31 +59,28 @@ impl<'a> State<'a> {
     fn cgen(&self, env: &Env, exp: &mut Exp) -> (Typ, Bool<'_>) {
         match exp {
             // ---------------------------
-            // Γ ⊢ lit : (lit.typ(), true)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ lit => lit.typ(), true
             Exp::Lit(lit) => (lit.typ(), self.z3.true_z3()),
             // ---------------------------
-            // Γ ⊢ x : (Γ(x), true)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ x => Γ(x), true
             Exp::Var(x) => (
                 env.get(x)
                     .unwrap_or_else(|| panic!("unbound identifier {}", x))
                     .clone(),
                 self.z3.true_z3(),
             ),
-            // Γ,x:T ⊢ e : (T_2, φ)
+            // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
-            // Γ ⊢ fun (x : T_1) . e : (T_1 -> T_2, φ)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ fun x : T_1 . e => T_1 -> T_2, φ
             Exp::Fun(x, t, body) => {
                 let mut env = env.clone();
                 env.insert(x.clone(), t.clone());
                 let (t_body, phi) = self.cgen(&env, body);
                 (Typ::Arr(Box::new(t.clone()), Box::new(t_body)), phi)
             }
-            // Γ,x:T_1 ⊢ e : (T_2, φ)
+            // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
-            // Γ ⊢ fix (x : T_1) . e : (T_1, φ && T_1 = T_2)
+            // Γ ⊢ fix (x : T_1) . e => T_1, φ && T_1 = T_2
             // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
             Exp::Fix(x, t1, body) => {
                 let mut env = env.clone();
@@ -92,10 +89,10 @@ impl<'a> State<'a> {
                 let phi2 = self.t2z3(t1)._eq(&self.t2z3(&t2));
                 (t1.clone(), phi1 & phi2)
             }
-            // Γ ⊢ e_1 : (T_1, φ_1)
-            // Γ ⊢ e_2 : (T_2, φ_2)
+            // Γ ⊢ e_1 => T_1, φ_1
+            // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 e_2 : (α, φ_1 && φ_2 && T_1 -> α = T_2)
+            // Γ ⊢ e_1 e_2 => α, φ_1 && φ_2 && T_1 -> α = T_2
             // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
             Exp::App(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
@@ -105,18 +102,16 @@ impl<'a> State<'a> {
                 let phi = self.t2z3(&t1)._eq(&self.t2z3(&t));
                 (alpha, phi1 & phi2 & phi)
             }
-            // Γ ⊢ e1 : (T_1, φ_1)
-            // Γ,x:T_1 ⊢ e2 : (T_2, φ_2)
+            // Γ ⊢ e1 => T_1, φ_1
+            // Γ,x:T_1 ⊢ e2 => T_2, φ_2
             // ---------------------------------------
-            // Γ ⊢ let x: α = e1 in e2 : (T_2, φ_1 && φ_2 && α == T_1)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
-            Exp::Let(x, alpha, e1, e2) => {
+            // Γ ⊢ let x = e1 in e2 => let x = e1 in e2, T_2, φ_1 && φ_2
+            Exp::Let(x, e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
-                let phi3 = self.t2z3(alpha)._eq(&self.t2z3(&t1));
                 let mut env = env.clone();
                 env.insert(x.clone(), t1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                (t2, phi1 & phi2 & phi3)
+                (t2, phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
@@ -130,71 +125,68 @@ impl<'a> State<'a> {
                     & self.strengthen(t2, Typ::Int, &mut *e2);
                 (Typ::Int, phi1 & phi2 & phi3)
             }
-            // Γ ⊢ e_1 : (T_1, φ_1)
-            // Γ ⊢ e_2 : (T_2, φ_2)
+            // Γ ⊢ e_1 => T_1, φ_1
+            // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 = e_2 : (bool, φ_1 && φ_2 && T_1 = T_2 = int)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ e_1 = e_2 => coerce(T_1, int) e_1 = coerce(T_2, int) e_2, bool,
+            //                  φ_1 && φ_2 && strengthen(T_1, int) && strengthen(T_2, int)
             Exp::IntEq(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                let t1 = self.t2z3(&t1);
-                let t2 = self.t2z3(&t2);
-                let int_case = t1._eq(&self.z3.int_z3) & t2._eq(&self.z3.int_z3);
-                (Typ::Bool, phi1 & phi2 & int_case)
+                let s1 = self.strengthen(t1, Typ::Int, e1);
+                let s2 = self.strengthen(t2, Typ::Int, e2);
+                (Typ::Bool, phi1 & phi2 & s1 & s2)
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ not e : (bool, φ && T = bool)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ not e => coerce(T, bool) e, bool, φ && weaken(T, bool)
             Exp::Not(e) => {
                 let (t, phi1) = self.cgen(&env, e);
-                let phi2 = self.t2z3(&t)._eq(&self.z3.bool_z3);
+                let phi2 = self.strengthen(t, Typ::Bool, e);
                 (Typ::Bool, phi1 & phi2)
             }
-            // Γ ⊢ e_1 : (T_1, φ_1)
-            // Γ ⊢ e_2 : (T_2, φ_2)
+            // Γ ⊢ e_1 => T_1, φ_1
+            // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 +? e_2 : (α, φ_1 && φ_2 && (T_1 = T_2 = α = int ||
-            //                                     T_1 = T_2 = α = str ||
-            //                                     T_1 = T_2 = α = any))
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ e_1 +? e_2 => coerce(T_1, α) e_1 +? coerce(T_2, α) e_2, α,
+            //                   φ_1 && φ_2 && (α = int ||
+            //                                  α = str ||
+            //                                  α = any) &&
+            //                                  weaken(T_1, α) && weaken(T_2, α)
             Exp::AddOverload(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let alpha = next_metavar_typ();
-                let t1 = self.t2z3(&t1);
-                let t2 = self.t2z3(&t2);
                 let a_z3 = self.t2z3(&alpha);
-                let int_case =
-                    t1._eq(&self.z3.int_z3) & t2._eq(&self.z3.int_z3) & a_z3._eq(&self.z3.int_z3);
-                let str_case =
-                    &t1._eq(&self.z3.str_z3) & t2._eq(&self.z3.str_z3) & a_z3._eq(&self.z3.str_z3);
-                let any_case =
-                    &t1._eq(&self.z3.any_z3) & t2._eq(&self.z3.any_z3) & a_z3._eq(&self.z3.any_z3);
-                let add_constraints = int_case | str_case | any_case;
-                (alpha, phi1 & phi2 & add_constraints)
+                let weakens =
+                    self.weaken(t1, alpha.clone(), e1) & self.weaken(t2, alpha.clone(), e2);
+                let valid_type = a_z3._eq(&self.z3.int_z3)
+                    | a_z3._eq(&self.z3.str_z3)
+                    | a_z3._eq(&self.z3.any_z3);
+                (alpha, phi1 & phi2 & valid_type & weakens)
             }
-            // Γ ⊢ e_1 : (T_1, φ_1)
-            // Γ ⊢ e_2 : (T_2, φ_2)
-            // Γ ⊢ e_3 : (T_3, φ_3)
+            // Γ ⊢ e_1 => T_1, φ_1
+            // Γ ⊢ e_2 => T_2, φ_2
+            // Γ ⊢ e_3 => T_3, φ_3
             // ----------------------------------------------
-            // Γ ⊢ if e_1 then e_2 else e_3 : (α, φ_1 && φ_2 && φ_3 &&
-            //                                    T_1 = bool && T_2 = T_3)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ if e_1 then e_2 else e_3 =>
+            //         if coerce(T_1, bool) e_1 then coerce(T_2, α) else coerce(T_3, α), α,
+            //                                 φ_1 && φ_2 && φ_3 && strengthen(T_1, bool) &&
+            //                                 weaken(T_2, α) && weaken(T_3, α)
             Exp::If(e1, e2, e3) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let (t3, phi3) = self.cgen(&env, e3);
-                let phi4 = self.t2z3(&t1)._eq(&self.z3.bool_z3);
-                let phi5 = self.t2z3(&t2)._eq(&self.t2z3(&t3));
-                (t2, phi1 & phi2 & phi3 & phi4 & phi5)
+                let alpha = next_metavar_typ();
+                let phi4 = self.strengthen(t1, Typ::Bool, e1)
+                    & self.weaken(t2, alpha.clone(), e2)
+                    & self.weaken(t3, alpha.clone(), e3);
+                (alpha, phi1 & phi2 & phi3 & phi4)
             }
-            // Γ ⊢ e_1 : (T_1, φ_1)
-            // Γ ⊢ e_2 : (T_2, φ_2)
+            // Γ ⊢ e_1 => T_1, φ_1
+            // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1, e_2 : ((T_1, T_2), φ_1 && φ_2)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ e_1, e_2 => e_1, e_2, (T_1, T_2), φ_1 && φ_2
             Exp::Pair(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -214,64 +206,60 @@ impl<'a> State<'a> {
                 (t2, phi1 & phi2 & phi3)
             }
             // ----------------------------------------------
-            // Γ ⊢ empty α : (List(α), true)
+            // Γ ⊢ empty α => List(α), true
             Exp::Empty(alpha) => (Typ::List(Box::new(alpha.clone())), self.z3.true_z3()),
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ head e : (α, φ && List(α) = T)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ head e => head coerce(T, List(α)) e, α,
+            //               φ && strengthen(T, List(α))
             Exp::Head(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar_typ();
-                let phi2 = self
-                    .t2z3(&Typ::List(Box::new(alpha.clone())))
-                    ._eq(&self.t2z3(&t));
+                let phi2 = self.strengthen(t, Typ::List(Box::new(alpha.clone())), e);
                 (alpha, phi1 & phi2)
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ tail e : (T, φ && List(α) = T)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ tail e => tail coerce(T, List(α)) e, List(α),
+            //               φ && strengthen(T, List(α))
             Exp::Tail(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar_typ();
-                let phi2 = self
-                    .t2z3(&Typ::List(Box::new(alpha.clone())))
-                    ._eq(&self.t2z3(&t));
-                (t, phi1 & phi2)
+                let list_alpha = Typ::List(Box::new(alpha));
+                let phi2 = self.strengthen(t, list_alpha.clone(), e);
+                (list_alpha, phi1 & phi2)
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ is_empty e : (bool, φ && List(α) = T)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ is_empty e => is_empty coerce(e, List(α)), bool,
+            //                   φ && strengthen(e, List(α))
             Exp::IsEmpty(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar_typ();
-                let phi2 = self
-                    .t2z3(&Typ::List(Box::new(alpha.clone())))
-                    ._eq(&self.t2z3(&t));
+                let list_alpha = Typ::List(Box::new(alpha));
+                let phi2 = self.strengthen(t, list_alpha, e);
                 (Typ::Bool, phi1 & phi2)
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ is_GROUND e : (bool, φ)
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ is_GROUND e => coerce(e, any), bool, φ && weaken(T, any)
             Exp::IsBool(e) | Exp::IsInt(e) | Exp::IsString(e) | Exp::IsList(e) | Exp::IsFun(e) => {
-                let (t1, phi1) = self.cgen(env, e);
-                (Typ::Bool, phi1 & self.t2z3(&t1)._eq(&self.z3.any_z3))
+                let (t, phi1) = self.cgen(env, e);
+                let phi2 = self.weaken(t, Typ::Any, e);
+                (Typ::Bool, phi1 & phi2)
             }
-            // Γ ⊢ e : (T_3, φ)
+            // Γ ⊢ e => T_3, φ
             // ----------------------------------------------
-            // Γ ⊢ coerce(T_1, T_2, e) : (T_2, φ && T_1 = T_3)
+            // Γ ⊢ coerce(T_1, T_2, e) => T_2, φ && T_1 = T_3
             Exp::Coerce(t1, t2, e) => {
                 let (t3, phi) = self.cgen(env, e);
                 // TODO(luna): 2021-02-26  something about assert_soft
                 (t2.clone(), phi & self.t2z3(&t1)._eq(&self.t2z3(&t3)))
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ MaybeToAny (cα, e) : (α, φ && ((cα = false && α = T) ||
-            //                                    (cα = true && α = any && T != any)))
+            // Γ ⊢ MaybeToAny (cα, e) => α, φ && ((cα = false && α = T) ||
+            //                                    (cα = true && α = any && T != any))
             // TODO(luna): 2021-02-26  Remove
             Exp::MaybeToAny(calpha, e) => {
                 let calpha = self.c2z3(*calpha);
@@ -284,13 +272,13 @@ impl<'a> State<'a> {
                 let phi2 = dont_coerce_case | do_coerce_case;
                 (alpha, phi1 & phi2)
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ MaybeFromAny (cα, α, e) : (α, φ && ((cα = false && α = T) ||
+            // Γ ⊢ MaybeFromAny (cα, α, e) => α, φ && ((cα = false && α = T) ||
             //                                      (cα = true &&
             //                                       T = any &&
             //                                       α != any &&
-            //                                       is_fun α => α = any -> any)))
+            //                                       is_fun α => α = any -> any))
             // TODO(luna): 2021-02-26  Remove
             Exp::MaybeFromAny(calpha, alpha, e) => {
                 let calpha = self.c2z3(*calpha);
@@ -308,18 +296,18 @@ impl<'a> State<'a> {
                 let phi2 = dont_coerce_case | do_coerce_case;
                 (alpha.clone(), phi1 & phi2)
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ ToAny (e) : (any, φ && T != any)
-            // TODO(luna): 2021-02-26  Convert to Coerce(..) or deprecate
+            // Γ ⊢ to_any e => coerce(T, any) e, any, φ && weaken(T, any)
             Exp::ToAny(e) => {
                 let (t1, phi1) = self.cgen(env, e);
-                let phi2 = !&self.t2z3(&t1)._eq(&self.z3.any_z3);
+                let phi2 = self.weaken(t1, Typ::Any, e);
+                *exp = e.take();
                 (Typ::Any, phi1 & phi2)
             }
-            // Γ ⊢ e : (T, φ)
+            // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ ToAny (e) : (α, φ && T = any)
+            // Γ ⊢ ToAny (e) => α, φ && T = any
             // TODO(luna): 2021-02-26  Convert to Coerce(..) or deprecate
             Exp::FromAny(t, e) => {
                 let (t1, phi1) = self.cgen(env, e);
@@ -408,11 +396,6 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
     match &mut *exp {
         Exp::Lit(..) | Exp::Var(..) => {}
         Exp::Empty(t) => annotate_typ(env, t),
-        Exp::Let(_, t, e1, e2) => {
-            annotate_typ(env, t);
-            annotate(env, coercions, e1);
-            annotate(env, coercions, e2);
-        }
         Exp::Fun(_, t, e) | Exp::Fix(_, t, e) => {
             annotate_typ(env, t);
             annotate(env, coercions, e);
@@ -461,7 +444,8 @@ fn annotate<'a>(env: &HashMap<u32, Typ>, coercions: &HashMap<u32, bool>, exp: &m
         | Exp::IntEq(e1, e2)
         | Exp::Cons(e1, e2)
         | Exp::Pair(e1, e2)
-        | Exp::Mul(e1, e2) => {
+        | Exp::Mul(e1, e2)
+        | Exp::Let(_, e1, e2) => {
             annotate(env, coercions, e1);
             annotate(env, coercions, e2);
         }
@@ -602,6 +586,36 @@ mod test {
                  f false false"
             ))
             .unwrap()
+        );
+    }
+
+    #[test]
+    fn strengthen_not() {
+        coerces(
+            "let accepts_any = fun x . not x in
+            let _ = accepts_any true in
+            accepts_any 5",
+        );
+    }
+
+    #[test]
+    fn force_any_then_cons() {
+        coerces(
+            "let force_any = fun x . 5 :: x in
+            let _ = force_any true in
+            force_any (10 :: empty:int)",
+        );
+    }
+
+    #[test]
+    fn rastogi_outflows() {
+        coerces(
+            "let b = true in
+            let foo = fun f. if b then f true else 0 in
+            if b then
+                foo (fun x:bool.5)
+            else
+                foo (fun x:int.5)",
         );
     }
 }

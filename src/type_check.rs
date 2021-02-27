@@ -54,9 +54,9 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
         // Γ ⊢ e1 : T_1
         // Γ,x:T_1 ⊢ e2 : T_2
         // ---------------------------------------
-        // Γ ⊢ let x: T_1 = e1 in e2 : T_2
-        Exp::Let(x, t1_ann, e1, e2) => {
-            let t1 = should_match(t1_ann, tcheck(&env, e1)?)?;
+        // Γ ⊢ let x = e1 in e2 : T_2
+        Exp::Let(x, e1, e2) => {
+            let t1 = tcheck(&env, e1)?;
             let mut env = env.clone();
             env.insert(x.clone(), t1);
             let t2 = tcheck(&env, e2)?;

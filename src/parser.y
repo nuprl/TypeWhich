@@ -46,47 +46,47 @@ atom -> Exp :
 
 funExp -> Exp :
     funExp atom { app_($1, $2) }
-  | 'head' atom { Exp::Head(maybe_from_any_($2)) }
-  | 'tail' atom { Exp::Tail(maybe_from_any_($2)) }
-  | 'is_empty' atom { Exp::IsEmpty(maybe_from_any_($2)) }
-  | 'is_bool' atom { Exp::IsBool(maybe_to_any_($2)) }
-  | 'is_int' atom { Exp::IsInt(maybe_to_any_($2)) }
-  | 'is_string' atom { Exp::IsString(maybe_to_any_($2)) }
-  | 'is_list' atom { Exp::IsList(maybe_to_any_($2)) }
-  | 'is_fun' atom { Exp::IsFun(maybe_to_any_($2)) }
+  | 'head' atom { Exp::Head(Box::new($2)) }
+  | 'tail' atom { Exp::Tail(Box::new($2)) }
+  | 'is_empty' atom { Exp::IsEmpty(Box::new($2)) }
+  | 'is_bool' atom { Exp::IsBool(Box::new($2)) }
+  | 'is_int' atom { Exp::IsInt(Box::new($2)) }
+  | 'is_string' atom { Exp::IsString(Box::new($2)) }
+  | 'is_list' atom { Exp::IsList(Box::new($2)) }
+  | 'is_fun' atom { Exp::IsFun(Box::new($2)) }
   | 'to_any' atom { Exp::ToAny(Box::new($2)) }
   | 'from_any' ':' typ atom { Exp::FromAny($3, Box::new($4)) }
   | atom        { $1 }
   ;
 
 mul -> Exp :
-    mul '*' funExp { Exp::Mul(maybe_from_any_($1), maybe_from_any_($3)) }
-  | 'not' funExp   { Exp::Not(maybe_from_any_($2)) }
+    mul '*' funExp { Exp::Mul(Box::new($1), Box::new($3)) }
+  | 'not' funExp   { Exp::Not(Box::new($2)) }
   | funExp         { $1 }
   ;
 
 add -> Exp :
     add '+' mul  { Exp::Add(Box::new($1), Box::new($3)) }
-  | add '+?' mul { Exp::AddOverload(maybe_to_any_($1), maybe_to_any_($3)) }
+  | add '+?' mul { Exp::AddOverload(Box::new($1), Box::new($3)) }
   | mul          { $1 }
   ;
 
 pair -> Exp :
     pair ',' add { Exp::Pair(Box::new($1), Box::new($3)) }
-  | pair '=' add { Exp::IntEq(maybe_from_any_($1), maybe_from_any_($3)) }
+  | pair '=' add { Exp::IntEq(Box::new($1), Box::new($3)) }
   | add          { $1 }
   ;
 
 exp -> Exp :
-    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), maybe_to_any_($4)) }
+    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
   | 'fun' id ':' typ '.' exp { Exp::Fun($2, $4, Box::new($6)) }
   | 'fix' id '.' exp { Exp::Fix($2, next_metavar_typ(), Box::new($4)) }
   | pair             { $1 }
   | 'if' exp 'then' exp 'else' exp {
-        Exp::If(maybe_from_any_($2), maybe_to_any_($4), maybe_to_any_($6))
+        Exp::If(Box::new($2), Box::new($4), Box::new($6))
     }
   | 'let' id '=' exp 'in' exp {
-      Exp::Let($2, next_metavar_typ(), maybe_from_any_($4), Box::new($6))
+      Exp::Let($2, maybe_from_any_($4), Box::new($6))
     }
   | pair '::' exp    { Exp::Cons(Box::new($1), Box::new($3)) }
   ;

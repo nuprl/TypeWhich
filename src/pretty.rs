@@ -104,26 +104,10 @@ impl Pretty for Exp {
         match self {
             Exp::Lit(l) => l.pretty(pp),
             Exp::Var(x) => pp.text(x),
-            Exp::Let(x, Typ::Metavar(_), e1, e2) => pp.concat(vec![
+            Exp::Let(x, e1, e2) => pp.concat(vec![
                 pp.text("let"),
                 pp.space(),
                 pp.text(x),
-                pp.space(),
-                pp.text("="),
-                pp.space(),
-                e1.pretty(pp).nest(2),
-                pp.space(),
-                pp.text("in"),
-                pp.line(),
-                e2.pretty(pp),
-            ]),
-            Exp::Let(x, ty, e1, e2) => pp.concat(vec![
-                pp.text("let"),
-                pp.space(),
-                pp.text(x),
-                pp.text(":"),
-                pp.space(),
-                ty.pretty(pp),
                 pp.space(),
                 pp.text("="),
                 pp.space(),
