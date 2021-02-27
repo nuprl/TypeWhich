@@ -45,7 +45,7 @@ atom -> Exp :
   ;
 
 funExp -> Exp :
-    funExp atom { app_($1, $2) }
+    funExp atom { Exp::App(Box::new($1), Box::new($2)) }
   | 'head' atom { Exp::Head(Box::new($2)) }
   | 'tail' atom { Exp::Tail(Box::new($2)) }
   | 'is_empty' atom { Exp::IsEmpty(Box::new($2)) }
@@ -86,22 +86,12 @@ exp -> Exp :
         Exp::If(Box::new($2), Box::new($4), Box::new($6))
     }
   | 'let' id '=' exp 'in' exp {
-      Exp::Let($2, maybe_from_any_($4), Box::new($6))
+      Exp::Let($2, Box::new($4), Box::new($6))
     }
   | pair '::' exp    { Exp::Cons(Box::new($1), Box::new($3)) }
   ;
 
 %%
-
-fn app_(e1: Exp, e2: Exp) -> Exp {
-    Exp::App(maybe_from_any_(e1), maybe_to_any_(e2))
-}
-fn maybe_to_any_(e: Exp) -> Box<Exp> {
-    Box::new(Exp::MaybeToAny(next_metavar(), Box::new(e)))
-}
-fn maybe_from_any_(e: Exp) -> Box<Exp> {
-    Box::new(Exp::MaybeFromAny(next_metavar(), next_metavar_typ(), Box::new(e)))
-}
 
 use super::syntax::{Exp, Lit, Typ};
 use super::parser::{next_metavar, next_metavar_typ};

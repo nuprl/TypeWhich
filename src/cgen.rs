@@ -80,8 +80,7 @@ impl<'a> State<'a> {
             }
             // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
-            // Γ ⊢ fix (x : T_1) . e => T_1, φ && T_1 = T_2
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ fix x : T_1 . e => T_1, φ && T_1 = T_2
             Exp::Fix(x, t1, body) => {
                 let mut env = env.clone();
                 env.insert(x.clone(), t1.clone());
@@ -92,15 +91,16 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 e_2 => α, φ_1 && φ_2 && T_1 -> α = T_2
-            // TODO(luna): 2021-02-26  Don't assume coercions have been inserted
+            // Γ ⊢ e_1 e_2 => coerce(T_1, α -> β) e_1 coerce(T_2, α) e_2, β,
+            //                φ_1 && φ_2 && strengthen(T_1, α -> β) && weaken(T_2, α)
             Exp::App(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let alpha = next_metavar_typ();
-                let t = Typ::Arr(Box::new(t2), Box::new(alpha.clone()));
-                let phi = self.t2z3(&t1)._eq(&self.t2z3(&t));
-                (alpha, phi1 & phi2 & phi)
+                let beta = next_metavar_typ();
+                let arr = Typ::Arr(Box::new(alpha.clone()), Box::new(beta.clone()));
+                let phi3 = self.strengthen(t1, arr, e1) & self.weaken(t2, alpha, e2);
+                (beta, phi1 & phi2 & phi3)
             }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ,x:T_1 ⊢ e2 => T_2, φ_2
@@ -381,7 +381,7 @@ fn annotate_typ<'a>(env: &HashMap<u32, Typ>, t: &mut Typ) {
                 None => Typ::Int,
             }
         }
-        Typ::Arr(t1, t2) => {
+        Typ::Arr(t1, t2) | Typ::Pair(t1, t2) => {
             annotate_typ(env, t1);
             annotate_typ(env, t2);
         }
