@@ -62,11 +62,6 @@ mod tests_631 {
                     (t2 == Typ::Any, t2 != Typ::Any)
                 }
             }
-            Exp::ToAny(.., e) => (true, contains_coercions(*e).1),
-            Exp::FromAny(.., e) => (contains_coercions(*e).0, true),
-            Exp::MaybeFromAny(..) | Exp::MaybeToAny(..) => {
-                panic!("should have been eliminated by typeinf")
-            }
             Exp::Lit(..) | Exp::Var(..) | Exp::Empty(..) => (false, false),
             Exp::Fun(_, _, e)
             | Exp::Fix(_, _, e)

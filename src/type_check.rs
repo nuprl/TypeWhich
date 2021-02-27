@@ -171,40 +171,8 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
         // ----------------------------------------------
         // Γ ⊢ coerce(T_1, T_2) e : T_2
         Exp::Coerce(t1, t2, e) => {
-            should_match(t1, tcheck(env, e)?);
+            should_match(t1, tcheck(env, e)?)?;
             Ok(t2.clone())
-        }
-        // even though these should be removed by type inference, it's possible
-        // we never did type inference on this program. so consider these no-ops
-        Exp::MaybeToAny(_, e) => tcheck(env, e),
-        Exp::MaybeFromAny(_, t, e) => {
-            match t {
-                Typ::Metavar(..) => (),
-                _ => panic!(
-                    "a maybe_from_any appeared which indicates we didn't
-                    do type inference, but we got a type besides a
-                    metavariable..."
-                ),
-            }
-            tcheck(env, e)
-        }
-        // Γ ⊢ e : T where T != any
-        // ----------------------------------------------
-        // Γ ⊢ to_any e : any
-        Exp::ToAny(e) => {
-            let t1 = tcheck(env, e)?;
-            if t1 != Typ::Any {
-                Ok(Typ::Any)
-            } else {
-                Err("to_any any".to_string())
-            }
-        }
-        // Γ ⊢ e : any
-        // ----------------------------------------------
-        // Γ ⊢ from_any: T e : T
-        Exp::FromAny(t, e) => {
-            should_match(&Typ::Any, tcheck(env, e)?)?;
-            Ok(t.clone())
         }
     }
 }

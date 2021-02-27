@@ -2,16 +2,6 @@ use crate::syntax::Typ;
 use ast::{Bool, Dynamic};
 use z3::*;
 
-//pub trait MyZ3 {
-//    fn _or(&self, other: &Bool) -> Bool;
-//}
-//
-//impl<'a> MyZ3 for Bool<'a> {
-//    fn _or(&self, other: &Bool) -> Bool {
-//        Bool::or(&[self, other])
-//    }
-//}
-
 pub struct Z3State<'a> {
     pub cxt: &'a Context,
     pub typ: &'a DatatypeSort<'a>,

@@ -40,7 +40,7 @@ atom -> Exp :
     '(' exp ')'     { $2 }
   | lit             { Exp::Lit($1) }
   | id              { Exp::Var($1) }
-  | 'empty'         { Exp::Empty(next_metavar_typ()) }
+  | 'empty'         { Exp::Empty(next_metavar()) }
   | 'empty' ':' typ { Exp::Empty($3) }
   ;
 
@@ -54,8 +54,8 @@ funExp -> Exp :
   | 'is_string' atom { Exp::IsString(Box::new($2)) }
   | 'is_list' atom { Exp::IsList(Box::new($2)) }
   | 'is_fun' atom { Exp::IsFun(Box::new($2)) }
-  | 'to_any' atom { Exp::ToAny(Box::new($2)) }
-  | 'from_any' ':' typ atom { Exp::FromAny($3, Box::new($4)) }
+  | 'to_any' atom { Exp::Coerce(next_metavar(), Typ::Any, Box::new($2)) }
+  | 'from_any' ':' typ atom { Exp::Coerce(Typ::Any, $3, Box::new($4)) }
   | atom        { $1 }
   ;
 
@@ -78,9 +78,9 @@ pair -> Exp :
   ;
 
 exp -> Exp :
-    'fun' id '.' exp { Exp::Fun($2, next_metavar_typ(), Box::new($4)) }
+    'fun' id '.' exp { Exp::Fun($2, next_metavar(), Box::new($4)) }
   | 'fun' id ':' typ '.' exp { Exp::Fun($2, $4, Box::new($6)) }
-  | 'fix' id '.' exp { Exp::Fix($2, next_metavar_typ(), Box::new($4)) }
+  | 'fix' id '.' exp { Exp::Fix($2, next_metavar(), Box::new($4)) }
   | pair             { $1 }
   | 'if' exp 'then' exp 'else' exp {
         Exp::If(Box::new($2), Box::new($4), Box::new($6))
@@ -94,4 +94,4 @@ exp -> Exp :
 %%
 
 use super::syntax::{Exp, Lit, Typ};
-use super::parser::{next_metavar, next_metavar_typ};
+use super::parser::next_metavar;

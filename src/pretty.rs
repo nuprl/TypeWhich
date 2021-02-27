@@ -231,20 +231,6 @@ impl Pretty for Exp {
                 pp.space(),
                 e.pretty(pp).nest(2),
             ]),
-            Exp::MaybeToAny(_, e) => e.pretty(pp),
-            Exp::MaybeFromAny(.., e) => e.pretty(pp),
-            Exp::ToAny(e) => pp.concat(vec![
-                pp.text("to_any"),
-                pp.space(),
-                parens_if(pp, &**e, !e.is_atom()).nest(2),
-            ]),
-            Exp::FromAny(t, e) => pp.concat(vec![
-                pp.text("from_any:"),
-                pp.space(),
-                t.pretty(pp),
-                pp.space(),
-                parens_if(pp, &**e, !e.is_atom()).nest(2),
-            ]),
         }
     }
 }
