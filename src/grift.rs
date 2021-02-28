@@ -1,132 +1,135 @@
 use crate::parser::next_metavar;
 use crate::syntax::*;
-use sexp::{Atom, Sexp};
+use lexpr::Value;
 
 #[allow(unused)]
 pub fn parse(program: &str) -> Exp {
-    *parse_sexp(&sexp::parse(program).unwrap())
+    *parse_sexp(&lexpr::from_str(program).unwrap())
 }
 
-fn parse_sexp(e: &Sexp) -> Box<Exp> {
+fn parse_sexp(e: &Value) -> Box<Exp> {
     Box::new(match e {
-        Sexp::Atom(atom) => match atom {
-            Atom::S(s) => Exp::Var(s.clone()),
-            // TODO(luna): grift uses i61, so we should use i64
-            Atom::I(i) => Exp::Lit(Lit::Int(*i as i32)),
-            Atom::F(_) => todo!("floats"),
-        },
-        Sexp::List(atoms) => {
-            let (first, rest) = atoms.split_first().unwrap();
+        Value::Symbol(s) => Exp::Var(s.to_string()),
+        // TODO(luna): grift uses i61, so we should use i64
+        Value::Number(n) => Exp::Lit(Lit::Int(n.as_i64().unwrap() as i32)),
+        Value::Bool(b) => Exp::Lit(Lit::Bool(*b)),
+        Value::Cons(atoms) => {
+            let (first, rest) = atoms.as_pair();
             match first {
-                Sexp::Atom(a) => match a {
-                    Atom::S(s) => match &s[..] {
-                        "if" => {
-                            assert_eq!(rest.len(), 3, "too many expressions on if");
-                            Exp::If(
-                                parse_sexp(&rest[0]),
-                                parse_sexp(&rest[1]),
-                                parse_sexp(&rest[2]),
-                            )
-                        }
-                        "let" => {
-                            let (bindings, bodies) = rest.split_first().unwrap();
-                            let bindings = expect_list(bindings);
-                            // these could probably be "curried" as well
-                            assert_eq!(bindings.len(), 1, "TODO(luna): multiple bindings");
-                            let binding = expect_list(&bindings[0]);
-                            assert_eq!(binding.len(), 2);
-                            let id = expect_string(&binding[0]);
-                            // TODO(luna): allow type
-                            let exp = parse_sexp(&binding[1]);
-                            assert_eq!(bodies.len(), 1, "TODO(luna): multiple bodies");
-                            let body = &bodies[0];
-                            let body = parse_sexp(&body);
-                            Exp::Let(id, exp, body)
-                        }
-                        "lambda" => {
-                            let (bindings, list_body) = rest.split_first().unwrap();
-                            let bindings = expect_list(bindings);
-                            let ids = bindings
-                                .iter()
-                                .map(|b| expect_string(b))
-                                .collect::<Vec<String>>();
-                            // TODO(luna): allow type
-                            assert_eq!(list_body.len(), 1, "function had multiple bodies");
-                            let body = parse_sexp(&list_body[0]);
-                            *curry_lambda(&ids, body)
-                        }
-                        "tuple" => {
-                            // these could probably be "curried" as well
-                            assert_eq!(rest.len(), 2, "TODO(luna): non-pair tuples");
-                            Exp::Pair(parse_sexp(&rest[0]), parse_sexp(&rest[1]))
-                        }
-                        "+" => {
-                            assert_eq!(rest.len(), 2, "too many arguments to +");
-                            Exp::Add(parse_sexp(&rest[0]), parse_sexp(&rest[1]))
-                        }
-                        "*" => {
-                            assert_eq!(rest.len(), 2, "too many arguments to *");
-                            Exp::Mul(parse_sexp(&rest[0]), parse_sexp(&rest[1]))
-                        }
-                        "=" => {
-                            assert_eq!(rest.len(), 2, "too many arguments to =");
-                            Exp::IntEq(parse_sexp(&rest[0]), parse_sexp(&rest[1]))
-                        }
-                        _ => *parse_left_rec(first, rest),
-                    },
-                    _ => panic!("begining a list with an integer/float"),
+                Value::Symbol(s) => match &s[..] {
+                    "if" => {
+                        let mut it = rest.list_iter().unwrap();
+                        let rv = Exp::If(
+                            parse_sexp(&it.next().unwrap()),
+                            parse_sexp(&it.next().unwrap()),
+                            parse_sexp(&it.next().unwrap()),
+                        );
+                        assert_eq!(it.next(), None);
+                        rv
+                    }
+                    "let" => {
+                        let (bindings, bodies) = rest.as_pair().unwrap();
+                        // these could probably be "curried" as well
+                        // TODO(luna): multiple bindings
+                        let binding = &bindings[0];
+                        let id = expect_string(&binding[0]);
+                        // TODO(luna): allow type
+                        let exp = parse_sexp(&binding[1]);
+                        let body = &bodies.as_pair().unwrap().0;
+                        let body = parse_sexp(&body);
+                        Exp::Let(id, exp, body)
+                    }
+                    "lambda" => {
+                        let (bindings, list_body) = rest.as_pair().unwrap();
+                        let ids_typs = bindings
+                            .as_cons()
+                            .unwrap()
+                            .iter()
+                            .map(|b| match b.car() {
+                                Value::Symbol(s) => (s.to_string(), next_metavar()),
+                                Value::Cons(l) => {
+                                    let mut l = l.iter();
+                                    let id = expect_string(&l.next().unwrap().car());
+                                    assert_eq!(
+                                        expect_string(&l.next().unwrap().car()),
+                                        ":",
+                                        "failed to parse id with type"
+                                    );
+                                    (id, parse_typ(&l.next().unwrap().car()))
+                                }
+                                _ => panic!("bad id, ty pair"),
+                            })
+                            .collect::<Vec<(String, Typ)>>();
+                        let (typ, body) = match list_body.get(0).unwrap() {
+                            Value::Symbol(s) if &**s == ":" => (
+                                parse_typ(&list_body.get(1).unwrap()),
+                                list_body.get(2).unwrap(),
+                            ),
+                            got => (next_metavar(), got),
+                        };
+                        // TODO(luna): do something with that return type
+                        let body = parse_sexp(body);
+                        *curry_lambda(&ids_typs, body)
+                    }
+                    "tuple" => {
+                        // these could probably be "curried" as well
+                        Exp::Pair(parse_sexp(&rest[0]), parse_sexp(&rest[1]))
+                    }
+                    "+" => Exp::Add(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
+                    "*" => Exp::Mul(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
+                    "=" => Exp::IntEq(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
+                    _ => *parse_left_rec(first, rest),
                 },
                 _ => *parse_left_rec(first, rest),
             }
         }
+        _ => todo!("{}", e),
     })
 }
 
-fn parse_typ(se: &Sexp) -> Typ {
+fn parse_typ(se: &Value) -> Typ {
     match se {
-        Sexp::Atom(a) => match a {
-            Atom::S(s) => match &s[..] {
-                "Dyn" => Typ::Any,
-                "Bool" => Typ::Bool,
-                "Int" => Typ::Int,
-                _ => todo!("{}", s),
-            },
-            _ => panic!("not a type"),
+        Value::Symbol(s) => match &s[..] {
+            "Dyn" => Typ::Any,
+            "Bool" => Typ::Bool,
+            "Int" => Typ::Int,
+            _ => todo!("{}", s),
         },
-        Sexp::List(atoms) => {
-            let (first, rest) = atoms.split_first().unwrap();
+        Value::Cons(atoms) => {
+            let (first, rest) = atoms.as_pair();
             match first {
-                Sexp::Atom(a) => match a {
-                    Atom::S(s) => match &s[..] {
-                        "->" => {
-                            Typ::Arr(Box::new(parse_typ(&rest[0])), Box::new(parse_typ(&rest[1])))
-                        }
-                        "Tuple" => {
-                            assert_eq!(rest.len(), 2, "TODO(luna): non-pair tuples");
-                            Typ::Pair(Box::new(parse_typ(&rest[0])), Box::new(parse_typ(&rest[1])))
-                        }
-                        _ => todo!("{}", s),
-                    },
-                    _ => panic!("not a type"),
+                Value::Symbol(s) => match &s[..] {
+                    "->" => curry_arr(rest),
+                    "Tuple" => {
+                        // TODO(luna): non-pair tuples
+                        Typ::Pair(Box::new(parse_typ(&rest[0])), Box::new(parse_typ(&rest[1])))
+                    }
+                    _ => todo!("{}", s),
                 },
-                Sexp::List(a) => panic!("not a type"),
+                _ => panic!("not a type"),
             }
         }
+        _ => panic!("not a type"),
     }
 }
 
-fn parse_left_rec(first: &Sexp, rest: &[Sexp]) -> Box<Exp> {
+fn parse_left_rec(first: &Value, rest: &Value) -> Box<Exp> {
     let f = parse_sexp(first);
-    let args: Vec<Box<Exp>> = rest.iter().map(|a| parse_sexp(a)).collect();
+    let args: Vec<Box<Exp>> = rest
+        .as_cons()
+        .unwrap()
+        .iter()
+        .map(|a| parse_sexp(&a.car()))
+        .collect();
     curry_app(f, &args)
 }
-fn curry_lambda(ids: &[String], body: Box<Exp>) -> Box<Exp> {
+fn curry_lambda(ids: &[(String, Typ)], body: Box<Exp>) -> Box<Exp> {
     if ids.len() == 0 {
         body
     } else {
         let (id, rest) = ids.split_first().unwrap();
         let body = curry_lambda(rest, body);
-        Box::new(Exp::Fun(id.clone(), next_metavar(), body))
+        Box::new(Exp::Fun(id.0.clone(), id.1.clone(), body))
     }
 }
 fn curry_app(f: Box<Exp>, args: &[Box<Exp>]) -> Box<Exp> {
@@ -137,32 +140,20 @@ fn curry_app(f: Box<Exp>, args: &[Box<Exp>]) -> Box<Exp> {
         curry_app(Box::new(Exp::App(f, arg.clone())), rest)
     }
 }
-fn curry_arr(first: Typ, rest: &[Typ]) -> Typ {
-    if rest.len() == 0 {
-        first
+fn curry_arr(def: &Value) -> Typ {
+    if def == &Value::Nil {
+        parse_typ(&def[0])
     } else {
-        let (t, rest) = rest.split_first().unwrap();
-        curry_arr(Typ::Arr(Box::new(first), Box::new(t.clone())), rest)
+        let (t, rest) = def.as_pair().unwrap();
+        Typ::Arr(Box::new(parse_typ(t)), Box::new(curry_arr(rest)))
     }
 }
 
-fn expect_string(se: &Sexp) -> String {
-    if let Sexp::Atom(a) = se {
-        if let Atom::S(s) = a {
-            s.clone()
-        } else {
-            panic!("expected string");
-        }
+fn expect_string(se: &Value) -> String {
+    if let Value::Symbol(s) = se {
+        s.to_string()
     } else {
-        panic!("expected atom");
-    }
-}
-/// actually gives back a Vec because this library is a bit annoying
-fn expect_list(se: &Sexp) -> &Vec<Sexp> {
-    if let Sexp::List(l) = se {
-        l
-    } else {
-        panic!("expected list");
+        panic!("expected string");
     }
 }
 
@@ -264,5 +255,19 @@ mod test {
               ; this was : but again, meh
               (f f 6))",
         ))
+    }
+    #[test]
+    fn ack_no_rec() {
+        // this is supposed to be letrec but meh
+        exp_succeeds(parse(
+            "(let ((lol_no_rec (lambda ([m : Int] [n : Int]) : Int 5)))
+                (let ([ack (lambda ([m : Int] [n : Int]) : Int
+                    (if (= m 0)
+                        (+ n 1)
+                        (if (= n 0)
+                            (lol_no_rec (+ m -1) 1)
+                            (lol_no_rec (+ m -1) (lol_no_rec m (+ n -1))))))])
+                  (ack 1 2)))",
+        ));
     }
 }
