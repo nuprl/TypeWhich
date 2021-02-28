@@ -124,7 +124,7 @@ fn parse_left_rec(first: &Value, rest: &Value) -> Box<Exp> {
     curry_app(f, &args)
 }
 fn curry_lambda(ids: &[(String, Typ)], body: Box<Exp>) -> Box<Exp> {
-    if ids.len() == 0 {
+    if ids.is_empty() {
         body
     } else {
         let (id, rest) = ids.split_first().unwrap();
@@ -133,7 +133,7 @@ fn curry_lambda(ids: &[(String, Typ)], body: Box<Exp>) -> Box<Exp> {
     }
 }
 fn curry_app(f: Box<Exp>, args: &[Box<Exp>]) -> Box<Exp> {
-    if args.len() == 0 {
+    if args.is_empty() {
         f
     } else {
         let (arg, rest) = args.split_first().unwrap();

@@ -76,7 +76,7 @@ fn compile(exp: Exp, env: &HashMap<Id, Typ>) -> (Exp, Typ, HashSet<(Typ, Typ)>) 
             let t1 = t.get_arg();
             let (e1pp, c3) = coerce(t1p, t1.clone(), e1p);
             let t2 = t.get_ret();
-            let arr_typ = Typ::Arr(Box::new(t1.clone()), Box::new(t2.clone()));
+            let arr_typ = Typ::Arr(Box::new(t1), Box::new(t2.clone()));
             let (f, c4) = coerce(t, arr_typ, ep);
             let res_e = Exp::App(Box::new(f), Box::new(e1pp));
             (res_e, t2, c1.union(c2).union(c3).union(c4))

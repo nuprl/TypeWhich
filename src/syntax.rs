@@ -12,10 +12,7 @@ pub enum Typ {
 
 impl Typ {
     pub fn is_arr(&self) -> bool {
-        match self {
-            Typ::Arr(..) => true,
-            _ => false,
-        }
+        matches!(self, Typ::Arr(..))
     }
     pub fn is_atom(&self) -> bool {
         match self {
@@ -80,23 +77,23 @@ impl Exp {
     }
 
     pub fn is_app_like(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Exp::App(..)
-            | Exp::Cons(..)
-            | Exp::Head(..)
-            | Exp::Tail(..)
-            | Exp::IsBool(..)
-            | Exp::IsInt(..)
-            | Exp::IsString(..)
-            | Exp::IsFun(..) => true,
-            _ => false,
-        }
+                | Exp::Cons(..)
+                | Exp::Head(..)
+                | Exp::Tail(..)
+                | Exp::IsBool(..)
+                | Exp::IsInt(..)
+                | Exp::IsString(..)
+                | Exp::IsFun(..)
+        )
     }
     pub fn is_fun_exp(&self) -> bool {
-        match self {
-            Exp::Fun(..) | Exp::Fix(..) | Exp::If(..) | Exp::Let(..) | Exp::Cons(..) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Exp::Fun(..) | Exp::Fix(..) | Exp::If(..) | Exp::Let(..) | Exp::Cons(..)
+        )
     }
     pub fn is_add_or_looser(&self) -> bool {
         match self {
@@ -112,9 +109,6 @@ impl Exp {
     }
 
     pub fn is_atom(&self) -> bool {
-        match self {
-            Exp::Lit(..) | Exp::Var(..) | Exp::Empty(..) => true,
-            _ => false,
-        }
+        matches!(self, Exp::Lit(..) | Exp::Var(..) | Exp::Empty(..))
     }
 }

@@ -19,7 +19,7 @@ pub fn solve_closure(cs: Closure) -> HashMap<Typ, Typ> {
         eprintln!("solving {}", x);
         // all entries will either not exist or have at least a 0th entry
         let (first, t) = t.split_first().unwrap();
-        let lub = t.into_iter().fold(first.kind_of_typ_var(&x), |lub, k| {
+        let lub = t.iter().fold(first.kind_of_typ_var(&x), |lub, k| {
             lub.least_upper_bound(&k.kind_of_typ_var(&x))
         });
         lubs.insert(x, lub);

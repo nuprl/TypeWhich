@@ -26,7 +26,7 @@ pub fn parse(input: impl AsRef<str>) -> Exp {
     let lexerdef = lexer_l::lexerdef();
     let lexer = lexerdef.lexer(input);
     let (res, errs) = parser_y::parse(&lexer);
-    if errs.len() == 0 {
+    if errs.is_empty() {
         return res.unwrap();
     }
     for err in errs.into_iter() {

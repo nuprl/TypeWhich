@@ -15,19 +15,16 @@ pub enum Typ {
 
 impl Typ {
     pub fn is_arr(&self) -> bool {
-        match self {
-            Typ::Arr(..) => true,
-            _ => false,
-        }
+        matches!(self, Typ::Arr(..))
     }
     pub fn is_atom(&self) -> bool {
         !self.is_arr()
     }
     pub fn is_metavar(&self) -> bool {
-        match self {
-            Typ::Metavar(..) | Typ::MetavarArg(..) | Typ::MetavarRet(..) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Typ::Metavar(..) | Typ::MetavarArg(..) | Typ::MetavarRet(..)
+        )
     }
     /// Rastogi et al define:
     ///
@@ -48,16 +45,13 @@ impl Typ {
         assert!(x.is_metavar());
         match self {
             _ if self.is_metavar() => false,
-            Typ::Arr(t1, t2) if &**t1 == &x.get_arg() && &**t2 == &x.get_ret() => true,
+            Typ::Arr(t1, t2) if **t1 == x.get_arg() && **t2 == x.get_ret() => true,
             Typ::Arr(..) => false,
             _ => true,
         }
     }
     pub fn is_base(&self) -> bool {
-        match self {
-            Typ::Any | Typ::Bool | Typ::Int | Typ::Null => true,
-            _ => false,
-        }
+        matches!(self, Typ::Any | Typ::Bool | Typ::Int | Typ::Null)
     }
     /// t1 -> t2 --> t1
     /// X --> X?
@@ -81,10 +75,8 @@ impl Typ {
     }
     /// self ≼ t
     pub fn dyn_consistent(&self, t: &Typ) -> bool {
-        match (self, t) {
-            (Typ::Null, _) | (Typ::Any, _) | (_, Typ::Any) | (Typ::Arr(..), Typ::Arr(..)) => true,
-            _ => false,
-        }
+        matches!((self, t),
+            (Typ::Null, _) | (Typ::Any, _) | (_, Typ::Any) | (Typ::Arr(..), Typ::Arr(..)))
     }
     /// least upper bound of kinds. self and k must be kinds (which means not
     /// metavars, i think(?))
@@ -158,22 +150,12 @@ impl Exp {
     }
 
     pub fn is_app_like(&self) -> bool {
-        if let Exp::App(..) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Exp::App(..))
     }
     pub fn is_fun_exp(&self) -> bool {
-        match self {
-            Exp::Fun(..) | Exp::If(..) => true,
-            _ => false,
-        }
+        matches!(self, Exp::Fun(..) | Exp::If(..))
     }
     pub fn is_atom(&self) -> bool {
-        match self {
-            Exp::Lit(..) | Exp::Var(..) => true,
-            _ => false,
-        }
+        matches!(self, Exp::Lit(..) | Exp::Var(..))
     }
 }

@@ -189,7 +189,7 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 let item_typ = next_metavar();
                 let phi3 = self.strengthen(t2.clone(), Typ::List(Box::new(item_typ.clone())), e2)
-                    & self.weaken(t1.clone(), item_typ, e2);
+                    & self.weaken(t1, item_typ, e2);
                 (t2, phi1 & phi2 & phi3)
             }
             // ----------------------------------------------
@@ -335,7 +335,7 @@ impl<'a> State<'a> {
     }
 }
 
-fn annotate_typ<'a>(env: &HashMap<u32, Typ>, t: &mut Typ) {
+fn annotate_typ(env: &HashMap<u32, Typ>, t: &mut Typ) {
     // if type already exists, nothing to do
     match t {
         Typ::Metavar(i) => {
@@ -359,7 +359,7 @@ fn annotate_typ<'a>(env: &HashMap<u32, Typ>, t: &mut Typ) {
     }
 }
 
-fn annotate<'a>(env: &HashMap<u32, Typ>, exp: &mut Exp) {
+fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
     match &mut *exp {
         Exp::Lit(..) | Exp::Var(..) => {}
         Exp::Empty(t) => annotate_typ(env, t),
@@ -439,7 +439,7 @@ pub fn typeinf(mut exp: Exp) -> Result<Exp, ()> {
         .expect("model not available after context");
     let result = s.solve_model(model);
     annotate(&result, &mut exp);
-    return Ok(exp);
+    Ok(exp)
 }
 
 #[cfg(test)]
