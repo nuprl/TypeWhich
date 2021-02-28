@@ -5,17 +5,17 @@ use std::cell::RefCell;
 
 thread_local!(static NEXT_METAVAR: RefCell<u32> = RefCell::new(0));
 
-pub fn next_metavar_deprecated() -> u32 {
+pub fn next_metavar() -> Typ {
+    Typ::Metavar(inc_metavar())
+}
+
+fn inc_metavar() -> u32 {
     NEXT_METAVAR.with(|mv| {
         let mut mv = mv.borrow_mut();
         let i = *mv;
         *mv = i + 1;
         i
     })
-}
-
-pub fn next_metavar() -> Typ {
-    Typ::Metavar(next_metavar_deprecated())
 }
 
 /// Parses the input string, producing an `Exp` where very type annotation

@@ -1,12 +1,10 @@
 mod cgen;
+mod grift;
 mod parser;
 mod pretty;
 mod syntax;
 mod type_check;
 mod z3_state;
-
-#[cfg(test)]
-mod grift;
 
 use std::io::*;
 
@@ -106,7 +104,9 @@ mod tests_631 {
         assert!(!coercions.1);
     }
     pub fn coerces(program: &str) {
-        let orig = parse(program);
+        exp_coerces(parse(program));
+    }
+    pub fn exp_coerces(orig: Exp) {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig).unwrap();
         println!("\nAfter type inference:\n{}", e);

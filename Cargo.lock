@@ -374,6 +374,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sexp"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c8fa7ac9df84000b0238cf497cb2d3056bac2ff2a7d8cf179d2803b4b58571f"
+
+[[package]]
 name = "sized-chunks"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -456,6 +462,7 @@ dependencies = [
  "lrlex",
  "lrpar",
  "pretty",
+ "sexp",
  "z3",
 ]
 
