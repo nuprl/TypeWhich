@@ -75,6 +75,9 @@ fn parse_sexp(e: &Value) -> Box<Exp> {
                         // these could probably be "curried" as well
                         Exp::Pair(parse_sexp(&rest[0]), parse_sexp(&rest[1]))
                     }
+                    "box" => Exp::Box(parse_sexp(&rest[0])),
+                    "unbox" => Exp::Unbox(parse_sexp(&rest[0])),
+                    "box-set!" => Exp::BoxSet(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
                     "+" => Exp::Add(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
                     "*" => Exp::Mul(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
                     "=" => Exp::IntEq(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
@@ -269,5 +272,29 @@ mod test {
                             (lol_no_rec (+ m -1) (lol_no_rec m (+ n -1))))))])
                   (ack 1 2)))",
         ));
+    }
+    #[test]
+    fn box_int() {
+        exp_succeeds(parse(
+            "(let ((my_box (box 5)))
+                (let ((i_set (box-set! my_box 10)))
+                  (unbox my_box)))",
+        ));
+    }
+    #[test]
+    fn box_any() {
+        exp_coerces(parse(
+            "(let ((my_box (box 5)))
+                (let ((i_set (box-set! my_box #t)))
+                  (unbox my_box)))",
+        ));
+    }
+    #[test]
+    fn box_context() {
+        exp_coerces(parse("(box 5)"));
+    }
+    #[test]
+    fn box_weakens_box_any() {
+        exp_coerces(parse("((lambda (x) 5) (box 5))"));
     }
 }

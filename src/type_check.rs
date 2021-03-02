@@ -3,6 +3,11 @@ use im_rc::HashMap;
 
 type Env = HashMap<String, Typ>;
 
+// this serves as a replacement for line numbers haha. Make this true to
+// panic instead of Err (doesn't work for bespoke checks) and you can check the
+// backtrace
+const PANIC_ON_MISMATCH: bool = true;
+
 pub fn type_check(exp: &Exp) -> Result<Typ, String> {
     tcheck(&Default::default(), exp)
 }
@@ -160,6 +165,32 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
                 _ => Err("is_empty non-list".to_string()),
             }
         }
+        // Γ ⊢ e : T
+        // ----------------------------------------------
+        // Γ ⊢ box e : Box(T)
+        Exp::Box(e) => {
+            let t = tcheck(env, e)?;
+            Ok(Typ::Box(Box::new(t)))
+        }
+        // Γ ⊢ e : Box(T)
+        // ----------------------------------------------
+        // Γ ⊢ unbox e : T
+        Exp::Unbox(e) => {
+            let t = tcheck(env, e)?;
+            match t {
+                Typ::Box(t) => Ok(*t),
+                _ => Err("unbox non-box".to_string()),
+            }
+        }
+        // Γ ⊢ e_1 : Box(T)
+        // Γ ⊢ e_2 : T
+        // ----------------------------------------------
+        // Γ ⊢ boxset! e1 e2 : Box(T)
+        Exp::BoxSet(e1, e2) => {
+            let t1 = tcheck(env, e1)?;
+            let t2 = tcheck(env, e2)?;
+            should_match(&Typ::Box(Box::new(t2)), t1)
+        }
         // Γ ⊢ e : any
         // ----------------------------------------------
         // Γ ⊢ is_GROUND e : bool
@@ -181,7 +212,12 @@ fn should_match(t1: &Typ, t2: Typ) -> Result<Typ, String> {
     if t1 == &t2 {
         Ok(t2)
     } else {
-        mismatched(t1, &t2)
+        let e = mismatched(t1, &t2);
+        // this serves as a replacement for line numbers haha
+        if PANIC_ON_MISMATCH {
+            panic!("PANIC_ON_MISMATCH = true: {:?}", e);
+        }
+        e
     }
 }
 

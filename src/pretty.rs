@@ -72,6 +72,11 @@ impl Pretty for Typ {
                     parens_if(pp, &**t2, t2.is_atom()),
                 ])
                 .parens(),
+            Typ::Box(t) => pp.concat(vec![
+                pp.text("box"),
+                pp.space(),
+                parens_if(pp, &**t, t.is_atom()),
+            ]),
             Typ::Any => pp.text("any"),
             Typ::Metavar(_) => pp.text("?"),
         }
@@ -214,6 +219,20 @@ impl Pretty for Exp {
                 pp.text("tail"),
                 pp.space(),
                 parens_if(pp, &**e, e.is_app_like()).nest(2),
+            ]),
+            Exp::Box(e) => pp.concat(vec![
+                pp.text("box "),
+                parens_if(pp, &**e, e.is_app_like()).nest(2),
+            ]),
+            Exp::Unbox(e) => pp.concat(vec![
+                pp.text("unbox "),
+                parens_if(pp, &**e, e.is_app_like()).nest(2),
+            ]),
+            Exp::BoxSet(e1, e2) => pp.concat(vec![
+                pp.text("boxset! "),
+                parens_if(pp, &**e1, e1.is_app_like()).nest(2),
+                pp.space(),
+                parens_if(pp, &**e2, e2.is_app_like()).nest(2),
             ]),
             Exp::IsBool(e) => pp.concat(vec![pp.text("is_bool"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::IsInt(e) => pp.concat(vec![pp.text("is_int"), pp.space(), e.pretty(pp).nest(2)]),

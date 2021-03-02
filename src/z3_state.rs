@@ -12,6 +12,7 @@ pub struct Z3State<'a> {
     pub arr_ctor: &'a FuncDecl<'a>,
     pub list_ctor: &'a FuncDecl<'a>,
     pub pair_ctor: &'a FuncDecl<'a>,
+    pub box_ctor: &'a FuncDecl<'a>,
     pub any_z3: Dynamic<'a>,
 }
 
@@ -25,7 +26,8 @@ impl<'a> Z3State<'a> {
             arr_ctor: &typ.variants[3].constructor,
             list_ctor: &typ.variants[4].constructor,
             pair_ctor: &typ.variants[5].constructor,
-            any_z3: typ.variants[6].constructor.apply(&[]),
+            box_ctor: &typ.variants[6].constructor,
+            any_z3: typ.variants[7].constructor.apply(&[]),
             typ_sort: &typ.sort,
             typ,
         }
@@ -53,6 +55,7 @@ impl<'a> Z3State<'a> {
                     ("t2", DatatypeAccessor::Datatype("Typ".into())),
                 ],
             )
+            .variant("Box", vec![("t", DatatypeAccessor::Datatype("Typ".into()))])
             .variant("Any", vec![])
             .finish()
     }
@@ -85,6 +88,11 @@ impl<'a> Z3State<'a> {
             let t1 = self.z3_to_typ(model, t1);
             let t2 = self.z3_to_typ(model, t2);
             Typ::Pair(Box::new(t1), Box::new(t2))
+        } else if self.is_box(model, &e) {
+            let t = self.box_typ(&e);
+            let t = model.eval(&t).unwrap();
+            let t = self.z3_to_typ(model, t);
+            Typ::List(Box::new(t))
         } else if self.is_any(model, &e) {
             Typ::Any
         } else {
@@ -105,6 +113,9 @@ impl<'a> Z3State<'a> {
     pub fn z3_is_list(&self, e: Dynamic<'a>) -> Bool<'a> {
         self.typ.variants[4].tester.apply(&[&e]).as_bool().unwrap()
     }
+    pub fn z3_is_box(&self, e: Dynamic<'a>) -> Bool<'a> {
+        self.typ.variants[6].tester.apply(&[&e]).as_bool().unwrap()
+    }
     fn is_int(&self, model: &Model, e: &Dynamic) -> bool {
         self.is_variant(0, model, e)
     }
@@ -123,8 +134,11 @@ impl<'a> Z3State<'a> {
     fn is_pair(&self, model: &Model, e: &Dynamic) -> bool {
         self.is_variant(5, model, e)
     }
-    fn is_any(&self, model: &Model, e: &Dynamic) -> bool {
+    fn is_box(&self, model: &Model, e: &Dynamic) -> bool {
         self.is_variant(6, model, e)
+    }
+    fn is_any(&self, model: &Model, e: &Dynamic) -> bool {
+        self.is_variant(7, model, e)
     }
     fn arr_arg(&self, e: &'a Dynamic) -> Dynamic {
         self.typ.variants[3].accessors[0].apply(&[e])
@@ -140,5 +154,8 @@ impl<'a> Z3State<'a> {
     }
     fn pair2(&self, e: &'a Dynamic) -> Dynamic {
         self.typ.variants[5].accessors[1].apply(&[e])
+    }
+    fn box_typ(&self, e: &'a Dynamic) -> Dynamic {
+        self.typ.variants[6].accessors[0].apply(&[e])
     }
 }

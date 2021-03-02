@@ -6,6 +6,7 @@ pub enum Typ {
     Arr(Box<Typ>, Box<Typ>),
     List(Box<Typ>),
     Pair(Box<Typ>, Box<Typ>),
+    Box(Box<Typ>),
     Any,
     Metavar(u32),
 }
@@ -17,7 +18,7 @@ impl Typ {
     pub fn is_atom(&self) -> bool {
         match self {
             Typ::Int | Typ::Bool | Typ::Str | Typ::Any | Typ::Metavar(..) => false,
-            Typ::Arr(..) | Typ::List(..) | Typ::Pair(..) => true,
+            Typ::Arr(..) | Typ::List(..) | Typ::Pair(..) | Typ::Box(..) => true,
         }
     }
 }
@@ -62,6 +63,9 @@ pub enum Exp {
     IsEmpty(Box<Exp>),
     Head(Box<Exp>),
     Tail(Box<Exp>),
+    Box(Box<Exp>),
+    Unbox(Box<Exp>),
+    BoxSet(Box<Exp>, Box<Exp>),
     /// Type tests
     IsBool(Box<Exp>),
     IsInt(Box<Exp>),

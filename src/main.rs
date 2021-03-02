@@ -66,6 +66,8 @@ mod tests_631 {
             | Exp::Head(e)
             | Exp::Tail(e)
             | Exp::Not(e)
+            | Exp::Box(e)
+            | Exp::Unbox(e)
             | Exp::IsEmpty(e)
             | Exp::IsBool(e)
             | Exp::IsInt(e)
@@ -79,6 +81,7 @@ mod tests_631 {
             | Exp::IntEq(e1, e2)
             | Exp::Cons(e1, e2)
             | Exp::Pair(e1, e2)
+            | Exp::BoxSet(e1, e2)
             | Exp::Let(.., e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
             Exp::If(e1, e2, e3) => contains_coercions(*e1)
                 .or(contains_coercions(*e2))
@@ -100,7 +103,10 @@ mod tests_631 {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
-        println!("\nProgram type:\n{:?}", type_check(&e));
+        println!(
+            "\nProgram type:\n{}",
+            type_check(&e).expect("failed to typecheck")
+        );
         e
     }
     pub fn exp_succeeds(orig: Exp) {
@@ -285,7 +291,10 @@ mod tests_migeed_and_parsberg {
         println!("\nAfter type inference:\n{}", e);
         let correct =
             typeinf(parse(annotated)).expect("type inference failed on the expected program");
-        println!("\nProgram type:\n{:?}", type_check(&e));
+        println!(
+            "\nProgram type:\n{}",
+            type_check(&e).expect("failed to typecheck")
+        );
         println!("\nCorrect:\n{}", correct);
         assert_eq!(e, correct);
     }

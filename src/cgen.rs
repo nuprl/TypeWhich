@@ -23,6 +23,7 @@ impl<'a> State<'a> {
             Typ::Arr(t1, t2) => self.z3.arr_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
             Typ::List(t) => self.z3.list_ctor.apply(&[&self.t2z3(t)]),
             Typ::Pair(t1, t2) => self.z3.pair_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
+            Typ::Box(t) => self.z3.box_ctor.apply(&[&self.t2z3(t)]),
             Typ::Any => self.z3.any_z3.clone(),
             Typ::Metavar(n) => {
                 let mut vars = self.vars.borrow_mut();
@@ -218,14 +219,45 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ is_empty e => is_empty coerce(e, List(α)), bool,
-            //                   φ && strengthen(e, List(α))
+            // Γ ⊢ is_empty e => is_empty coerce(T, List(α)) e, bool,
+            //                   φ && strengthen(T, List(α))
             Exp::IsEmpty(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar();
                 let list_alpha = Typ::List(Box::new(alpha));
                 let phi2 = self.strengthen(t, list_alpha, e);
                 (Typ::Bool, phi1 & phi2)
+            }
+            // Γ ⊢ e => T, φ
+            // ----------------------------------------------
+            // Γ ⊢ box e => box coerce(T, α) e, α, φ && weaken(T, α)
+            Exp::Box(e) => {
+                let (t, phi1) = self.cgen(env, e);
+                let alpha = next_metavar();
+                let phi2 = self.weaken(t, alpha.clone(), e);
+                (Typ::Box(Box::new(alpha)), phi1 & phi2)
+            }
+            // Γ ⊢ e => T, φ
+            // ----------------------------------------------
+            // Γ ⊢ unbox e => coerce(T, Box(α)) e, α, φ && strengthen(T, Box(α))
+            Exp::Unbox(e) => {
+                let (t, phi1) = self.cgen(env, e);
+                let alpha = next_metavar();
+                let phi2 = self.strengthen(t, Typ::Box(Box::new(alpha.clone())), e);
+                (alpha, phi1 & phi2)
+            }
+            // Γ ⊢ e_1 => T_1, φ_1
+            // Γ ⊢ e_2 => T_2, φ_2
+            // ----------------------------------------------
+            // Γ ⊢ boxset! e_1 e_2 => boxset! coerce(T_1, Box(α)) e_1 coerce(T_2, α) e_2, Box(α),
+            //                        strengthen(T_1, Box(α)) && weaken(T_2, α)
+            Exp::BoxSet(e1, e2) => {
+                let (t1, phi1) = self.cgen(env, e1);
+                let (t2, phi2) = self.cgen(env, e2);
+                let alpha = next_metavar();
+                let phi3 = self.strengthen(t1, Typ::Box(Box::new(alpha.clone())), e1);
+                let phi4 = self.weaken(t2, alpha.clone(), e2);
+                (alpha, phi1 & phi2 & phi3 & phi4)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
@@ -280,6 +312,10 @@ impl<'a> State<'a> {
             Typ::Pair(t1, t2) => {
                 self.negative_any(env, t1, is_neg) & self.negative_any(env, t2, is_neg)
             }
+            // A box *is* a negative position, no matter what is_neg says. For
+            // example, p = box 5 may be put in a context that says `boxset! p
+            // true`. so p must have type box any
+            Typ::Box(t) => self.t2z3(t)._eq(&self.z3.any_z3),
             Typ::Int | Typ::Bool | Typ::Str | Typ::Any => self.z3.true_z3(),
         }
     }
@@ -302,6 +338,7 @@ impl<'a> State<'a> {
     ///
     /// T_1 = T_2 || (T_1 = any && is_arr(t2) => t2 = any -> any
     ///                         && is_list(t2) => t2 = List(any)
+    ///                         && is_box(t2) => t2 = Box(any)
     #[must_use]
     fn strengthen(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
         let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
@@ -311,10 +348,15 @@ impl<'a> State<'a> {
                     .t2z3(&t2)
                     ._eq(&self.t2z3(&Typ::List(Box::new(Typ::Any)))),
             )
-            & &self
+            & self
                 .z3
                 .z3_is_arr(self.t2z3(&t2))
-                .implies(&self.t2z3(&t2)._eq(&self.t2z3(&any_to_any)));
+                .implies(&self.t2z3(&t2)._eq(&self.t2z3(&any_to_any)))
+            & self.z3.z3_is_box(self.t2z3(&t2)).implies(
+                &self
+                    .t2z3(&t2)
+                    ._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))),
+            );
         // we don't care about putting an ID coercion, that's fine
         let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&t2));
         self.coerce(t1, t2, exp);
@@ -326,12 +368,22 @@ impl<'a> State<'a> {
     ///
     /// This is always safe
     ///
-    /// T_2 = any || T_1 = T_2
+    /// Note the subtlety for anything that can be mutated. We cannot
+    /// coerce these containers to any unless they store anys, because when we
+    /// coerce them out of any we will assume they store any. This means we can
+    /// lose track of the type and end up mutating, say, a bool into a Box(int)
+    ///
+    /// (T_2 = any || T_1 = T_2) && is_box(T_1) => T_1 = Box(any)
     #[must_use]
     fn weaken(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
-        let ret = self.t2z3(&t2)._eq(&self.z3.any_z3) | self.t2z3(&t1)._eq(&self.t2z3(&t2));
+        let can_weaken = self.t2z3(&t2)._eq(&self.z3.any_z3) | self.t2z3(&t1)._eq(&self.t2z3(&t2));
+        let mut_rules = self.z3.z3_is_box(self.t2z3(&t1)).implies(
+            &self
+                .t2z3(&t1)
+                ._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))),
+        );
         self.coerce(t1, t2, exp);
-        ret
+        can_weaken & mut_rules
     }
 }
 
@@ -352,7 +404,7 @@ fn annotate_typ(env: &HashMap<u32, Typ>, t: &mut Typ) {
             annotate_typ(env, t1);
             annotate_typ(env, t2);
         }
-        Typ::List(t) => {
+        Typ::List(t) | Typ::Box(t) => {
             annotate_typ(env, t);
         }
         _ => (),
@@ -378,6 +430,8 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
         Exp::Head(e)
         | Exp::Tail(e)
         | Exp::Not(e)
+        | Exp::Box(e)
+        | Exp::Unbox(e)
         | Exp::IsEmpty(e)
         | Exp::IsBool(e)
         | Exp::IsInt(e)
@@ -393,6 +447,7 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
         | Exp::Cons(e1, e2)
         | Exp::Pair(e1, e2)
         | Exp::Mul(e1, e2)
+        | Exp::BoxSet(e1, e2)
         | Exp::Let(_, e1, e2) => {
             annotate(env, e1);
             annotate(env, e2);
@@ -562,5 +617,27 @@ mod test {
             else
                 foo (fun x:int.5)",
         );
+    }
+
+    // let's have some context fun
+    #[test]
+    fn app() {
+        coerces("fun f. fun x. f x");
+    }
+
+    #[test]
+    fn map_public() {
+        succeeds(
+            "fix map . fun f . fun lst .
+               if is_empty(lst) then
+                 empty
+               else
+                 f(head(lst)) :: (map f (tail(lst)))",
+        )
+    }
+
+    #[test]
+    fn gives_list_fs() {
+        coerces("(fun x.x) :: empty")
     }
 }
