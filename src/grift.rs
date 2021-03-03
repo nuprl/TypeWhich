@@ -294,7 +294,34 @@ mod test {
         exp_coerces(parse("(box 5)"));
     }
     #[test]
+    fn box_identities() {
+        assert_eq!(
+            exp_coerces(parse(
+                "(let ((id (lambda (x) x)))
+                (let ((h (id (box 5))))
+                (id (unbox h))))"
+            )),
+            Typ::Any
+        );
+    }
+    #[test]
     fn box_weakens_box_any() {
-        exp_coerces(parse("((lambda (x) 5) (box 5))"));
+        assert_eq!(
+            exp_coerces(parse(
+                "(let ((my_box (box #t)))
+                (let ((h ((lambda (x) x) my_box)))
+                ((lambda (x) (+ 1 (unbox x))) my_box)))"
+            )),
+            Typ::Int
+        );
+    }
+    #[test]
+    fn box_stay_strong() {
+        assert_eq!(
+            exp_succeeds(parse(
+                "(let ((id (lambda (x) x))) (let ((h (id (box 5)))) 5))"
+            )),
+            Typ::Int
+        );
     }
 }

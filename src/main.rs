@@ -11,6 +11,19 @@ use std::io::*;
 lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
 lrpar::lrpar_mod!("parser.y"); // effectively mod `parser_y`
 
+pub struct Options {
+    optimizer: bool,
+    context: bool,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            optimizer: true,
+            context: true,
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let mut args = std::env::args();
     args.next();
@@ -22,7 +35,11 @@ fn main() -> Result<()> {
             out
         }
     };
-    let inferred = cgen::typeinf(parser::parse(source)).unwrap();
+    let options = Options {
+        optimizer: true,
+        context: true,
+    };
+    let inferred = cgen::typeinf_options(parser::parse(source), options).unwrap();
     println!("{}", &inferred);
     match type_check::type_check(&inferred) {
         Ok(typ) => println!("program type: {}", typ),

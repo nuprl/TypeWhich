@@ -46,7 +46,7 @@ impl<'a> Z3State<'a> {
             )
             .variant(
                 "List",
-                vec![("t", DatatypeAccessor::Datatype("Typ".into()))],
+                vec![("lt", DatatypeAccessor::Datatype("Typ".into()))],
             )
             .variant(
                 "Pair",
@@ -55,7 +55,10 @@ impl<'a> Z3State<'a> {
                     ("t2", DatatypeAccessor::Datatype("Typ".into())),
                 ],
             )
-            .variant("Box", vec![("t", DatatypeAccessor::Datatype("Typ".into()))])
+            .variant(
+                "Box",
+                vec![("bt", DatatypeAccessor::Datatype("Typ".into()))],
+            )
             .variant("Any", vec![])
             .finish()
     }
@@ -88,7 +91,7 @@ impl<'a> Z3State<'a> {
         } else if self.is_box(model, &e) {
             let t = self.box_typ(&e);
             let t = self.z3_to_typ(model, t);
-            Typ::List(Box::new(t))
+            Typ::Box(Box::new(t))
         } else if self.is_any(model, &e) {
             Typ::Any
         } else {

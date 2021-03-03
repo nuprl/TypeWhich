@@ -1,5 +1,9 @@
 use super::syntax::*;
 
+// it does end up sometimes being useful to print metavariables in programs,
+// though usually it's just noise
+const PRINT_METAVARS: bool = false;
+
 // Copied from jankscripten
 pub trait Pretty {
     fn pretty<'b, D, A>(&'b self, pp: &'b D) -> pretty::DocBuilder<'b, D, A>
@@ -78,8 +82,19 @@ impl Pretty for Typ {
                 parens_if(pp, &**t, t.is_atom()),
             ]),
             Typ::Any => pp.text("any"),
-            Typ::Metavar(_) => pp.text("?"),
+            Typ::Metavar(i) => pp.text(alphabet(*i)),
         }
+    }
+}
+
+/// produces lowercase latin letters in alphabetic order, then produces ⦉i⦊
+/// where i begins at 1 after the latin characters
+fn alphabet(i: u32) -> String {
+    let num_latin_chars = 26;
+    if i <= num_latin_chars {
+        std::char::from_u32('a' as u32 + i).unwrap().to_string()
+    } else {
+        format!("⦉{}⦊", i - num_latin_chars)
     }
 }
 
@@ -122,7 +137,7 @@ impl Pretty for Exp {
                 pp.line(),
                 e2.pretty(pp),
             ]),
-            Exp::Fun(x, Typ::Metavar(_), e) => pp.concat(vec![
+            Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp.concat(vec![
                 pp.text("fun"),
                 pp.space(),
                 pp.text(x),
@@ -153,7 +168,7 @@ impl Pretty for Exp {
             ]),
             Exp::App(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_fun_exp()),
-                pp.space(),
+                pp.line(),
                 parens_if(pp, &**e2, !e2.is_atom()),
             ]),
             Exp::Add(e1, e2) => pp.concat(vec![
@@ -209,7 +224,7 @@ impl Pretty for Exp {
                 pp.space(),
                 e2.pretty(pp).nest(2),
             ]),
-            Exp::Empty(Typ::Metavar(_)) => pp.text("empty"),
+            Exp::Empty(Typ::Metavar(_)) if !PRINT_METAVARS => pp.text("empty"),
             Exp::Empty(t) => pp.concat(vec![pp.text("empty:"), pp.space(), t.pretty(pp)]),
             Exp::IsEmpty(e) => {
                 pp.concat(vec![pp.text("is_empty"), pp.space(), e.pretty(pp).nest(2)])

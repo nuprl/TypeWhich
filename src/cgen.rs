@@ -1,6 +1,7 @@
 use super::parser::next_metavar;
 use super::syntax::*;
 use super::z3_state::Z3State;
+use super::Options;
 use im_rc::HashMap;
 use std::cell::RefCell;
 use z3::ast::{Ast, Bool, Dynamic};
@@ -12,6 +13,7 @@ struct State<'a> {
     vars: RefCell<HashMap<u32, Dynamic<'a>>>,
     z3: Z3State<'a>,
     solver: Optimize<'a>,
+    options: Options,
 }
 
 impl<'a> State<'a> {
@@ -32,7 +34,7 @@ impl<'a> State<'a> {
                     None => {
                         let t = z3::ast::Datatype::fresh_const(
                             self.z3.cxt,
-                            "metavar",
+                            &typ.to_string(),
                             self.z3.typ_sort,
                         );
                         let x = Dynamic::from_ast(&t);
@@ -272,8 +274,10 @@ impl<'a> State<'a> {
             // Γ ⊢ coerce(T_1, T_2) e => coerce(T_1, T_2) e, T_2, φ && T_1 = T_3
             Exp::Coerce(t1, t2, e) => {
                 let (t3, phi) = self.cgen(env, e);
-                self.solver
-                    .assert_soft(&self.t2z3(&t1)._eq(&self.t2z3(&t2)), 1, None);
+                if self.options.optimizer {
+                    self.solver
+                        .assert_soft(&self.t2z3(&t1)._eq(&self.t2z3(&t2)), 1, None);
+                }
                 (t2.clone(), phi & self.t2z3(&t1)._eq(&self.t2z3(&t3)))
             }
         }
@@ -295,7 +299,6 @@ impl<'a> State<'a> {
     /// recursively evaluates. we only want to get the kind and its
     /// metavariables
     fn negative_any(&self, model: &z3::Model<'a>, t: &Dynamic<'a>) -> Bool<'a> {
-        println!("{} is positive", t);
         if self.z3.is_int(model, &t)
             || self.z3.is_bool(model, &t)
             || self.z3.is_str(model, &t)
@@ -325,8 +328,10 @@ impl<'a> State<'a> {
     }
 
     fn coerce(&self, t1: Typ, t2: Typ, exp: &mut Exp) {
-        self.solver
-            .assert_soft(&self.t2z3(&t1)._eq(&self.t2z3(&t2)), 1, None);
+        if self.options.optimizer {
+            self.solver
+                .assert_soft(&self.t2z3(&t1)._eq(&self.t2z3(&t2)), 1, None);
+        }
         *exp = Exp::Coerce(t1, t2, Box::new(exp.take()));
     }
 
@@ -377,17 +382,18 @@ impl<'a> State<'a> {
     /// coerce them out of any we will assume they store any. This means we can
     /// lose track of the type and end up mutating, say, a bool into a Box(int)
     ///
-    /// (T_2 = any || T_1 = T_2) && is_box(T_1) => T_1 = Box(any)
+    /// (T_2 = any && is_box(T_1) => T_1 = Box(any)) || T_1 = T_2
     #[must_use]
     fn weaken(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
-        let can_weaken = self.t2z3(&t2)._eq(&self.z3.any_z3) | self.t2z3(&t1)._eq(&self.t2z3(&t2));
-        let mut_rules = self.z3.z3_is_box(self.t2z3(&t1)).implies(
-            &self
-                .t2z3(&t1)
-                ._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))),
-        );
+        let coerce_case = self.t2z3(&t2)._eq(&self.z3.any_z3)
+            & self.z3.z3_is_box(self.t2z3(&t1)).implies(
+                &self
+                    .t2z3(&t1)
+                    ._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))),
+            );
+        let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&t2));
         self.coerce(t1, t2, exp);
-        can_weaken & mut_rules
+        coerce_case | dont_coerce_case
     }
 }
 
@@ -464,7 +470,11 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
     }
 }
 
-pub fn typeinf(mut exp: Exp) -> Result<Exp, ()> {
+#[cfg(test)]
+pub fn typeinf(exp: Exp) -> Result<Exp, ()> {
+    typeinf_options(exp, Options::default())
+}
+pub fn typeinf_options(mut exp: Exp, options: Options) -> Result<Exp, ()> {
     let cfg = z3::Config::new();
     let cxt = z3::Context::new(&cfg);
     let typ = Z3State::typ(&cxt);
@@ -472,31 +482,28 @@ pub fn typeinf(mut exp: Exp) -> Result<Exp, ()> {
         z3: Z3State::new(&cxt, &typ),
         vars: Default::default(),
         solver: Optimize::new(&cxt),
+        options,
     };
     let (t, phi) = s.cgen(&Default::default(), &mut exp);
-    println!("FIRST RUN program type returned is {}", t);
     s.solver.assert(&phi);
-    s.solver.push();
+    if s.options.context {
+        s.solver.push();
+        match s.solver.check(&[]) {
+            SatResult::Unsat => return Err(()),
+            SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
+            SatResult::Sat => (),
+        }
+        let model = s.solver.get_model().expect("model not available");
+        s.solver.pop();
+        let negative_any = s.negative_any(&model, &s.t2z3(&t));
+        s.solver.assert(&negative_any);
+    }
     match s.solver.check(&[]) {
         SatResult::Unsat => return Err(()),
         SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
         SatResult::Sat => (),
     }
     let model = s.solver.get_model().expect("model not available");
-    s.solver.pop();
-    //let z3_t = model.eval(&s.t2z3(&t)).unwrap();
-    let negative_any = s.negative_any(&model, &s.t2z3(&t));
-    println!("{}", negative_any);
-    s.solver.assert(&negative_any);
-    match s.solver.check(&[]) {
-        SatResult::Unsat => return Err(()),
-        SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
-        SatResult::Sat => (),
-    }
-    let model = s
-        .solver
-        .get_model()
-        .expect("model not available after context");
     let result = s.solve_model(model);
     annotate(&result, &mut exp);
     Ok(exp)
