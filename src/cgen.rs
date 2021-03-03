@@ -190,7 +190,7 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 let item_typ = next_metavar();
                 let phi3 = self.strengthen(t2.clone(), Typ::List(Box::new(item_typ.clone())), e2)
-                    & self.weaken(t1, item_typ, e2);
+                    & self.weaken(t1, item_typ, e1);
                 (t2, phi1 & phi2 & phi3)
             }
             // ----------------------------------------------
@@ -288,35 +288,39 @@ impl<'a> State<'a> {
         result
     }
 
-    /// Provide the solution, a typ, and false. Returns a constraint that
-    /// ensures that every type in a negative position is any
-    fn negative_any(&self, env: &HashMap<u32, Typ>, t: &Typ, is_neg: bool) -> Bool<'a> {
-        match t {
-            Typ::Metavar(v) => {
-                if is_neg {
-                    self.t2z3(t)._eq(&self.z3.any_z3)
-                } else {
-                    match env.get(&v) {
-                        Some(t) => self.negative_any(env, t, is_neg),
-                        // We could choose anything for this type, and it's
-                        // positive. If we were to choose an arrow, we would need
-                        // to recurse. So we simply don't
-                        None => !self.z3.z3_is_arr(self.t2z3(&t)),
-                    }
-                }
-            }
-            Typ::Arr(t1, t2) => {
-                self.negative_any(env, t1, !is_neg) & self.negative_any(env, t2, is_neg)
-            }
-            Typ::List(t) => self.negative_any(env, t, is_neg),
-            Typ::Pair(t1, t2) => {
-                self.negative_any(env, t1, is_neg) & self.negative_any(env, t2, is_neg)
-            }
-            // A box *is* a negative position, no matter what is_neg says. For
+    /// Provide a typ for the entire program, and false. Returns a constraint
+    /// that ensures that every type in a negative position is any
+    ///
+    /// DO NOT evaluate (model.eval) t before passing in. model.eval
+    /// recursively evaluates. we only want to get the kind and its
+    /// metavariables
+    fn negative_any(&self, model: &z3::Model<'a>, t: &Dynamic<'a>) -> Bool<'a> {
+        println!("{} is positive", t);
+        if self.z3.is_int(model, &t)
+            || self.z3.is_bool(model, &t)
+            || self.z3.is_str(model, &t)
+            || self.z3.is_any(model, &t)
+        {
+            self.z3.true_z3()
+        } else if self.z3.is_arr(model, &t) {
+            let arg = self.z3.arr_arg(&t);
+            let ret = self.z3.arr_ret(&t);
+            arg._eq(&self.z3.any_z3) & self.negative_any(model, &ret)
+        } else if self.z3.is_list(model, &t) {
+            let t = self.z3.list_typ(&t);
+            self.negative_any(model, &t)
+        } else if self.z3.is_pair(model, &t) {
+            let t1 = model.eval(&self.z3.pair1(&t)).unwrap();
+            let t2 = model.eval(&self.z3.pair2(&t)).unwrap();
+            self.negative_any(model, &t1) & self.negative_any(model, &t2)
+        } else if self.z3.is_box(model, &t) {
+            // A box is a negative position, no matter what is_neg says. For
             // example, p = box 5 may be put in a context that says `boxset! p
             // true`. so p must have type box any
-            Typ::Box(t) => self.t2z3(t)._eq(&self.z3.any_z3),
-            Typ::Int | Typ::Bool | Typ::Str | Typ::Any => self.z3.true_z3(),
+            let t = self.z3.box_typ(&t);
+            t._eq(&self.z3.any_z3)
+        } else {
+            panic!("missing case in z3_to_typ");
         }
     }
 
@@ -470,6 +474,7 @@ pub fn typeinf(mut exp: Exp) -> Result<Exp, ()> {
         solver: Optimize::new(&cxt),
     };
     let (t, phi) = s.cgen(&Default::default(), &mut exp);
+    println!("FIRST RUN program type returned is {}", t);
     s.solver.assert(&phi);
     s.solver.push();
     match s.solver.check(&[]) {
@@ -479,8 +484,8 @@ pub fn typeinf(mut exp: Exp) -> Result<Exp, ()> {
     }
     let model = s.solver.get_model().expect("model not available");
     s.solver.pop();
-    let result = s.solve_model(model);
-    let negative_any = s.negative_any(&result, &t, false);
+    //let z3_t = model.eval(&s.t2z3(&t)).unwrap();
+    let negative_any = s.negative_any(&model, &s.t2z3(&t));
     println!("{}", negative_any);
     s.solver.assert(&negative_any);
     match s.solver.check(&[]) {
@@ -627,17 +632,17 @@ mod test {
 
     #[test]
     fn map_public() {
-        succeeds(
+        coerces(
             "fix map . fun f . fun lst .
                if is_empty(lst) then
                  empty
                else
                  f(head(lst)) :: (map f (tail(lst)))",
-        )
+        );
     }
 
     #[test]
     fn gives_list_fs() {
-        coerces("(fun x.x) :: empty")
+        succeeds("(fun x.x) :: empty");
     }
 }

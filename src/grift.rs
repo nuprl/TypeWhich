@@ -257,7 +257,7 @@ mod test {
                     (* n (f f (+ n 1)))))))
               ; this was : but again, meh
               (f f 6))",
-        ))
+        ));
     }
     #[test]
     fn ack_no_rec() {

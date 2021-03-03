@@ -88,34 +88,37 @@ mod tests_631 {
                 .or(contains_coercions(*e3)),
         }
     }
-    pub fn succeeds(program: &str) {
-        exp_succeeds(parse(program));
+    pub fn succeeds(program: &str) -> Typ {
+        exp_succeeds(parse(program))
     }
     pub fn no_from_any(program: &str) {
         let orig = parse(program);
-        let coercions = contains_coercions(compile_verbose(orig));
+        let (_, e) = compile_verbose(orig);
+        let coercions = contains_coercions(e);
         assert!(!coercions.1);
     }
-    pub fn coerces(program: &str) {
-        exp_coerces(parse(program));
+    pub fn coerces(program: &str) -> Typ {
+        exp_coerces(parse(program))
     }
-    fn compile_verbose(orig: Exp) -> Exp {
+    fn compile_verbose(orig: Exp) -> (Typ, Exp) {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig).unwrap();
         println!("\nAfter type inference:\n{}", e);
-        println!(
-            "\nProgram type:\n{}",
-            type_check(&e).expect("failed to typecheck")
-        );
-        e
+        let t = type_check(&e).expect("failed to typecheck");
+        println!("\nProgram type:\n{}", t);
+        (t, e)
     }
-    pub fn exp_succeeds(orig: Exp) {
-        let coercions = contains_coercions(compile_verbose(orig));
+    pub fn exp_succeeds(orig: Exp) -> Typ {
+        let (t, e) = compile_verbose(orig);
+        let coercions = contains_coercions(e);
         assert!(!coercions.0 && !coercions.1);
+        t
     }
-    pub fn exp_coerces(orig: Exp) {
-        let coercions = contains_coercions(compile_verbose(orig));
+    pub fn exp_coerces(orig: Exp) -> Typ {
+        let (t, e) = compile_verbose(orig);
+        let coercions = contains_coercions(e);
         assert!(coercions.0 || coercions.1);
+        t
     }
     #[test]
     fn addition() {
