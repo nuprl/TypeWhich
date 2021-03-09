@@ -42,6 +42,13 @@ fn main() -> Result<()> {
         .arg(Arg::with_name("UNSAFE")
             .help("Produce an exact type that may not be safe in all contexts")
             .long("unsafe"))
+        .arg(Arg::with_name("PARSER")
+            .help("Select the parser")
+            .long("parser")
+            .short("p")
+            .possible_value("default")
+            .possible_value("grift")
+            .default_value("default"))
         .get_matches();
 
     let options = Options {
@@ -58,7 +65,16 @@ fn main() -> Result<()> {
         file => std::fs::read_to_string(file)?,
     };
 
-    let inferred = cgen::typeinf_options(parser::parse(source), options).unwrap();
+    let parsed = match config.value_of("PARSER").unwrap() {
+        "default" => parser::parse(&source),
+        "grift" => grift::parse(&source),
+        other => panic!("Unknown parser '{}'", other),
+    };
+
+    println!("{}", parsed);
+    
+    let inferred = cgen::typeinf_options(parsed, options).unwrap();
+
     println!("{}", &inferred);
     match type_check::type_check(&inferred) {
         Ok(typ) => println!("program type: {}", typ),

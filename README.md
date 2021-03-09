@@ -13,6 +13,6 @@ cargo test -- --nocapture
 
 # TODO
 
-- [ ] expose grift on CLI
+- [x] expose grift on CLI
 - [ ] letrec
 - [ ] get grift benchmarks running

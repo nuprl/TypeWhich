@@ -1,4 +1,6 @@
 ;; This is a translation of Luna's type-inferred example into Grift.
-((lambda ([i : (Dyn -> Dyn)])
-    (((lambda ([a : Int]) (lambda ([b : Int]) b)) (i 10)) (i #t)))
- (lambda ([x : Bool]) x))
+;;
+;; I'd expect it'd be okay to mark a : Int and b : Bool, but... it isn't. --MMG
+((lambda ([i : (-> Dyn Dyn)])
+    (((lambda ([a : Dyn]) (lambda ([b : Dyn]) b)) (i 10)) (i #t)))
+ (lambda ([x : Dyn]) x))

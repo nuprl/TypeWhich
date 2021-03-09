@@ -144,10 +144,10 @@ fn curry_app(f: Box<Exp>, args: &[Box<Exp>]) -> Box<Exp> {
     }
 }
 fn curry_arr(def: &Value) -> Typ {
-    if def == &Value::Nil {
-        parse_typ(&def[0])
+    let (t, rest) = def.as_pair().unwrap();
+    if rest == &Value::Null {
+        parse_typ(t)
     } else {
-        let (t, rest) = def.as_pair().unwrap();
         Typ::Arr(Box::new(parse_typ(t)), Box::new(curry_arr(rest)))
     }
 }
