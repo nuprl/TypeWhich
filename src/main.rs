@@ -8,6 +8,8 @@ mod z3_state;
 
 use std::io::*;
 
+use clap::{App, Arg};
+
 lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
 lrpar::lrpar_mod!("parser.y"); // effectively mod `parser_y`
 
@@ -15,6 +17,7 @@ pub struct Options {
     optimizer: bool,
     context: bool,
 }
+
 impl Default for Options {
     fn default() -> Self {
         Options {
@@ -25,15 +28,22 @@ impl Default for Options {
 }
 
 fn main() -> Result<()> {
-    let mut args = std::env::args();
-    args.next();
-    let source = match args.next() {
-        Some(file) => std::fs::read_to_string(file)?,
-        None => {
+    let config = App::new(env!("CARGO_PKG_NAME"))
+        .version(env!("CARGO_PKG_VERSION"))
+        .arg(
+            Arg::with_name("INPUT")
+                .help("Input file (defaults to '-', meaning STDIN)")
+                .default_value("-")
+                .index(1),
+        ).get_matches();
+
+    let source = match config.value_of("INPUT").unwrap() {
+        "-" => {
             let mut out = String::new();
             stdin().read_to_string(&mut out)?;
             out
         }
+        file => std::fs::read_to_string(file)?,
     };
     let options = Options {
         optimizer: true,

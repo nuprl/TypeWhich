@@ -19,3 +19,4 @@ im-rc = "*"
 pretty = "*"
 z3 = { git = "https://github.com/prove-rs/z3.rs" }
 lexpr = "0.2.6"
+clap = "2.33"
