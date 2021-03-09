@@ -35,7 +35,19 @@ fn main() -> Result<()> {
                 .help("Input file (defaults to '-', meaning STDIN)")
                 .default_value("-")
                 .index(1),
-        ).get_matches();
+        )
+        .arg(Arg::with_name("DISABLE_OPTIMIZER")
+            .help("Disable the optimizer, which uses 'assert_soft' to reduce the number of coercions")
+            .long("no-optimize"))
+        .arg(Arg::with_name("UNSAFE")
+            .help("Produce an exact type that may not be safe in all contexts")
+            .long("unsafe"))
+        .get_matches();
+
+    let options = Options {
+        optimizer: !config.is_present("DISABLE_OPTIMIZER"),
+        context: !config.is_present("UNSAFE"),
+    };
 
     let source = match config.value_of("INPUT").unwrap() {
         "-" => {
@@ -45,10 +57,7 @@ fn main() -> Result<()> {
         }
         file => std::fs::read_to_string(file)?,
     };
-    let options = Options {
-        optimizer: true,
-        context: true,
-    };
+
     let inferred = cgen::typeinf_options(parser::parse(source), options).unwrap();
     println!("{}", &inferred);
     match type_check::type_check(&inferred) {
