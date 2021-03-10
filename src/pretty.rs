@@ -137,23 +137,54 @@ impl Pretty for Exp {
                 pp.line(),
                 e2.pretty(pp),
             ]),
-            Exp::LetRec(bindings, e) => pp.concat(vec![
-                pp.text("let rec "),
+            Exp::Letrec(bindings, e) => pp.concat(vec![
+                pp.text("let rec"),
+                pp.space(),
                 pp.intersperse(
-                    bindings.iter().map(|(id, typ, ei)| {
-                        pp.concat(vec![
-                            pp.text(id),
-                            pp.text(": "),
-                            typ.pretty(pp),
-                            pp.text(" ="),
-                            pp.softline(),
-                            ei.pretty(pp).nest(2),
-                        ])
+                    bindings.iter().map(|(xi, ti, ei)| {
+                        pp.intersperse(
+                            vec![
+                                pp.text(xi),
+                                pp.text(":"),
+                                ti.pretty(pp),
+                                pp.text("="),
+                                ei.pretty(pp).nest(2),
+                            ],
+                            pp.concat(vec![pp.space(), pp.text("and"), pp.space()]),
+                        )
                     }),
-                    pp.softline().append(pp.text("and")).append(pp.softline()),
+                    pp.line(),
                 ),
-                pp.softline(),
                 pp.text("in"),
+                pp.softline(),
+                e.pretty(pp),
+            ]),
+            Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp.concat(vec![
+                pp.text("fun"),
+                pp.space(),
+                pp.text(x),
+                pp.space(),
+                pp.text("."),
+                pp.line(),
+                e.pretty(pp).nest(2),
+            ]),
+            Exp::Fun(x, t, e) => pp.concat(vec![
+                pp.text("fun"),
+                pp.space(),
+                pp.text(x),
+                pp.text(":"),
+                t.pretty(pp),
+                pp.text("."),
+                pp.line(),
+                e.pretty(pp).nest(2),
+            ]),
+            Exp::Fix(x, t, e) => pp.concat(vec![
+                pp.text("fix"),
+                pp.space(),
+                pp.text(x),
+                pp.text(":"),
+                t.pretty(pp),
+                pp.text("."),
                 pp.line(),
                 e.pretty(pp),
             ]),

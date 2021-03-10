@@ -88,9 +88,27 @@ exp -> Exp :
   | 'let' id '=' exp 'in' exp {
       Exp::Let($2, Box::new($4), Box::new($6))
     }
+  | 'let' 'rec' bindings 'in' exp {
+    let mut v = $3;
+    v.reverse();
+    Exp::Letrec(v, Box::new($5))
+  }
   | pair '::' exp    { Exp::Cons(Box::new($1), Box::new($3)) }
   ;
 
+bindings -> Vec<(String, Typ, Exp)> :
+    binding 'and' bindings {
+    let mut v = $3;
+    v.push($1); // NB done in reverse, flipped later
+    v
+  }
+  | binding { let mut v = Vec::new(); v.push($1); v }
+;
+
+binding -> (String, Typ, Exp) :
+    id ':' typ '=' exp    { ($1, $3, $5) }
+  | id '=' exp            { ($1, next_metavar(), $3) }
+;
 %%
 
 use super::syntax::{Exp, Lit, Typ};

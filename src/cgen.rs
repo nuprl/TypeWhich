@@ -103,11 +103,10 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 (t2, phi1 & phi2)
             }
-            // ∀i Γ[∀j xj,Tj] ⊢ ei => Si, φi
-            // Γ[∀j xj,Tj] ⊢ e => T, φ
+            // Γ,x1:T_1,...,xn:T_n ⊢ ei => T_i, φ_i
+            // Γ,x1:T_1,...,xn:T_n ⊢ e => T, φ
             // ---------------------------------------
-            // Γ ⊢ let rec (xi: Ti = ei and)* in e => let rec (xi: Ti = ei and)* in e, T,
-            //                                        φ && ∀i (Ti=Si && φi)
+            // Γ ⊢ letrec x1 : T_1 = e1 ... xn : T_n = en in e => letrec x1 : T_1 = e1 ... xn : T_n = en in e , T, φ_1 && ... & φ_n && φ
             Exp::LetRec(es, e) => {
                 let mut env = env.clone();
                 for (xi, ti, _) in es.iter() {
@@ -119,7 +118,6 @@ impl<'a> State<'a> {
                 });
                 let (t, phi) = self.cgen(&env, e);
                 (t, phi & phis)
-            }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
@@ -453,6 +451,9 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
             if t1 == t2 {
                 *exp = e.take();
             }
+        }
+        Exp::Letrec(bindings, e) => {
+            unimplemented!("letrec");
         }
         Exp::Head(e)
         | Exp::Tail(e)
