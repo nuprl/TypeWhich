@@ -137,7 +137,7 @@ mod tests_631 {
             Exp::If(e1, e2, e3) => contains_coercions(*e1)
                 .or(contains_coercions(*e2))
                 .or(contains_coercions(*e3)),
-            Exp::Letrec(bindings, e) => bindings
+            Exp::LetRec(bindings, e) => bindings
                 .into_iter()
                 .fold(contains_coercions(*e), |cc, (_, _, ei)| {
                     cc.or(contains_coercions(ei))

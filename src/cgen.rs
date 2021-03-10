@@ -118,6 +118,7 @@ impl<'a> State<'a> {
                 });
                 let (t, phi) = self.cgen(&env, e);
                 (t, phi & phis)
+            }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
@@ -451,9 +452,6 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
             if t1 == t2 {
                 *exp = e.take();
             }
-        }
-        Exp::Letrec(bindings, e) => {
-            unimplemented!("letrec");
         }
         Exp::Head(e)
         | Exp::Tail(e)

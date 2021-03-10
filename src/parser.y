@@ -91,7 +91,7 @@ exp -> Exp :
   | 'let' 'rec' bindings 'in' exp {
     let mut v = $3;
     v.reverse();
-    Exp::Letrec(v, Box::new($5))
+    Exp::LetRec(v, Box::new($5))
   }
   | pair '::' exp    { Exp::Cons(Box::new($1), Box::new($3)) }
   ;

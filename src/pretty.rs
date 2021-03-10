@@ -137,7 +137,7 @@ impl Pretty for Exp {
                 pp.line(),
                 e2.pretty(pp),
             ]),
-            Exp::Letrec(bindings, e) => pp.concat(vec![
+            Exp::LetRec(bindings, e) => pp.concat(vec![
                 pp.text("let rec"),
                 pp.space(),
                 pp.intersperse(
