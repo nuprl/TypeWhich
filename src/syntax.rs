@@ -50,6 +50,7 @@ pub enum Exp {
     Fix(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
     Let(Id, Box<Exp>, Box<Exp>),
+    LetRec(Vec<(Id, Typ, Exp)>, Box<Exp>),
     AddOverload(Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
     Mul(Box<Exp>, Box<Exp>),

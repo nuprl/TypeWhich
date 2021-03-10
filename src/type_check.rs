@@ -67,6 +67,20 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             let t2 = tcheck(&env, e2)?;
             Ok(t2)
         }
+        // ∀i Γ[∀j xj,Tj] ⊢ ei : Ti
+        // Γ[∀j xj,Tj] ⊢ e : T
+        // ---------------------------------------
+        // Γ ⊢ let rec (xi: Ti = ei and)* in e : T
+        Exp::LetRec(es, e) => {
+            let mut env = env.clone();
+            for (id, typ, _) in es {
+                env.insert(id.clone(), typ.clone());
+            }
+            for (_, typ, ei) in es {
+                should_match(typ, tcheck(&env, ei)?)?;
+            }
+            tcheck(&env, e)
+        }
         // Γ ⊢ e_1 : int
         // Γ ⊢ e_2 : int
         // ----------------------------------------------

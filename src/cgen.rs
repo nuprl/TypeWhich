@@ -103,6 +103,23 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 (t2, phi1 & phi2)
             }
+            // ∀i Γ[∀j xj,Tj] ⊢ ei => Si, φi
+            // Γ[∀j xj,Tj] ⊢ e => T, φ
+            // ---------------------------------------
+            // Γ ⊢ let rec (xi: Ti = ei and)* in e => let rec (xi: Ti = ei and)* in e, T,
+            //                                        φ && ∀i (Ti=Si && φi)
+            Exp::LetRec(es, e) => {
+                let mut env = env.clone();
+                for (xi, ti, _) in es.iter() {
+                    env.insert(xi.clone(), ti.clone());
+                }
+                let phis = es.iter_mut().fold(self.z3.true_z3(), |acc, (_, ti, ei)| {
+                    let (si, phii) = self.cgen(&env, ei);
+                    acc & self.t2z3(ti)._eq(&self.t2z3(&si)) & phii
+                });
+                let (t, phi) = self.cgen(&env, e);
+                (t, phi & phis)
+            }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
@@ -466,6 +483,13 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
             annotate(env, e1);
             annotate(env, e2);
             annotate(env, e3);
+        }
+        Exp::LetRec(bindings, e) => {
+            for (_, typ, ei) in bindings {
+                annotate_typ(env, typ);
+                annotate(env, ei);
+            }
+            annotate(env, e);
         }
     }
 }

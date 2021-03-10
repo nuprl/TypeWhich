@@ -39,6 +39,25 @@ fn parse_sexp(e: &Value) -> Box<Exp> {
                         let body = parse_sexp(&body);
                         Exp::Let(id, exp, body)
                     }
+                    "letrec" => {
+                        let (bindings, bodies) = rest.as_pair().unwrap();
+                        let bindings = bindings
+                            .as_cons()
+                            .unwrap()
+                            .iter()
+                            .map(|c| {
+                                let binding = c.car();
+                                let id = expect_string(&binding[0]);
+                                // TODO(luna): allow type
+                                let exp = *parse_sexp(&binding[1]);
+                                (id, next_metavar(), exp)
+                            })
+                            .collect();
+                        // TODO(luna): multiple bodies(?)
+                        let body = &bodies.as_pair().unwrap().0;
+                        let body = parse_sexp(&body);
+                        Exp::LetRec(bindings, body)
+                    }
                     "lambda" => {
                         let (bindings, list_body) = rest.as_pair().unwrap();
                         let ids_typs = bindings
@@ -79,8 +98,19 @@ fn parse_sexp(e: &Value) -> Box<Exp> {
                     "unbox" => Exp::Unbox(parse_sexp(&rest[0])),
                     "box-set!" => Exp::BoxSet(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
                     "+" => Exp::Add(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
+                    "-" => {
+                        let a = parse_sexp(&rest[0]);
+                        let b = parse_sexp(&rest[1]);
+                        if let Exp::Lit(Lit::Int(i)) = *b {
+                            Exp::Add(a, Box::new(Exp::Lit(Lit::Int(-i))))
+                        } else {
+                            todo!("actual support for -");
+                        }
+                    }
                     "*" => Exp::Mul(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
                     "=" => Exp::IntEq(parse_sexp(&rest[0]), parse_sexp(&rest[1])),
+                    // TODO(luna): actual support
+                    ":" => *parse_sexp(&rest[0]),
                     _ => *parse_left_rec(first, rest),
                 },
                 _ => *parse_left_rec(first, rest),
@@ -271,6 +301,18 @@ mod test {
                             (lol_no_rec (+ m -1) 1)
                             (lol_no_rec (+ m -1) (lol_no_rec m (+ n -1))))))])
                   (ack 1 2)))",
+        ));
+    }
+    #[test]
+    fn ack() {
+        exp_succeeds(parse(
+            "(letrec ([ack (lambda (m n) ; this should have : Dyn but we don't annotate returns yet
+                             (if (= m 0)
+                                 (+ n 1)
+                                 (if (= n 0)
+                                     (ack (+ m -1) 1)
+                                     (ack (+ m -1) (ack m (+ n -1))))))])
+               (ack 3 10)) ; should be : / ann",
         ));
     }
     #[test]

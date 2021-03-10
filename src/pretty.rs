@@ -137,38 +137,64 @@ impl Pretty for Exp {
                 pp.line(),
                 e2.pretty(pp),
             ]),
-            Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp.concat(vec![
-                pp.text("fun"),
-                pp.space(),
-                pp.text(x),
-                pp.space(),
-                pp.text("."),
+            Exp::LetRec(bindings, e) => pp.concat(vec![
+                pp.text("let rec "),
+                pp.intersperse(
+                    bindings.iter().map(|(id, typ, ei)| {
+                        pp.concat(vec![
+                            pp.text(id),
+                            pp.text(": "),
+                            typ.pretty(pp),
+                            pp.text(" ="),
+                            pp.softline(),
+                            ei.pretty(pp).nest(2),
+                        ])
+                    }),
+                    pp.softline().append(pp.text("and")).append(pp.softline()),
+                ),
+                pp.softline(),
+                pp.text("in"),
                 pp.line(),
-                e.pretty(pp).nest(2),
+                e.pretty(pp),
             ]),
-            Exp::Fun(x, t, e) => pp.concat(vec![
-                pp.text("fun"),
-                pp.space(),
-                pp.text(x),
-                pp.text(":"),
-                t.pretty(pp),
-                pp.text("."),
-                pp.line(),
-                e.pretty(pp).nest(2),
-            ]),
-            Exp::Fix(x, t, e) => pp.concat(vec![
-                pp.text("fix"),
-                pp.space(),
-                pp.text(x),
-                pp.text(":"),
-                t.pretty(pp),
-                pp.text("."),
-                pp.line(),
-                e.pretty(pp).nest(2),
-            ]),
+            Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp
+                .concat(vec![
+                    pp.text("fun"),
+                    pp.space(),
+                    pp.text(x),
+                    pp.space(),
+                    pp.text("."),
+                    pp.softline(),
+                    e.pretty(pp).nest(2),
+                ])
+                .group(),
+            Exp::Fun(x, t, e) => pp
+                .concat(vec![
+                    pp.text("fun"),
+                    pp.space(),
+                    pp.text(x),
+                    pp.text(":"),
+                    t.pretty(pp),
+                    pp.text("."),
+                    pp.softline(),
+                    e.pretty(pp).nest(2),
+                ])
+                .group(),
+            Exp::Fix(x, t, e) => pp
+                .concat(vec![
+                    pp.text("fix"),
+                    pp.space(),
+                    pp.text(x),
+                    pp.text(":"),
+                    t.pretty(pp),
+                    pp.text("."),
+                    pp.softline(),
+                    e.pretty(pp).nest(2),
+                ])
+                .group(),
             Exp::App(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_fun_exp()),
-                pp.line(),
+                pp.softline(),
                 parens_if(pp, &**e2, !e2.is_atom()),
             ]),
             Exp::Add(e1, e2) => pp.concat(vec![
@@ -190,8 +216,7 @@ impl Pretty for Exp {
             ]),
             Exp::IntEq(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_fun_exp()),
-                pp.text(","),
-                pp.space(),
+                pp.text(" = "),
                 // should be is pair or looser (because pair is left associative)
                 parens_if(pp, &**e2, e2.is_fun_exp()),
             ]),
@@ -199,17 +224,19 @@ impl Pretty for Exp {
                 pp.text("not "),
                 parens_if(pp, &**e1, e1.is_mul_or_looser()),
             ]),
-            Exp::If(e1, e2, e3) => pp.concat(vec![
-                pp.text("if"),
-                pp.space(),
-                e1.pretty(pp).nest(2),
-                pp.line(),
-                pp.concat(vec![pp.text("then"), pp.line(), e2.pretty(pp)])
-                    .nest(2),
-                pp.line(),
-                pp.concat(vec![pp.text("else"), pp.line(), e3.pretty(pp)])
-                    .nest(2),
-            ]),
+            Exp::If(e1, e2, e3) => pp
+                .concat(vec![
+                    pp.text("if"),
+                    pp.space(),
+                    e1.pretty(pp).nest(2),
+                    pp.line(),
+                    pp.concat(vec![pp.text("then"), pp.softline(), e2.pretty(pp)])
+                        .nest(2),
+                    pp.line(),
+                    pp.concat(vec![pp.text("else"), pp.softline(), e3.pretty(pp)])
+                        .nest(2),
+                ])
+                .group(),
             Exp::Pair(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_fun_exp()),
                 pp.text(","),

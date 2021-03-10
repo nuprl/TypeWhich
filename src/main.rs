@@ -72,7 +72,7 @@ fn main() -> Result<()> {
     };
 
     println!("{}", parsed);
-    
+
     let inferred = cgen::typeinf_options(parsed, options).unwrap();
 
     println!("{}", &inferred);
@@ -138,6 +138,12 @@ mod tests_631 {
             Exp::If(e1, e2, e3) => contains_coercions(*e1)
                 .or(contains_coercions(*e2))
                 .or(contains_coercions(*e3)),
+            Exp::LetRec(es, e) => es
+                .into_iter()
+                .fold((false, false), |acc, (_, _, e)| {
+                    acc.or(contains_coercions(e))
+                })
+                .or(contains_coercions(*e)),
         }
     }
     pub fn succeeds(program: &str) -> Typ {
