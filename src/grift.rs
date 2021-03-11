@@ -81,13 +81,16 @@ fn parse_sexp(e: &Value) -> Box<Exp> {
                             .collect::<Vec<(String, Typ)>>();
                         let (typ, body) = match list_body.get(0).unwrap() {
                             Value::Symbol(s) if &**s == ":" => (
-                                parse_typ(&list_body.get(1).unwrap()),
+                                Option::Some(parse_typ(&list_body.get(1).unwrap())),
                                 list_body.get(2).unwrap(),
                             ),
-                            got => (next_metavar(), got),
+                            got => (Option::None, got),
                         };
                         // TODO(luna): do something with that return type
-                        let body = parse_sexp(body);
+                        let mut body = parse_sexp(body);
+                        if let Some(typ) = typ {
+                            body = Box::new(Exp::Ann(body, typ));
+                        }
                         *curry_lambda(&ids_typs, body)
                     }
                     "tuple" => {

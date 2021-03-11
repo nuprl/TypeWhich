@@ -119,6 +119,14 @@ impl<'a> State<'a> {
                 let (t, phi) = self.cgen(&env, e);
                 (t, phi & phis)
             }
+            // Γ ⊢ e1 => T_1, φ_1
+            // -------------------
+            // Γ ⊢ e1 : T => T_1, φ_1 /\ strengthen(T_1, T)
+            Exp::Ann(e, typ) => {
+                let (t1, phi1) = self.cgen(env, e);
+                let phi2 = self.strengthen(t1, typ.clone(), &mut *e);
+                (typ.clone(), phi1 & phi2)
+            }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
@@ -441,7 +449,7 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
     match &mut *exp {
         Exp::Lit(..) | Exp::Var(..) => {}
         Exp::Empty(t) => annotate_typ(env, t),
-        Exp::Fun(_, t, e) | Exp::Fix(_, t, e) => {
+        Exp::Fun(_, t, e) | Exp::Fix(_, t, e) | Exp::Ann(e, t) => {
             annotate_typ(env, t);
             annotate(env, e);
         }
@@ -638,7 +646,7 @@ mod test {
         coerces(
             "let force_any = fun x . 5 :: x in
             let _ = force_any true in
-            force_any (10 :: empty:int)",
+            force_any (10 :: (empty: list int))",
         );
     }
 
@@ -674,5 +682,11 @@ mod test {
     #[test]
     fn gives_list_fs() {
         succeeds("(fun x.x) :: empty");
+    }
+
+    #[test]
+    fn annotate_exact() {
+        succeeds("5 : int");
+        // coerces("5 : bool"); // actually fails :|
     }
 }

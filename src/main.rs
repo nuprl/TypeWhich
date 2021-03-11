@@ -114,6 +114,7 @@ mod tests_631 {
             Exp::Lit(..) | Exp::Var(..) | Exp::Empty(..) => (false, false),
             Exp::Fun(_, _, e)
             | Exp::Fix(_, _, e)
+            | Exp::Ann(e, _)
             | Exp::Head(e)
             | Exp::Tail(e)
             | Exp::Not(e)

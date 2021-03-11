@@ -159,6 +159,9 @@ impl Pretty for Exp {
                 pp.softline(),
                 e.pretty(pp),
             ]),
+            Exp::Ann(e, typ) => {
+                pp.intersperse(vec![e.pretty(pp), pp.text(":"), typ.pretty(pp)], pp.space())
+            }
             Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp.concat(vec![
                 pp.text("fun"),
                 pp.space(),

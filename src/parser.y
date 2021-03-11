@@ -31,9 +31,14 @@ typ_atom -> Typ :
   | '(' typ ')' { $2 }
   ;
 
-typ -> Typ :
-    typ_atom '->' typ { Typ::Arr(Box::new($1), Box::new($3)) }
+typ_list -> Typ :
+    'list' typ_list   { Typ::List(Box::new($2)) }
   | typ_atom          { $1 }
+  ;
+
+typ -> Typ :
+    typ_list '->' typ { Typ::Arr(Box::new($1), Box::new($3)) }
+  | typ_list          { $1 }
   ;
 
 atom -> Exp :
@@ -41,7 +46,7 @@ atom -> Exp :
   | lit             { Exp::Lit($1) }
   | id              { Exp::Var($1) }
   | 'empty'         { Exp::Empty(next_metavar()) }
-  | 'empty' ':' typ { Exp::Empty($3) }
+//  | 'empty' ':' typ { Exp::Empty($3) }
   ;
 
 funExp -> Exp :
@@ -94,6 +99,7 @@ exp -> Exp :
     Exp::LetRec(v, Box::new($5))
   }
   | pair '::' exp    { Exp::Cons(Box::new($1), Box::new($3)) }
+  | pair ':' typ     { Exp::Ann(Box::new($1), $3) }
   ;
 
 bindings -> Vec<(String, Typ, Exp)> :

@@ -81,6 +81,12 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             }
             tcheck(&env, e)
         }
+        // Γ ⊢ e : T
+        // ---------
+        // Γ ⊢ (e : T) : T
+        Exp::Ann(e, typ) => {
+            should_match(typ, tcheck(env, e)?)
+        }
         // Γ ⊢ e_1 : int
         // Γ ⊢ e_2 : int
         // ----------------------------------------------
