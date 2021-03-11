@@ -122,6 +122,7 @@ impl<'a> State<'a> {
             // Γ ⊢ e1 => T_1, φ_1
             // -------------------
             // Γ ⊢ e1 : T => T_1, φ_1 /\ strengthen(T_1, T)
+            // TODO(mmg): neither strengthen nor weaken is right...
             Exp::Ann(e, typ) => {
                 let (t1, phi1) = self.cgen(env, e);
                 let phi2 = self.strengthen(t1, typ.clone(), &mut *e);
