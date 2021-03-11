@@ -171,6 +171,17 @@ impl Pretty for Exp {
                 pp.line(),
                 e.pretty(pp).nest(2),
             ]),
+            Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp
+                .concat(vec![
+                    pp.text("fun"),
+                    pp.space(),
+                    pp.text(x),
+                    pp.space(),
+                    pp.text("."),
+                    pp.softline(),
+                    e.pretty(pp).nest(2),
+                ])
+                .group(),
             Exp::Fun(x, t, e) => pp.concat(vec![
                 pp.text("fun"),
                 pp.space(),
@@ -191,41 +202,6 @@ impl Pretty for Exp {
                 pp.line(),
                 e.pretty(pp),
             ]),
-            Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp
-                .concat(vec![
-                    pp.text("fun"),
-                    pp.space(),
-                    pp.text(x),
-                    pp.space(),
-                    pp.text("."),
-                    pp.softline(),
-                    e.pretty(pp).nest(2),
-                ])
-                .group(),
-            Exp::Fun(x, t, e) => pp
-                .concat(vec![
-                    pp.text("fun"),
-                    pp.space(),
-                    pp.text(x),
-                    pp.text(":"),
-                    t.pretty(pp),
-                    pp.text("."),
-                    pp.softline(),
-                    e.pretty(pp).nest(2),
-                ])
-                .group(),
-            Exp::Fix(x, t, e) => pp
-                .concat(vec![
-                    pp.text("fix"),
-                    pp.space(),
-                    pp.text(x),
-                    pp.text(":"),
-                    t.pretty(pp),
-                    pp.text("."),
-                    pp.softline(),
-                    e.pretty(pp).nest(2),
-                ])
-                .group(),
             Exp::App(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_fun_exp()),
                 pp.softline(),
