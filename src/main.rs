@@ -1,6 +1,6 @@
 mod cgen;
-mod grift;
 mod parser;
+mod grift;
 mod pretty;
 mod syntax;
 mod type_check;
@@ -12,6 +12,10 @@ use clap::{App, Arg};
 
 lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
 lrpar::lrpar_mod!("parser.y"); // effectively mod `parser_y`
+
+lrlex::lrlex_mod!("grift.l"); // effectively mod `grift_l`
+lrpar::lrpar_mod!("grift.y"); // effectively mod `grift_y`
+
 
 pub struct Options {
     optimizer: bool,

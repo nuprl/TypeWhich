@@ -21,5 +21,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     LexerBuilder::new()
         .rule_ids_map(lex_rule_ids_map)
         .process_file_in_src("lexer.l")?;
+
+    let mut parser_builder = CTParserBuilder::new()
+        .yacckind(YaccKind::Grmtools)
+        .error_on_conflicts(false);
+
+    let lex_rule_ids_map = parser_builder.process_file_in_src("grift.y")?;
+
+    if let Some(conflicts) = parser_builder.conflicts() {
+        println!("{}", conflicts.3.pp(conflicts.0));
+        panic!("Found shift-reduce or reduce-reduce conflicts (described above).");
+    }
+
+    LexerBuilder::new()
+        .rule_ids_map(lex_rule_ids_map)
+        .process_file_in_src("grift.l")?;
+        
     Ok(())
 }
