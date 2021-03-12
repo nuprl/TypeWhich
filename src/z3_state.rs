@@ -14,6 +14,9 @@ pub struct Z3State<'a> {
     pub pair_ctor: &'a FuncDecl<'a>,
     pub box_ctor: &'a FuncDecl<'a>,
     pub any_z3: Dynamic<'a>,
+    pub unit_z3: Dynamic<'a>,
+    pub vect_ctor: &'a FuncDecl<'a>,
+    pub float_z3: Dynamic<'a>,
 }
 
 impl<'a> Z3State<'a> {
@@ -28,6 +31,9 @@ impl<'a> Z3State<'a> {
             pair_ctor: &typ.variants[5].constructor,
             box_ctor: &typ.variants[6].constructor,
             any_z3: typ.variants[7].constructor.apply(&[]),
+            unit_z3: typ.variants[8].constructor.apply(&[]),
+            vect_ctor: &typ.variants[9].constructor,
+            float_z3: typ.variants[10].constructor.apply(&[]),
             typ_sort: &typ.sort,
             typ,
         }
@@ -60,6 +66,12 @@ impl<'a> Z3State<'a> {
                 vec![("bt", DatatypeAccessor::Datatype("Typ".into()))],
             )
             .variant("Any", vec![])
+            .variant("Unit", vec![])
+            .variant(
+                "Vect",
+                vec![("vt", DatatypeAccessor::Datatype("Typ".into()))],
+            )
+            .variant("Float", vec![])
             .finish()
     }
     pub fn true_z3(&self) -> Bool<'a> {
@@ -94,6 +106,14 @@ impl<'a> Z3State<'a> {
             Typ::Box(Box::new(t))
         } else if self.is_any(model, &e) {
             Typ::Any
+        } else if self.is_unit(model, &e) {
+            Typ::Unit  
+        } else if self.is_vect(model, &e) {
+            let t = self.vect_typ(&e);
+            let t = self.z3_to_typ(model, t);
+            Typ::Vect(Box::new(t))
+        } else if self.is_float(model, &e) {
+            Typ::Float
         } else {
             panic!("missing case in z3_to_typ");
         }
@@ -139,6 +159,15 @@ impl<'a> Z3State<'a> {
     pub fn is_any(&self, model: &Model, e: &Dynamic) -> bool {
         self.is_variant(7, model, e)
     }
+    pub fn is_unit(&self, model: &Model, e: &Dynamic) -> bool {
+        self.is_variant(8, model, e)
+    }
+    pub fn is_vect(&self, model: &Model, e: &Dynamic) -> bool {
+        self.is_variant(9, model, e)
+    }
+    pub fn is_float(&self, model: &Model, e: &Dynamic) -> bool {
+        self.is_variant(10, model, e)
+    }
     pub fn arr_arg(&self, e: &Dynamic<'a>) -> Dynamic<'a> {
         self.typ.variants[3].accessors[0].apply(&[e])
     }
@@ -156,5 +185,8 @@ impl<'a> Z3State<'a> {
     }
     pub fn box_typ(&self, e: &Dynamic<'a>) -> Dynamic<'a> {
         self.typ.variants[6].accessors[0].apply(&[e])
+    }
+    pub fn vect_typ(&self, e: &Dynamic<'a>) -> Dynamic<'a> {
+        self.typ.variants[9].accessors[0].apply(&[e])
     }
 }

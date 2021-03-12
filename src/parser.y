@@ -90,25 +90,15 @@ exp -> Exp :
   | 'if' exp 'then' exp 'else' exp {
         Exp::If(Box::new($2), Box::new($4), Box::new($6))
     }
-  | 'let' id '=' exp 'in' exp {
-      Exp::Let($2, Box::new($4), Box::new($6))
-    }
-  | 'let' 'rec' bindings 'in' exp {
-    let mut v = $3;
-    v.reverse();
-    Exp::LetRec(v, Box::new($5))
-  }
-  | pair '::' exp    { Exp::Cons(Box::new($1), Box::new($3)) }
-  | pair ':' typ     { Exp::Ann(Box::new($1), $3) }
+  | 'let' id '=' exp 'in' exp { Exp::Let($2, Box::new($4), Box::new($6)) }
+  | 'let' 'rec' bindings 'in' exp { Exp::LetRec($3, Box::new($5)) }
+  | pair '::' exp { Exp::Cons(Box::new($1), Box::new($3)) }
+  | pair ':' typ  { Exp::Ann(Box::new($1), $3) }
   ;
 
 bindings -> Vec<(String, Typ, Exp)> :
-    binding 'and' bindings {
-    let mut v = $3;
-    v.push($1); // NB done in reverse, flipped later
-    v
-  }
-  | binding { let mut v = Vec::new(); v.push($1); v }
+    bindings 'and' binding { let mut v = $1; v.push($3); v }
+  |                binding { let mut v = Vec::new(); v.push($1); v }
 ;
 
 binding -> (String, Typ, Exp) :

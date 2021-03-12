@@ -53,7 +53,9 @@ impl Pretty for Typ {
         <D as pretty::DocAllocator<'b, A>>::Doc: std::clone::Clone,
     {
         match self {
+            Typ::Unit => pp.text("unit"),
             Typ::Int => pp.text("int"),
+            Typ::Float => pp.text("float"),
             Typ::Bool => pp.text("bool"),
             Typ::Str => pp.text("str"),
             Typ::Arr(t1, t2) => pp.concat(vec![
@@ -78,6 +80,11 @@ impl Pretty for Typ {
                 .parens(),
             Typ::Box(t) => pp.concat(vec![
                 pp.text("box"),
+                pp.space(),
+                parens_if(pp, &**t, t.is_atom()),
+            ]),
+            Typ::Vect(t) => pp.concat(vec![
+                pp.text("vect"),
                 pp.space(),
                 parens_if(pp, &**t, t.is_atom()),
             ]),

@@ -19,13 +19,16 @@ struct State<'a> {
 impl<'a> State<'a> {
     fn t2z3(&self, typ: &Typ) -> Dynamic<'a> {
         match typ {
+            Typ::Unit => self.z3.unit_z3.clone(),
             Typ::Int => self.z3.int_z3.clone(),
+            Typ::Float => self.z3.float_z3.clone(),
             Typ::Bool => self.z3.bool_z3.clone(),
             Typ::Str => self.z3.str_z3.clone(),
             Typ::Arr(t1, t2) => self.z3.arr_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
             Typ::List(t) => self.z3.list_ctor.apply(&[&self.t2z3(t)]),
             Typ::Pair(t1, t2) => self.z3.pair_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
             Typ::Box(t) => self.z3.box_ctor.apply(&[&self.t2z3(t)]),
+            Typ::Vect(t) => self.z3.vect_ctor.apply(&[&self.t2z3(t)]),
             Typ::Any => self.z3.any_z3.clone(),
             Typ::Metavar(n) => {
                 let mut vars = self.vars.borrow_mut();

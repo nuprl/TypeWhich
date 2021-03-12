@@ -1,24 +1,45 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Typ {
+    Unit,
     Int,
+    Float,
     Bool,
     Str,
     Arr(Box<Typ>, Box<Typ>),
     List(Box<Typ>),
     Pair(Box<Typ>, Box<Typ>),
     Box(Box<Typ>),
+    Vect(Box<Typ>),
     Any,
     Metavar(u32),
 }
 
 impl Typ {
+    pub fn arrs(typs: Vec<Typ>) -> Self {
+        assert!(!typs.is_empty());
+
+        if typs.len() == 1 {
+            Typ::Arr(
+                Box::new(Typ::Unit),
+                Box::new(typs.into_iter().next().unwrap()),
+            )
+        } else {
+            let mut typs = typs.into_iter().rev();
+            let mut arr = typs.next().unwrap();
+            for typ in typs {
+                arr = Typ::Arr(Box::new(typ), Box::new(arr));
+            }
+            arr
+        }
+    }
+
     pub fn is_arr(&self) -> bool {
         matches!(self, Typ::Arr(..))
     }
     pub fn is_atom(&self) -> bool {
         match self {
-            Typ::Int | Typ::Bool | Typ::Str | Typ::Any | Typ::Metavar(..) => false,
-            Typ::Arr(..) | Typ::List(..) | Typ::Pair(..) | Typ::Box(..) => true,
+            Typ::Unit | Typ::Int | Typ::Float | Typ::Bool | Typ::Str | Typ::Any | Typ::Metavar(..) => false,
+            Typ::Arr(..) | Typ::List(..) | Typ::Pair(..) | Typ::Box(..) | Typ::Vect(..) => true,
         }
     }
 }
@@ -41,6 +62,12 @@ impl Lit {
 }
 
 pub type Id = String;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Toplevel {
+    Define(Id, Typ, Exp),
+    Exp(Exp),
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Exp {
@@ -80,6 +107,18 @@ pub enum Exp {
 impl Exp {
     pub fn take(&mut self) -> Self {
         std::mem::replace(self, Exp::Lit(Lit::Int(0)))
+    }
+
+    pub fn into_fun_with_args<I>(&mut self, args: I)
+    where
+        I: IntoIterator<Item = (String, Typ)>,
+    {
+        let mut args = args.into_iter();
+
+        if let Some((arg, typ)) = args.next() {
+            self.into_fun_with_args(args);
+            *self = Exp::Fun(arg, typ, Box::new(self.take()));
+        }
     }
 
     pub fn is_app_like(&self) -> bool {
