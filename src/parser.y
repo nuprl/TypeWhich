@@ -107,5 +107,5 @@ binding -> (String, Typ, Exp) :
 ;
 %%
 
-use super::syntax::{Exp, Lit, Typ};
-use super::parser::next_metavar;
+use crate::syntax::{Exp, Lit, Typ};
+use crate::parser::next_metavar;

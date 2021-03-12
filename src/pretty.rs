@@ -117,6 +117,33 @@ impl Pretty for Lit {
             Lit::Bool(true) => pp.text("true"),
             Lit::Bool(false) => pp.text("false"),
             Lit::Str(s) => pp.text("\"").append(pp.text(s)).append(pp.text("\"")),
+            Lit::Unit => pp.text("()"),
+        }
+    }
+}
+
+impl Pretty for Toplevel {
+    fn pretty<'b, D, A>(&'b self, pp: &'b D) -> pretty::DocBuilder<'b, D, A>
+    where
+        D: pretty::DocAllocator<'b, A>,
+        A: std::clone::Clone,
+        <D as pretty::DocAllocator<'b, A>>::Doc: std::clone::Clone,
+    {
+        match self {
+            Toplevel::Define(x, t, e) => pp
+                .concat(vec![
+                    pp.text("define"),
+                    pp.space(),
+                    pp.text(x),
+                    pp.space(),
+                    pp.text(":"),
+                    pp.space(),
+                    t.pretty(pp),
+                    pp.softline(),
+                    e.pretty(pp),
+                ])
+                .parens(),
+            Toplevel::Exp(e) => e.pretty(pp),
         }
     }
 }
@@ -316,3 +343,4 @@ impl Pretty for Exp {
 impl_Display_Pretty!(Typ);
 impl_Display_Pretty!(Lit);
 impl_Display_Pretty!(Exp);
+impl_Display_Pretty!(Toplevel);

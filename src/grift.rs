@@ -2,7 +2,35 @@ use crate::parser::next_metavar;
 use crate::syntax::*;
 use lexpr::Value;
 
-#[allow(unused)]
+lrlex::lrlex_mod!("grift.l"); // effectively mod `grift_l`
+lrpar::lrpar_mod!("grift.y"); // effectively mod `grift_y`
+
+pub fn parse_new(input: impl AsRef<str>) -> Vec<Toplevel> {
+    let input = input.as_ref();
+    let lexerdef = grift_l::lexerdef();
+    let lexer = lexerdef.lexer(input);
+    let (res, errs) = grift_y::parse(&lexer);
+    if errs.is_empty() {
+        return res.unwrap();
+    }
+    for err in errs.into_iter() {
+        eprintln!("{}", err.pp(&lexer, &|t| grift_y::token_epp(t)));
+    }
+    panic!("Error parsing expressions");
+}
+
+pub fn parse_exp(input: impl AsRef<str>) -> Exp {
+    let tl = parse_new(input);
+
+    assert_eq!(tl.len(), 1);
+    let e = tl.into_iter().next().unwrap();
+
+    match e {
+        Toplevel::Exp(e) => e,
+        _ => panic!("Expected exp, got '{}'", e),
+    }
+}
+
 pub fn parse(program: &str) -> Exp {
     *parse_sexp(&lexpr::from_str(program).unwrap())
 }
@@ -196,22 +224,23 @@ fn expect_string(se: &Value) -> String {
 #[cfg(test)]
 mod test {
     use super::parse;
+    use super::parse_exp;
     use crate::syntax::*;
     use crate::tests_631::*;
 
     #[test]
     #[should_panic]
     fn bad_things() {
-        parse("(if 5 6 7 8)");
+        parse_exp("(if 5 6 7 8)");
     }
     #[test]
     fn parse_int() {
-        assert_eq!(parse("5"), Exp::Lit(Lit::Int(5)))
+        assert_eq!(parse_exp("5"), Exp::Lit(Lit::Int(5)))
     }
     #[test]
     fn let_once() {
         assert_eq!(
-            parse("(let ((x 5)) x)"),
+            parse_exp("(let ((x 5)) x)"),
             Exp::Let(
                 "x".to_string(),
                 Box::new(Exp::Lit(Lit::Int(5))),
@@ -221,64 +250,15 @@ mod test {
     }
     #[test]
     fn lambda() {
-        parse("(lambda (x) x)");
+        parse_exp("(lambda (x) x)");
     }
     #[test]
     fn app() {
-        parse("((lambda (x) x) 5)");
+        parse_exp("((lambda (x) x) 5)");
     }
     #[test]
     fn cond() {
-        parse("(if 5 6 7)");
-    }
-
-    #[test]
-    fn fact_church() {
-        coerces(
-            "
-            let add1  =
-                  fun x. 1 + x in
-            let one  =
-                  fun f. fun x. f x in
-            let five  =
-                  fun f. fun x. f (f (f (f (f x)))) in
-            let pred  =
-                  fun n.
-                    (fun f.
-                      (fun x.
-                        (((n (fun g. fun h. h (g f)))
-                          (fun u. x))
-                         (fun u. u)))) in
-            let mult  =
-                  fun m.
-                    (fun n.
-                      (fun f. m (n f))) in
-            let _true   =
-                   fun a. fun b. a in
-            let _false  =
-                   fun a. fun b. b in
-            let is0   =
-                  fun n. n (fun x. _false) _true in
-            let fact  =
-                  fix fact. fun n.
-                    ((     (is0 n) // if
-                           (fun x. one))
-                           (fun x. (mult n) (fact (pred n)))) in
-            let realize = fun n . n add1 0 in // : (int -> int) -> (int -> int)
-            let n = fact five in
-            realize n",
-        );
-    }
-    #[test]
-    fn fact_dyn() {
-        coerces(
-            "
-            let f = fun f.fun n.
-                if n = 0
-                    then 1
-                    else n * (f f (n + -1)) in
-            f f 6",
-        );
+        parse_exp("(if 5 6 7)");
     }
     #[test]
     fn fact_grift_concrete() {

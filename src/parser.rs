@@ -1,7 +1,8 @@
-use super::lexer_l;
-use super::parser_y;
 use super::syntax::{Exp, Typ};
 use std::cell::RefCell;
+
+lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
+lrpar::lrpar_mod!("parser.y"); // effectively mod `parser_y`
 
 thread_local!(static NEXT_METAVAR: RefCell<u32> = RefCell::new(0));
 
