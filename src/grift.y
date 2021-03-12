@@ -26,7 +26,10 @@ exp -> Exp :
 
     | '(' 'let'    '(' bindings ')' exps ')' { Exp::lets($4, Exp::begin($6)) }
     | '(' 'letrec' '(' bindings ')' exps ')' { 
-      Exp::LetRec($4.into_iter().map(|(x,to,e)| (x, to.unwrap_or_else(|| next_metavar()), e)).collect(), Box::new(Exp::begin($6)))
+      Exp::LetRec(
+        $4.into_iter().map(|(x,to,e)| (x, to.unwrap_or_else(|| next_metavar()), e)).collect(), 
+        Box::new(Exp::begin($6)),
+      )
     }
 
     | '(' 'lambda' '(' formals ')' ':' typ exps ')' { Exp::funs($4, Exp::Ann(Box::new(Exp::begin($8)), $7)) }
