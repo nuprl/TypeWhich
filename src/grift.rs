@@ -300,7 +300,7 @@ mod test {
     }
     #[test]
     fn box_int() {
-        exp_succeeds(parse(
+        exp_succeeds(parse_exp(
             "(let ((my_box (box 5)))
                 (let ((i_set (box-set! my_box 10)))
                   (unbox my_box)))",
@@ -308,7 +308,7 @@ mod test {
     }
     #[test]
     fn box_any() {
-        exp_coerces(parse(
+        exp_coerces(parse_exp(
             "(let ((my_box (box 5)))
                 (let ((i_set (box-set! my_box #t)))
                   (unbox my_box)))",
@@ -316,12 +316,12 @@ mod test {
     }
     #[test]
     fn box_context() {
-        exp_coerces(parse("(box 5)"));
+        exp_coerces(parse_exp("(box 5)"));
     }
     #[test]
     fn box_identities() {
         assert_eq!(
-            exp_coerces(parse(
+            exp_coerces(parse_exp(
                 "(let ((id (lambda (x) x)))
                 (let ((h (id (box 5))))
                 (id (unbox h))))"
@@ -343,7 +343,7 @@ mod test {
     #[test]
     fn box_stay_strong() {
         assert_eq!(
-            exp_succeeds(parse(
+            exp_succeeds(parse_exp(
                 "(let ((id (lambda (x) x))) (let ((h (id (box 5)))) 5))"
             )),
             Typ::Int

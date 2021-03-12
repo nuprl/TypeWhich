@@ -43,6 +43,10 @@ exp -> Exp :
 
     | '(' 'begin' exps ')' { Exp::begin($3) }
 
+    | '(' 'box'   exp ')'      { Exp::Box(Box::new($3)) }
+    | '(' 'unbox' exp ')'      { Exp::Unbox(Box::new($3)) }
+    | '(' 'boxset' exp exp ')' { Exp::BoxSet(Box::new($3), Box::new($4)) }
+
     | '(' exps ')' { Exp::apps($2) }
 ;
 
