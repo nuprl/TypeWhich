@@ -1,5 +1,6 @@
 %%
 [\t\r\n ]+ ;
+;[^\n]* ;
 \#f "false"
 \#t "true"
 [\(\[] "("
@@ -13,9 +14,12 @@ ann "ann"
 if "if"
 let "let"
 letrec "letrec"
-box 'box'
-unbox 'unbox'
-box-set! 'boxset'
+\+ "+"
+\* "*"
+= "="
+box "box"
+unbox "unbox"
+box-set! "boxset"
 : ":"
 -> "->"
 Dyn "Dyn"
