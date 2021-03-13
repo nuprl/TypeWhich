@@ -95,10 +95,19 @@ typ -> Typ :
 
 lit -> Lit :
     i32  { Lit::Int($1) }
+  | f64  { Lit::Float($1) }
   | bool { Lit::Bool($1) }
   | str  { Lit::Str($1) }
   | '()' { Lit::Unit }
   ;
+
+f64 -> f64 :
+    'FLO' { 
+      let span = $1.unwrap().span();
+      let span = lrpar::Span::new(span.start() + 2, span.end());
+      $lexer.span_str(span).parse::<f64>().unwrap()
+    }
+    ;
 
 i32 -> i32 :
     'NUM' { $lexer.span_str($1.unwrap().span()).parse::<i32>().unwrap() }

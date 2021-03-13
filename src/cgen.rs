@@ -328,6 +328,8 @@ impl<'a> State<'a> {
     /// metavariables
     fn negative_any(&self, model: &z3::Model<'a>, t: &Dynamic<'a>) -> Bool<'a> {
         if self.z3.is_int(model, &t)
+            || self.z3.is_unit(model, &t)
+            || self.z3.is_float(model, &t)
             || self.z3.is_bool(model, &t)
             || self.z3.is_str(model, &t)
             || self.z3.is_any(model, &t)
@@ -351,7 +353,7 @@ impl<'a> State<'a> {
             let t = self.z3.box_typ(&t);
             t._eq(&self.z3.any_z3)
         } else {
-            panic!("missing case in z3_to_typ");
+            panic!("missing case in negative_any");
         }
     }
 

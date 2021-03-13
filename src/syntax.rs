@@ -55,6 +55,7 @@ pub enum Lit {
     Int(i32),
     Bool(bool),
     Str(String),
+    Float(f64),
     Unit,
 }
 
@@ -64,6 +65,7 @@ impl Lit {
             Lit::Int(_) => Typ::Int,
             Lit::Bool(_) => Typ::Bool,
             Lit::Str(_) => Typ::Str,
+            Lit::Float(_) => Typ::Float,
             Lit::Unit => Typ::Unit,
         }
     }

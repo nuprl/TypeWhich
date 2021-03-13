@@ -192,4 +192,13 @@ mod test {
             Typ::Int
         );
     }
+    #[test]
+    fn float_constants() {
+        assert_eq!(
+            exp_succeeds(parse(
+                "(define x #i8.34336671824457987) (define y #i2.30417297573763929e-5) y"
+            )),
+            Typ::Float
+        )
+    }
 }

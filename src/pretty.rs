@@ -114,6 +114,7 @@ impl Pretty for Lit {
     {
         match self {
             Lit::Int(n) => pp.as_string(n),
+            Lit::Float(f) => pp.as_string(f),
             Lit::Bool(true) => pp.text("true"),
             Lit::Bool(false) => pp.text("false"),
             Lit::Str(s) => pp.text("\"").append(pp.text(s)).append(pp.text("\"")),
