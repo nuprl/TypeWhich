@@ -3,7 +3,25 @@ use crate::syntax::*;
 lrlex::lrlex_mod!("grift.l"); // effectively mod `grift_l`
 lrpar::lrpar_mod!("grift.y"); // effectively mod `grift_y`
 
-pub fn parse(input: impl AsRef<str>) -> Vec<Toplevel> {
+pub fn toplevel_exp(tls: Vec<Toplevel>) -> Exp {
+    let mut bindings = Vec::new();
+    let mut exprs = Vec::new();
+    for tl in tls.into_iter() {
+        match tl {
+            Toplevel::Define(x, t, e) => bindings.push((x, t, e)),
+            Toplevel::Exp(e) => exprs.push(e),
+        }
+    }
+
+    let e = Exp::begin(exprs);
+    if bindings.is_empty() {
+        e
+    } else {
+        Exp::LetRec(bindings, Box::new(e))
+    }
+}
+
+pub fn parse_toplevel(input: impl AsRef<str>) -> Vec<Toplevel> {
     let input = input.as_ref();
     let lexerdef = grift_l::lexerdef();
     let lexer = lexerdef.lexer(input);
@@ -17,37 +35,29 @@ pub fn parse(input: impl AsRef<str>) -> Vec<Toplevel> {
     panic!("Error parsing expressions");
 }
 
-pub fn parse_exp(input: impl AsRef<str>) -> Exp {
-    let tl = parse(input);
-
-    assert_eq!(tl.len(), 1);
-    let e = tl.into_iter().next().unwrap();
-
-    match e {
-        Toplevel::Exp(e) => e,
-        _ => panic!("Expected exp, got '{}'", e),
-    }
+pub fn parse(input: impl AsRef<str>) -> Exp {
+    toplevel_exp(parse_toplevel(input))
 }
 
 #[cfg(test)]
 mod test {
-    use super::parse_exp;
+    use super::parse;
     use crate::syntax::*;
     use crate::tests_631::*;
 
     #[test]
     #[should_panic]
     fn bad_things() {
-        parse_exp("(if 5 6 7 8)");
+        parse("(if 5 6 7 8)");
     }
     #[test]
     fn parse_int() {
-        assert_eq!(parse_exp("5"), Exp::Lit(Lit::Int(5)))
+        assert_eq!(parse("5"), Exp::Lit(Lit::Int(5)))
     }
     #[test]
     fn let_once() {
         assert_eq!(
-            parse_exp("(let ((x 5)) x)"),
+            parse("(let ((x 5)) x)"),
             Exp::Let(
                 "x".to_string(),
                 Box::new(Exp::Lit(Lit::Int(5))),
@@ -57,19 +67,19 @@ mod test {
     }
     #[test]
     fn lambda() {
-        parse_exp("(lambda (x) x)");
+        parse("(lambda (x) x)");
     }
     #[test]
     fn app() {
-        parse_exp("((lambda (x) x) 5)");
+        parse("((lambda (x) x) 5)");
     }
     #[test]
     fn cond() {
-        parse_exp("(if 5 6 7)");
+        parse("(if 5 6 7)");
     }
     #[test]
     fn fact_grift_concrete() {
-        exp_coerces(parse_exp(
+        exp_coerces(parse(
             "(let ((f (lambda (f n)
                 (if (= n 0)
                     1
@@ -82,7 +92,7 @@ mod test {
     #[test]
     fn ack_no_rec() {
         // this is supposed to be letrec but meh
-        exp_succeeds(parse_exp(
+        exp_succeeds(parse(
             "(letrec ([ack (lambda ([m : Int] [n : Int]) : Int
                     (if (= m 0)
                         (+ n 1)
@@ -94,7 +104,7 @@ mod test {
     }
     #[test]
     fn ack() {
-        exp_succeeds(parse_exp(
+        exp_succeeds(parse(
             "(letrec ([ack (lambda (m n) ; this should have : Dyn but we don't annotate returns yet
                              (if (= m 0)
                                  (+ n 1)
@@ -106,7 +116,7 @@ mod test {
     }
     #[test]
     fn box_int() {
-        exp_succeeds(parse_exp(
+        exp_succeeds(parse(
             "(let ((my_box (box 5)))
                 (let ((i_set (box-set! my_box 10)))
                   (unbox my_box)))",
@@ -114,7 +124,7 @@ mod test {
     }
     #[test]
     fn box_any() {
-        exp_coerces(parse_exp(
+        exp_coerces(parse(
             "(let ((my_box (box 5)))
                 (let ((i_set (box-set! my_box #t)))
                   (unbox my_box)))",
@@ -122,12 +132,12 @@ mod test {
     }
     #[test]
     fn box_context() {
-        exp_coerces(parse_exp("(box 5)"));
+        exp_coerces(parse("(box 5)"));
     }
     #[test]
     fn box_identities() {
         assert_eq!(
-            exp_coerces(parse_exp(
+            exp_coerces(parse(
                 "(let ((id (lambda (x) x)))
                 (let ((h (id (box 5))))
                 (id (unbox h))))"
@@ -138,7 +148,7 @@ mod test {
     #[test]
     fn box_weakens_box_any() {
         assert_eq!(
-            exp_coerces(parse_exp(
+            exp_coerces(parse(
                 "(let ((my_box (box #t)))
                 (let ((h ((lambda (x) x) my_box)))
                 ((lambda (x) (+ 1 (unbox x))) my_box)))"
@@ -149,7 +159,7 @@ mod test {
     #[test]
     fn box_stay_strong() {
         assert_eq!(
-            exp_succeeds(parse_exp(
+            exp_succeeds(parse(
                 "(let ((id (lambda (x) x))) (let ((h (id (box 5)))) 5))"
             )),
             Typ::Int
@@ -157,6 +167,19 @@ mod test {
     }
     #[test]
     fn multi_arg_lam() {
-        parse_exp("(lambda (f n) (if (= n 0) 1 (f n)))");
+        parse("(lambda (f n) (if (= n 0) 1 (f n)))");
+    }
+    #[test]
+    fn basic_toplevel() {
+        assert_eq!(
+            exp_succeeds(parse("(define x 5) (define y 10) (+ x y)")),
+            Typ::Int
+        );
+        assert_eq!(
+            exp_succeeds(parse(
+                "(define (f) 10) (define x 5) (define y 10) (* (f) (+ x y))"
+            )),
+            Typ::Int
+        );
     }
 }

@@ -127,7 +127,7 @@ impl Exp {
         } else {
             let mut exps = exps.into_iter().rev();
             let mut res = exps.next().unwrap();
-            let mut ctr = num_exps;
+            let mut ctr = num_exps - 1;
             for exp in exps {
                 res = Exp::Let(
                     format!("__begin{}", ctr),

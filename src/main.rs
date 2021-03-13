@@ -64,7 +64,7 @@ fn main() -> Result<()> {
 
     let parsed = match config.value_of("PARSER").unwrap() {
         "default" => parser::parse(&source),
-        "grift" => grift::parse_exp(&source),
+        "grift" => grift::parse(&source),
         other => panic!("Unknown parser '{}'", other),
     };
 
