@@ -6,10 +6,20 @@ lrpar::lrpar_mod!("grift.y"); // effectively mod `grift_y`
 pub fn toplevel_exp(tls: Vec<Toplevel>) -> Exp {
     let mut bindings = Vec::new();
     let mut exprs = Vec::new();
+    let mut saw_expr = false;
     for tl in tls.into_iter() {
         match tl {
-            Toplevel::Define(x, t, e) => bindings.push((x, t, e)),
-            Toplevel::Exp(e) => exprs.push(e),
+            Toplevel::Define(x, t, e) => {
+                if saw_expr {
+                    eprintln!("Unsoundly reordering top-level expressions to the end.");
+                }
+
+                bindings.push((x, t, e));
+            }
+            Toplevel::Exp(e) => {
+                saw_expr = true;
+                exprs.push(e);
+            }
         }
     }
 
