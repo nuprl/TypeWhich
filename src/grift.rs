@@ -201,4 +201,11 @@ mod test {
             Typ::Float
         )
     }
+    #[test]
+    fn scheme_varnames() {
+        assert_eq!(
+            exp_succeeds(parse("(define days-per-year : Float #i365.24) (define *saturn* #i-4.03523417114321381e-1) *saturn*")),
+            Typ::Float
+        );
+    }
 }
