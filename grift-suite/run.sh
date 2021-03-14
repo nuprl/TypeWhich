@@ -7,7 +7,15 @@ total=0
 failures=0
 
 last_group=""
-for test_file in $(find . -name \*.grift)
+
+if [ "$*" ]
+then
+    files=$(find . -name \*.grift | grep "$*")
+else
+    files=$(find . -name \*.grift)
+fi
+
+for test_file in $files
 do
     test_name=$(basename $test_file)
     test_name=${test_name%.grift}
@@ -15,11 +23,15 @@ do
     test_group=$(dirname $test_file)
     test_group=${test_group#./}
 
-
     if ! [ "$test_group" = "$last_group" ]
     then
+        if [ "$last_group" ]
+        then
+            printf "\n"
+        fi
+        
         last_group=$test_group
-        printf "\n\033[1m$test_group\033[0m\n"
+        printf "\033[1m$test_group\033[0m\n"
         printf "=================================\n"
     fi
     
@@ -38,6 +50,9 @@ do
     printf "\n"
 done
 
-printf "%3d/%3d passed (%3d failures)\n" $((total - failures)) $total $failures
+printf "=================================\n"
+
+printf "\033[1m%d\033[0m/\033[1m%3d\033[0m passed (\033[31m%d\033[0m failures)\n" \
+       $((total - failures)) $total $failures
 
 [ $failures -eq 0 ]
