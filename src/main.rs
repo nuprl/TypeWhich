@@ -46,6 +46,15 @@ fn main() -> Result<()> {
             .possible_value("default")
             .possible_value("grift")
             .default_value("default"))
+        .arg(Arg::with_name("ENV")
+            .help("Use a predefined environment; when '-p grift' is set, will default to 'grift', otherwise it will be 'empty'.")
+            .long("env")
+            .short("e")
+            .possible_value("empty")
+            .possible_value("grift")
+            .default_value_if("PARSER", Some("grift"), "grift")
+            .default_value("empty")
+        )
         .get_matches();
 
     let options = Options {
@@ -53,6 +62,12 @@ fn main() -> Result<()> {
         context: !config.is_present("UNSAFE"),
     };
 
+    let env = match config.value_of("ENV").unwrap() {
+        "grift" => grift::env(),
+        "empty" => Default::default(),
+        other => panic!("Unknown environment '{}'", other),
+    };
+    
     let source = match config.value_of("INPUT").unwrap() {
         "-" => {
             let mut out = String::new();
@@ -69,10 +84,10 @@ fn main() -> Result<()> {
     };
 
     println!("{}", parsed);
-    let inferred = cgen::typeinf_options(parsed, options).unwrap();
+    let inferred = cgen::typeinf_options(parsed, &env, options).unwrap();
 
     println!("{}", &inferred);
-    match type_check::type_check(&inferred) {
+    match type_check::tcheck(&env, &inferred) {
         Ok(typ) => println!("program type: {}", typ),
         Err(e) => panic!("type inference produced a poorly-typed program:\n{}", e),
     }
@@ -84,7 +99,12 @@ mod tests_631 {
     use super::cgen::typeinf;
     use super::parser::parse;
     use super::syntax::{Exp, Typ};
-    use super::type_check::type_check;
+    use super::type_check::tcheck;
+
+    fn type_check(exp: &Exp) -> Result<Typ, String> {
+        tcheck(&Default::default(), exp)
+    }
+
     trait PairOr {
         fn or(&self, other: Self) -> Self;
     }

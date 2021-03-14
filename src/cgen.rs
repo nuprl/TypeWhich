@@ -539,9 +539,9 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
 
 #[cfg(test)]
 pub fn typeinf(exp: Exp) -> Result<Exp, ()> {
-    typeinf_options(exp, Options::default())
+    typeinf_options(exp, &Default::default(), Options::default())
 }
-pub fn typeinf_options(mut exp: Exp, options: Options) -> Result<Exp, ()> {
+pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp, ()> {
     let cfg = z3::Config::new();
     let cxt = z3::Context::new(&cfg);
     let typ = Z3State::typ(&cxt);
@@ -551,7 +551,7 @@ pub fn typeinf_options(mut exp: Exp, options: Options) -> Result<Exp, ()> {
         solver: Optimize::new(&cxt),
         options,
     };
-    let (t, phi) = s.cgen(&Default::default(), &mut exp);
+    let (t, phi) = s.cgen(env, &mut exp);
     s.solver.assert(&phi);
     if s.options.context {
         s.solver.push();

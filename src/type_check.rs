@@ -8,11 +8,12 @@ type Env = HashMap<String, Typ>;
 // backtrace
 const PANIC_ON_MISMATCH: bool = true;
 
+#[cfg(test)]
 pub fn type_check(exp: &Exp) -> Result<Typ, String> {
     tcheck(&Default::default(), exp)
 }
 
-fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
+pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
     match exp {
         // ---------------------------
         // Γ ⊢ lit : lit.typ()
