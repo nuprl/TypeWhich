@@ -48,7 +48,8 @@ exp -> Exp :
     | '(' '*' exp exp ')' { Exp::Mul(Box::new($3), Box::new($4)) }
     | '(' '=' exp exp ')' { Exp::IntEq(Box::new($3), Box::new($4)) }
 
-    | '(' 'make-tuple' exps ')' { Exp::pairs($3) }
+    | '(' 'make-tuple' exps ')'    { Exp::pairs($3) }
+    | '(' 'tuple-proj' exp pos ')' { let e = $3; e.proj($4) }
 
     | '(' 'box'   exp ')'      { Exp::Box(Box::new($3)) }
     | '(' 'unbox' exp ')'      { Exp::Unbox(Box::new($3)) }
@@ -114,6 +115,12 @@ f64 -> f64 :
 
 i32 -> i32 :
     'NUM' { $lexer.span_str($1.unwrap().span()).parse::<i32>().unwrap() }
+    ;
+
+// WEIRD error trying to use the lexer to just not allow `-` at the front...
+// Err(Lexeme { start: 14, len: 4294967295, tok_id: 32 })
+pos -> u32 :
+    'NUM' { $lexer.span_str($1.unwrap().span()).parse::<u32>().unwrap_or_else(|err| panic!("tuple indices must be non-negative: {:?}", err)) }
     ;
 
 bool -> bool :

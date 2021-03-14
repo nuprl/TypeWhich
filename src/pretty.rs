@@ -290,6 +290,8 @@ impl Pretty for Exp {
                 pp.space(),
                 parens_if(pp, &**e2, e2.is_fun_exp()),
             ]),
+            Exp::Fst(e) => pp.concat(vec![pp.text("fst"), pp.space(), e.pretty(pp).nest(2)]),
+            Exp::Snd(e) => pp.concat(vec![pp.text("snd"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::Cons(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_app_like()),
                 pp.space(),

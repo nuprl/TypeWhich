@@ -112,6 +112,8 @@ mod tests_631 {
             Exp::Fun(_, _, e)
             | Exp::Fix(_, _, e)
             | Exp::Ann(e, _)
+            | Exp::Fst(e)
+            | Exp::Snd(e)
             | Exp::Head(e)
             | Exp::Tail(e)
             | Exp::Not(e)

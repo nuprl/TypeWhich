@@ -210,6 +210,28 @@ impl<'a> State<'a> {
                 let (t2, phi2) = self.cgen(&env, e2);
                 (Typ::Pair(Box::new(t1), Box::new(t2)), phi1 & phi2)
             }
+            // Γ ⊢ e => e, T_1, φ_1
+            // ----------------------------------------------
+            // Γ ⊢ fst e => fst coerce(T_1, Pair(α,β), e), α, φ_1 && strengthen(T_1, Pair(α,β))
+            Exp::Fst(e) => {
+                let (t1, phi1) = self.cgen(&env, e);
+                let alpha = next_metavar();
+                let beta = next_metavar();
+                let phi2 =
+                    self.strengthen(t1, Typ::Pair(Box::new(alpha.clone()), Box::new(beta)), e);
+                (alpha, phi1 & phi2)
+            }
+            // Γ ⊢ e => e, T_1, φ_1
+            // ----------------------------------------------
+            // Γ ⊢ snd e => snd coerce(T_1, Pair(α,β), e), β, φ_1 && strengthen(T_1, Pair(α,β))
+            Exp::Snd(e) => {
+                let (t1, phi1) = self.cgen(&env, e);
+                let alpha = next_metavar();
+                let beta = next_metavar();
+                let phi2 =
+                    self.strengthen(t1, Typ::Pair(Box::new(alpha), Box::new(beta.clone())), e);
+                (beta, phi1 & phi2)
+            }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
@@ -478,6 +500,8 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
         | Exp::Not(e)
         | Exp::Box(e)
         | Exp::Unbox(e)
+        | Exp::Fst(e)
+        | Exp::Snd(e)
         | Exp::IsEmpty(e)
         | Exp::IsBool(e)
         | Exp::IsInt(e)

@@ -16,7 +16,7 @@ pub enum Typ {
 
 impl Typ {
     /// Generates a right-associated function type
-    /// 
+    ///
     /// `typs` must not be empty
     pub fn arrs(typs: Vec<Typ>) -> Self {
         assert!(!typs.is_empty());
@@ -36,18 +36,18 @@ impl Typ {
         }
     }
 
-    /// Generates a right-associated tuple type
-    /// 
-    /// Returns unit or the sole type itself when given 0 or 1 `typs`
+    /// Generates a right-associated, unit-terminated tuple type
     pub fn tuples(typs: Vec<Typ>) -> Self {
         if typs.len() == 0 {
             Typ::Unit
         } else if typs.len() == 1 {
-            typs.into_iter().next().unwrap()
+            Typ::Pair(
+                Box::new(typs.into_iter().next().unwrap()),
+                Box::new(Typ::Unit),
+            )
         } else {
-            let mut typs = typs.into_iter().rev();
-            let mut tup = typs.next().unwrap();
-            for fst in typs {
+            let mut tup = Typ::Unit;
+            for fst in typs.into_iter().rev() {
                 tup = Typ::Pair(Box::new(fst), Box::new(tup));
             }
             tup
@@ -117,6 +117,8 @@ pub enum Exp {
     Not(Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     Pair(Box<Exp>, Box<Exp>),
+    Fst(Box<Exp>),
+    Snd(Box<Exp>),
     Cons(Box<Exp>, Box<Exp>),
     // Γ ⊢ empty: T : List(T)
     Empty(Typ),
@@ -152,11 +154,7 @@ impl Exp {
             let mut res = exps.next().unwrap();
             let mut ctr = num_exps - 1;
             for exp in exps {
-                res = Exp::Let(
-                    format!("__begin{}", ctr),
-                    Box::new(exp),
-                    Box::new(res),
-                );
+                res = Exp::Let(format!("__begin{}", ctr), Box::new(exp), Box::new(res));
                 ctr = ctr - 1;
             }
             res
@@ -165,7 +163,7 @@ impl Exp {
 
     pub fn lets(bindings: Vec<(String, Option<Typ>, Exp)>, body: Exp) -> Self {
         let mut res = body;
-        for (x,t,e) in bindings.into_iter().rev() {
+        for (x, t, e) in bindings.into_iter().rev() {
             let e = match t {
                 Some(t) => Exp::Ann(Box::new(e), t),
                 None => e,
@@ -194,26 +192,38 @@ impl Exp {
         }
     }
 
-    /// Generates a right-associated pair (cf. `Typ::tuples`)
-    /// 
+    /// Generates a right-associated, unit-terminated pair (cf. `Typ::tuples`)
+    ///
     /// Returns unit or the sole type itself when given 0 or 1 `typs`
     pub fn pairs(exps: Vec<Exp>) -> Self {
         if exps.len() == 0 {
             Exp::Lit(Lit::Unit)
         } else if exps.len() == 1 {
-            exps.into_iter().next().unwrap()
+            Exp::Pair(
+                Box::new(exps.into_iter().next().unwrap()),
+                Box::new(Exp::Lit(Lit::Unit)),
+            )
         } else {
-            let mut exps = exps.into_iter().rev();
-            let mut tup = exps.next().unwrap();
-            for fst in exps {
+            let mut tup = Exp::Lit(Lit::Unit);
+            for fst in exps.into_iter().rev() {
                 tup = Exp::Pair(Box::new(fst), Box::new(tup));
             }
             tup
         }
     }
 
-    pub fn funs(args: Vec<(String, Typ)>, body: Self) -> Self
-    {
+    /// Generates a function that gets the `n`th element out of a right-associated, unit-terminated tuple
+    pub fn proj(self, n: u32) -> Self {
+        let mut n = n;
+        let mut proj = self;
+        while n > 0 {
+            proj = Exp::Snd(Box::new(proj));
+            n = n - 1;
+        }
+        Exp::Fst(Box::new(proj))
+    }
+
+    pub fn funs(args: Vec<(String, Typ)>, body: Self) -> Self {
         let mut fun = body;
         for (x, t) in args.into_iter().rev() {
             fun = Exp::Fun(x, t, Box::new(fun));

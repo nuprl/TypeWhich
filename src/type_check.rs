@@ -144,6 +144,27 @@ fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             let t2 = tcheck(&env, e2)?;
             Ok(Typ::Pair(Box::new(t1), Box::new(t2)))
         }
+        // Γ ⊢ e : Pair(T_1, T_2)
+        // ----------------------------------------------
+        // Γ ⊢ fst e : T_1
+        Exp::Fst(e) => {
+            let t = tcheck(env, e)?;
+            match t {
+                Typ::Pair(t1, _) => Ok(*t1),
+                _ => Err("fst non-pair".to_string()),
+            }
+        }
+        // Γ ⊢ e : Pair(T_1, T_2)
+        // ----------------------------------------------
+        // Γ ⊢ snd e : T_1
+        Exp::Snd(e) => {
+            let t = tcheck(env, e)?;
+            match t {
+                Typ::Pair(_, t2) => Ok(*t2),
+                _ => Err("snd non-pair".to_string()),
+            }
+        }
+
         // Γ ⊢ e_1 : T_1
         // Γ ⊢ e_2 : List(T_1)
         // ----------------------------------------------
