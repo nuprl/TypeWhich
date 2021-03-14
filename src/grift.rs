@@ -176,7 +176,7 @@ pub fn env() -> Env {
         "printf".to_string(),
         Typ::arrs(vec![Typ::Str, Typ::List(Box::new(Typ::Any)), Typ::Unit]),
     );
-    env.insert("exit".to_string(), Typ::arrs(vec![Typ::Str, Typ::Any])); // TODO(mmg): should be Bottom
+    env.insert("exit".to_string(), Typ::arrs(vec![Typ::Int, Typ::Any])); // TODO(mmg): return type should be Bottom
 
     env
 }
@@ -199,7 +199,31 @@ fn add_ops(env: &mut Env, ops: &[&str], typ: &Typ) {
 mod test {
     use super::parse;
     use crate::syntax::*;
-    use crate::tests_631::*;
+    use crate::tests_631::contains_coercions;
+    use crate::type_check::tcheck;
+    use crate::cgen::typeinf_options;
+
+    fn compile_verbose(orig: Exp) -> (Typ, Exp) {
+        let env = super::env();
+        println!("\nOriginal program:\n{}", &orig);
+        let e = typeinf_options(orig, &env, Default::default()).unwrap();
+        println!("\nAfter type inference:\n{}", e);
+        let t = tcheck(&env, &e).expect("failed to typecheck");
+        println!("\nProgram type:\n{}", t);
+        (t, e)
+    }
+    pub fn exp_succeeds(orig: Exp) -> Typ {
+        let (t, e) = compile_verbose(orig);
+        let coercions = contains_coercions(e);
+        assert!(!coercions.0 && !coercions.1);
+        t
+    }
+    pub fn exp_coerces(orig: Exp) -> Typ {
+        let (t, e) = compile_verbose(orig);
+        let coercions = contains_coercions(e);
+        assert!(coercions.0 || coercions.1);
+        t
+    }
 
     #[test]
     #[should_panic]
@@ -364,5 +388,9 @@ mod test {
             exp_succeeds(parse("(tuple-proj (tuple 1 #f \"hi\") 2)")),
             Typ::Str
         );
+    }
+    #[test]
+    fn int_ops() {
+        assert_eq!(exp_succeeds(parse("(< (* 1 2) (+ 3 4))")), Typ::Bool);
     }
 }

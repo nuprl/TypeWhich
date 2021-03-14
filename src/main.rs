@@ -99,12 +99,7 @@ mod tests_631 {
     use super::cgen::typeinf;
     use super::parser::parse;
     use super::syntax::{Exp, Typ};
-    use super::type_check::tcheck;
-
-    fn type_check(exp: &Exp) -> Result<Typ, String> {
-        tcheck(&Default::default(), exp)
-    }
-
+    use super::type_check::type_check;
     trait PairOr {
         fn or(&self, other: Self) -> Self;
     }
