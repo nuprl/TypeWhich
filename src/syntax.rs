@@ -15,6 +15,9 @@ pub enum Typ {
 }
 
 impl Typ {
+    /// Generates a right-associated function type
+    /// 
+    /// `typs` must not be empty
     pub fn arrs(typs: Vec<Typ>) -> Self {
         assert!(!typs.is_empty());
 
@@ -30,6 +33,24 @@ impl Typ {
                 arr = Typ::Arr(Box::new(typ), Box::new(arr));
             }
             arr
+        }
+    }
+
+    /// Generates a right-associated tuple type
+    /// 
+    /// Returns unit or the sole type itself when given 0 or 1 `typs`
+    pub fn tuples(typs: Vec<Typ>) -> Self {
+        if typs.len() == 0 {
+            Typ::Unit
+        } else if typs.len() == 1 {
+            typs.into_iter().next().unwrap()
+        } else {
+            let mut typs = typs.into_iter().rev();
+            let mut tup = typs.next().unwrap();
+            for fst in typs {
+                tup = Typ::Pair(Box::new(fst), Box::new(tup));
+            }
+            tup
         }
     }
 
@@ -170,6 +191,24 @@ impl Exp {
                 app = Exp::App(Box::new(app), Box::new(arg));
             }
             app
+        }
+    }
+
+    /// Generates a right-associated pair (cf. `Typ::tuples`)
+    /// 
+    /// Returns unit or the sole type itself when given 0 or 1 `typs`
+    pub fn pairs(exps: Vec<Exp>) -> Self {
+        if exps.len() == 0 {
+            Exp::Lit(Lit::Unit)
+        } else if exps.len() == 1 {
+            exps.into_iter().next().unwrap()
+        } else {
+            let mut exps = exps.into_iter().rev();
+            let mut tup = exps.next().unwrap();
+            for fst in exps {
+                tup = Exp::Pair(Box::new(fst), Box::new(tup));
+            }
+            tup
         }
     }
 

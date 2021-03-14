@@ -135,6 +135,9 @@ impl<'a> Z3State<'a> {
     pub fn z3_is_box(&self, e: Dynamic<'a>) -> Bool<'a> {
         self.typ.variants[6].tester.apply(&[&e]).as_bool().unwrap()
     }
+    pub fn z3_is_vect(&self, e: Dynamic<'a>) -> Bool<'a> {
+        self.typ.variants[9].tester.apply(&[&e]).as_bool().unwrap()
+    }
     pub fn is_int(&self, model: &Model, e: &Dynamic) -> bool {
         self.is_variant(0, model, e)
     }

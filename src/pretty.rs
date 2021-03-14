@@ -263,7 +263,7 @@ impl Pretty for Exp {
             Exp::IntEq(e1, e2) => pp.concat(vec![
                 parens_if(pp, &**e1, e1.is_fun_exp()),
                 pp.text(" = "),
-                // should be is pair or looser (because pair is left associative)
+                // should be is pair or looser
                 parens_if(pp, &**e2, e2.is_fun_exp()),
             ]),
             Exp::Not(e1) => pp.concat(vec![
@@ -284,10 +284,10 @@ impl Pretty for Exp {
                 ])
                 .group(),
             Exp::Pair(e1, e2) => pp.concat(vec![
+                // should be is pair or looser (because pair is right associative)
                 parens_if(pp, &**e1, e1.is_fun_exp()),
                 pp.text(","),
                 pp.space(),
-                // should be is pair or looser (because pair is left associative)
                 parens_if(pp, &**e2, e2.is_fun_exp()),
             ]),
             Exp::Cons(e1, e2) => pp.concat(vec![

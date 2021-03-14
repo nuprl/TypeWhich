@@ -217,4 +217,11 @@ mod test {
             Typ::Float
         );
     }
+    #[test]
+    fn tuples() {
+        assert_eq!(
+            exp_succeeds(parse("(tuple 1 #f \"hi\")")),
+            Typ::tuples(vec![Typ::Int, Typ::Bool, Typ::Str])
+        );
+    }
 }

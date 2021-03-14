@@ -48,6 +48,8 @@ exp -> Exp :
     | '(' '*' exp exp ')' { Exp::Mul(Box::new($3), Box::new($4)) }
     | '(' '=' exp exp ')' { Exp::IntEq(Box::new($3), Box::new($4)) }
 
+    | '(' 'make-tuple' exps ')' { Exp::pairs($3) }
+
     | '(' 'box'   exp ')'      { Exp::Box(Box::new($3)) }
     | '(' 'unbox' exp ')'      { Exp::Unbox(Box::new($3)) }
     | '(' 'boxset' exp exp ')' { Exp::BoxSet(Box::new($3), Box::new($4)) }
@@ -82,15 +84,15 @@ typs -> Vec<Typ> :
 
 typ -> Typ :
     '(' '->' typs ')'    { Typ::arrs($3) } 
-  | '(' 'List' typ ')'        { Typ::List(Box::new($3)) }
-  | '(' 'Ref' typ ')'         { Typ::Box(Box::new($3)) }
-  | '(' 'Vect' typ ')'        { Typ::Vect(Box::new($3)) }
-  | 'Dyn'       { Typ::Any }
-  | 'Int'       { Typ::Int }
-  | 'Float'     { Typ::Float }
-  | 'Bool'      { Typ::Bool }
-  | id          { unimplemented!("type variable") }
-  | '(' 'Tuple' typs ')' { unimplemented!("tuples") } 
+  | '(' 'List' typ ')'   { Typ::List(Box::new($3)) }
+  | '(' 'Ref' typ ')'    { Typ::Box(Box::new($3)) }
+  | '(' 'Vect' typ ')'   { Typ::Vect(Box::new($3)) }
+  | '(' 'Tuple' typs ')' { Typ::tuples($3) } 
+  | 'Dyn'                { Typ::Any }
+  | 'Int'                { Typ::Int }
+  | 'Float'              { Typ::Float }
+  | 'Bool'               { Typ::Bool }
+  | id                   { unimplemented!("type variable") }
   | '(' 'Rec' id typ ')' { unimplemented!("recursive types") }
   ;
 

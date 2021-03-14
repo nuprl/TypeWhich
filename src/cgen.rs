@@ -378,6 +378,7 @@ impl<'a> State<'a> {
     /// T_1 = T_2 || (T_1 = any && is_arr(t2) => t2 = any -> any
     ///                         && is_list(t2) => t2 = List(any)
     ///                         && is_box(t2) => t2 = Box(any)
+    ///                         && is_vect(t2) => t2 = Vect(any)
     #[must_use]
     fn strengthen(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
         let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
@@ -395,6 +396,11 @@ impl<'a> State<'a> {
                 &self
                     .t2z3(&t2)
                     ._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))),
+            )
+            & self.z3.z3_is_vect(self.t2z3(&t2)).implies(
+                &self
+                    .t2z3(&t2)
+                    ._eq(&self.t2z3(&Typ::Vect(Box::new(Typ::Any)))),
             );
         // we don't care about putting an ID coercion, that's fine
         let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&t2));
