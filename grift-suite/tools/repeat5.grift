@@ -1,0 +1,16 @@
+(let ([b (gbox 0)])
+ (begin
+  (repeat (_ 0 10) (a ())
+   (begin
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))
+    (gbox-set! b (+ (gunbox b) 1))))
+  (gunbox b)))
+ 

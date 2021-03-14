@@ -1,0 +1,7 @@
+(let ([r : (GRef Dyn) (gbox (: 41 Dyn))])
+  (begin
+    (if (= (gunbox r) 8)
+        (gbox-set! r #t)
+        (gbox-set! r #f))
+    (: (gunbox r) Bool)))
+        

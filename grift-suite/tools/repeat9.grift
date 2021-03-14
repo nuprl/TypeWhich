@@ -1,0 +1,2 @@
+(repeat (i 0 9) (a : Bool #t)
+  (if (= i 9) #f a)) 

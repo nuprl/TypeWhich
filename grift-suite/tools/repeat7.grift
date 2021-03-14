@@ -1,0 +1,11 @@
+(letrec ([fib : (Int -> Int)
+          (lambda (n) 
+           (let ([llast (gbox 1)])
+             (repeat (n 0 n) (last : Int 0)
+               (let ([tmp (gunbox llast)])
+                 (begin
+                   (gbox-set! llast last)
+                   (+ last tmp))))))])
+  (fib 5))
+                           
+                             

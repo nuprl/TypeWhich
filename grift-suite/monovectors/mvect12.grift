@@ -1,0 +1,4 @@
+(define len 100)
+(define vec (mvector len 42))
+(mvector-ref vec 50)
+(mvector-length vec)
