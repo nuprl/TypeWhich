@@ -23,7 +23,8 @@ exps -> Vec<Exp> :
 exp -> Exp :
       lit { Exp::Lit($1) }
     | id  { Exp::Var($1) }
-    | '(' 'ann' exp typ ')' { Exp::Ann(Box::new($3), $4) }
+
+    | '(' ':' exp typ ')' { Exp::Ann(Box::new($3), $4) }
 
     | '(' 'let'    '(' bindings ')' exps ')' { Exp::lets($4, Exp::begin($6)) }
     | '(' 'letrec' '(' bindings ')' exps ')' { 
@@ -106,12 +107,13 @@ lit -> Lit :
   ;
 
 f64 -> f64 :
-    'FLO' { 
+    'FLOscheme' { 
       let span = $1.unwrap().span();
-      let span = lrpar::Span::new(span.start() + 2, span.end());
-      $lexer.span_str(span).parse::<f64>().unwrap()
+      let str = $lexer.span_str(lrpar::Span::new(span.start() + 2, span.end()));
+      str.parse::<f64>().unwrap()
     }
-    ;
+  | 'FLO' { $lexer.span_str($1.unwrap().span()).parse::<f64>().unwrap() }
+  ;
 
 i32 -> i32 :
     'NUM' { $lexer.span_str($1.unwrap().span()).parse::<i32>().unwrap() }
