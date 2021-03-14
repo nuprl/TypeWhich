@@ -10,7 +10,13 @@ last_group=""
 
 if [ "$*" ]
 then
-    files=$(find . -name \*.grift | grep "$*")
+    PAT="$1"
+    shift
+    for kw in "$@"
+    do
+        PAT="$PAT\|$kw"
+    done
+    files=$(find . -name \*.grift | grep -e "$PAT")
 else
     files=$(find . -name \*.grift)
 fi

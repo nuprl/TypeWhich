@@ -4,6 +4,10 @@ as of 2021-03-14.
 
 We use our own runner---we're just inferring types, not running the
 actual programs. From this directory, run `run.sh` to run the tests.
+To run just a subset, you can give keywords to filter, e.g., `run.sh
+letrec` will every test with `letrec` in the name; `run.sh core tools`
+will run every test with `core` or `tools` in the name (i.e., those in
+the `core` and `tools` directories).
 
 # Notes
 
