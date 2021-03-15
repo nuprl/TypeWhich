@@ -25,6 +25,7 @@ exp -> Exp :
     | id  { Exp::Var($1) }
 
     | '(' ':' exp typ ')' { Exp::Ann(Box::new($3), $4) }
+    | '(' ':' exp typ str ')' { Exp::Ann(Box::new($3), $4) } // TODO(mmg): store blame label somewhere?
 
     | '(' 'let'    '(' bindings ')' exps ')' { Exp::lets($4, Exp::begin($6)) }
     | '(' 'letrec' '(' bindings ')' exps ')' { 
