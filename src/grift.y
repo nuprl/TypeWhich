@@ -96,18 +96,18 @@ typs -> Vec<Typ> :
   ;
 
 typ -> Typ :
-    '(' '->' typs ')'    { Typ::arrs($3) } 
-  | '(' typ '->' typ ')' { Typ::Arr(Box::new($2), Box::new($4)) } 
-  | '(' 'List' typ ')'   { Typ::List(Box::new($3)) }
-  | '(' 'Ref' typ ')'    { Typ::Box(Box::new($3)) }
-  | '(' 'Vect' typ ')'   { Typ::Vect(Box::new($3)) }
-  | '(' 'Tuple' typs ')' { Typ::tuples($3) } 
-  | 'Dyn'                { Typ::Any }
-  | 'Int'                { Typ::Int }
-  | 'Float'              { Typ::Float }
-  | 'Bool'               { Typ::Bool }
-  | id                   { unimplemented!("type variable") }
-  | '(' 'Rec' id typ ')' { unimplemented!("recursive types") }
+    '(' '->' typs ')'     { Typ::arrs($3) } 
+  | '(' typs '->' typ ')' { let mut args = $2; args.push($4); Typ::arrs(args) } 
+  | '(' 'List' typ ')'    { Typ::List(Box::new($3)) }
+  | '(' 'Ref' typ ')'     { Typ::Box(Box::new($3)) }
+  | '(' 'Vect' typ ')'    { Typ::Vect(Box::new($3)) }
+  | '(' 'Tuple' typs ')'  { Typ::tuples($3) } 
+  | 'Dyn'                 { Typ::Any }
+  | 'Int'                 { Typ::Int }
+  | 'Float'               { Typ::Float }
+  | 'Bool'                { Typ::Bool }
+  | id                    { unimplemented!("type variable") }
+  | '(' 'Rec' id typ ')'  { unimplemented!("recursive types") }
   ;
 
 lit -> Lit :
