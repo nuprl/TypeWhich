@@ -140,6 +140,7 @@ pub enum Exp {
     App(Box<Exp>, Box<Exp>),
     Coerce(Typ, Typ, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
+    Add(Box<Exp>, Box<Exp>),
     Seq(Box<Exp>, Box<Exp>),
     // TODO(luna): objects
 }

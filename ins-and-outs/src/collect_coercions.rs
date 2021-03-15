@@ -107,6 +107,20 @@ fn compile(exp: Exp, env: &HashMap<Id, Typ>) -> (Exp, Typ, HashSet<(Typ, Typ)>) 
         }
         // Γ ⊢ e1 ↪ e1' :: t1
         // Γ ⊢ e2 ↪ e2' :: t2
+        // Γ ⊢ e1'' = ⟨t1 ▷ int⟩ e1'
+        // Γ ⊢ e2'' = ⟨t2 ▷ int⟩ e2'
+        // ----------------------------
+        // Γ ⊢ e1 + e2 ↪ e1'' + e2'' :: int
+        Exp::Add(e1, e2) => {
+            let (e1p, t1, c1) = compile(*e1, env);
+            let (e2p, t2, c2) = compile(*e2, env);
+            let (e1pp, c3) = coerce(t1, Typ::Int, e1p);
+            let (e2pp, c4) = coerce(t2, Typ::Int, e2p);
+            let res_e = Exp::Add(Box::new(e1pp), Box::new(e2pp));
+            (res_e, Typ::Int, c1.union(c2).union(c3).union(c4))
+        }
+        // Γ ⊢ e1 ↪ e1' :: t1
+        // Γ ⊢ e2 ↪ e2' :: t2
         // ----------------------------
         // Γ ⊢ e1; e2 ↪ e1'; e2' :: t2
         Exp::Seq(e1, e2) => {

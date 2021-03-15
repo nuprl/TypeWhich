@@ -1,0 +1,1 @@
+fun x.(fun f.(fun x.fun y.x) f (f x))(fun z.1)

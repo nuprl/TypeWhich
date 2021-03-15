@@ -1,5 +1,5 @@
 [package]
-name = "typeinf-playground"
+name = "ins-and-outs"
 version = "0.1.0"
 authors = ["Arjun Guha <a.guha@northeastern.edu>", "Luna Phipps-Costin <lphippscosti@umass.edu>"]
 edition = "2018"

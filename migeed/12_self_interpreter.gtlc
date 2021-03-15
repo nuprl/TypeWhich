@@ -1,0 +1,2 @@
+(fun h.(fun x.h(x x))(fun x.h x x))
+    (fun e.fun m.m(fun x.x)(fun m.fun n.(e m)(e n))(fun m.fun v.e (m v)))

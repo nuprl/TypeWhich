@@ -61,6 +61,7 @@ funExp -> Exp :
   | 'is_fun' atom { Exp::IsFun(Box::new($2)) }
   | 'to_any' atom { Exp::Coerce(next_metavar(), Typ::Any, Box::new($2)) }
   | 'from_any' ':' typ atom { Exp::Coerce(Typ::Any, $3, Box::new($4)) }
+  | 'from_any' atom { Exp::Coerce(Typ::Any, next_metavar(), Box::new($2)) }
   | atom        { $1 }
   ;
 

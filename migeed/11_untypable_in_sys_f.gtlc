@@ -1,0 +1,1 @@
+(fun x.fun y.y(x(fun x.x))(x(fun b.fun c.b)))(fun d.d d)

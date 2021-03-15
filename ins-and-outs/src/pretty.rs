@@ -135,6 +135,11 @@ impl Pretty for Exp {
                 pp.concat(vec![pp.text("else"), pp.softline(), e3.pretty(pp)])
                     .nest(2),
             ]),
+            Exp::Add(e1, e2) => pp.concat(vec![
+                parens_if(pp, &**e1, !e1.is_atom()),
+                pp.text(" + "),
+                parens_if(pp, &**e2, !e2.is_atom()),
+            ]),
             Exp::Coerce(t1, t2, e) => pp.concat(vec![
                 pp.text("⟨"),
                 pretty_coercion(t1, t2, pp),

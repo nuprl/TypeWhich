@@ -1,7 +1,28 @@
 #!/bin/sh
 
-: ${HMSMT="../target/debug/typeinf-playground"}
-: ${HMSMT_ARGS="-p grift"}
+if [ "$1" = "grift" ]; then
+    : ${HMSMT="target/debug/typeinf-playground"}
+    : ${HMSMT_ARGS="-p grift"}
+    : ${SUITE_DIR="grift-suite"}
+    : ${EXT="*.grift"}
+elif [ "$1" = "migeed-ins-and-outs" ]; then
+    : ${HMSMT="ins-and-outs/target/debug/ins-and-outs"}
+    : ${HMSMT_ARGS=""}
+    : ${SUITE_DIR="migeed"}
+    : ${EXT="*.gtlc"}
+elif [ "$1" = "migeed-context" ]; then
+    : ${HMSMT="target/debug/typeinf-playground"}
+    : ${HMSMT_ARGS="--unsafe"}
+    : ${SUITE_DIR="migeed"}
+    : ${EXT="*.gtlc"}
+elif [ "$1" = "migeed-smt" ]; then
+    : ${HMSMT="target/debug/typeinf-playground"}
+    : ${HMSMT_ARGS=""}
+    : ${SUITE_DIR="migeed"}
+    : ${EXT="*.gtlc"}
+fi
+
+shift
 
 total=0
 failures=0
@@ -16,9 +37,9 @@ then
     do
         PAT="$PAT\|$kw"
     done
-    files=$(find . -name \*.grift | grep -e "$PAT")
+    files=$(find "$SUITE_DIR" -name "$EXT" | grep -e "$PAT")
 else
-    files=$(find . -name \*.grift)
+    files=$(find "$SUITE_DIR" -name "$EXT")
 fi
 
 for test_file in $files
@@ -45,7 +66,7 @@ do
 
     OUT="$(dirname $test_file)/$test_name.out"
     ERR="$(dirname $test_file)/$test_name.err"
-    $HMSMT $HMSMT_ARGS $test_file >$OUT 2>$ERR
+    timeout 5 $HMSMT $HMSMT_ARGS $test_file >$OUT 2>$ERR
     status=$?
     : $((total += 1))
     if [ $status -eq 0 ]

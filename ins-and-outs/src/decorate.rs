@@ -12,7 +12,7 @@ pub fn decorate(exp: &mut Exp, solution: &HashMap<Typ, Typ>) {
             decorate_typ(t2, &solution);
             decorate(e, &solution);
         }
-        Exp::App(e1, e2) | Exp::Seq(e1, e2) => {
+        Exp::App(e1, e2) | Exp::Seq(e1, e2) | Exp::Add(e1, e2) => {
             decorate(e1, &solution);
             decorate(e2, &solution);
         }
