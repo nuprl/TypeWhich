@@ -1,6 +1,6 @@
 mod cgen;
-mod parser;
 mod grift;
+mod parser;
 mod pretty;
 mod syntax;
 mod type_check;
@@ -10,9 +10,17 @@ use std::io::*;
 
 use clap::{App, Arg};
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Annot {
+    Ignore,
+    Hard,
+}
+
+#[derive(Clone, Copy)]
 pub struct Options {
     optimizer: bool,
     context: bool,
+    annot: Annot,
 }
 
 impl Default for Options {
@@ -20,6 +28,7 @@ impl Default for Options {
         Options {
             optimizer: true,
             context: true,
+            annot: Annot::Hard,
         }
     }
 }
@@ -47,19 +56,31 @@ fn main() -> Result<()> {
             .possible_value("grift")
             .default_value("default"))
         .arg(Arg::with_name("ENV")
-            .help("Use a predefined environment; when '-p grift' is set, will default to 'grift', otherwise it will be 'empty'.")
+            .help("Use a predefined environment; when '-p grift' is set, will default to 'grift', otherwise it will be 'empty'")
             .long("env")
             .short("e")
             .possible_value("empty")
             .possible_value("grift")
             .default_value_if("PARSER", Some("grift"), "grift")
-            .default_value("empty")
-        )
+            .default_value("empty"))
+        .arg(Arg::with_name("ANNOT")
+            .help("Specifies behavior on type annotations; when '-p grift' is set, will default to 'ignore'")
+            .long("annot")
+            .short("a")
+            .possible_value("ignore")
+            .possible_value("hard")
+            .default_value_if("PARSER", Some("grift"), "ignore")
+            .default_value("hard"))
         .get_matches();
 
     let options = Options {
         optimizer: !config.is_present("DISABLE_OPTIMIZER"),
         context: !config.is_present("UNSAFE"),
+        annot: match config.value_of("ANNOT").unwrap() {
+            "ignore" => Annot::Ignore,
+            "hard" => Annot::Hard,
+            other => panic!("Unknown annotation mode '{}'", other),
+        },
     };
 
     let env = match config.value_of("ENV").unwrap() {
@@ -67,7 +88,6 @@ fn main() -> Result<()> {
         "empty" => Default::default(),
         other => panic!("Unknown environment '{}'", other),
     };
-    
     let source = match config.value_of("INPUT").unwrap() {
         "-" => {
             let mut out = String::new();
@@ -77,11 +97,15 @@ fn main() -> Result<()> {
         file => std::fs::read_to_string(file)?,
     };
 
-    let parsed = match config.value_of("PARSER").unwrap() {
+    let mut parsed = match config.value_of("PARSER").unwrap() {
         "default" => parser::parse(&source),
         "grift" => grift::parse(&source),
         other => panic!("Unknown parser '{}'", other),
     };
+
+    if options.annot == Annot::Ignore {
+        parsed.fresh_types();
+    }
 
     println!("{}", parsed);
     let inferred = cgen::typeinf_options(parsed, &env, options).unwrap();

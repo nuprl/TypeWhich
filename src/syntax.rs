@@ -1,3 +1,5 @@
+use crate::parser::next_metavar;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Typ {
     Unit,
@@ -229,6 +231,61 @@ impl Exp {
             fun = Exp::Fun(x, t, Box::new(fun));
         }
         fun
+    }
+
+    /// Replaces all type annotations with metavariables
+    /// 
+    /// Removes `Exp::Ann` and `Exp::Coerce` nodes
+    pub fn fresh_types(&mut self) {
+        match self {
+            Exp::Ann(e, _) | Exp::Coerce(_, _, e) => {
+                e.fresh_types();
+                *self = e.take();
+            }
+            Exp::Lit(_) | Exp::Var(_) => (),
+            Exp::Empty(t) => *t = next_metavar(),
+            Exp::Fun(_, t, e) | Exp::Fix(_, t, e) => {
+                *t = next_metavar();
+                e.fresh_types();
+            }
+            Exp::LetRec(bindings, e) => {
+                for (_, ti, ei) in bindings.iter_mut() {
+                    *ti = next_metavar();
+                    ei.fresh_types();
+                }
+                e.fresh_types();
+            }
+            Exp::Not(e)
+            | Exp::Fst(e)
+            | Exp::Snd(e)
+            | Exp::IsEmpty(e)
+            | Exp::Head(e)
+            | Exp::Tail(e)
+            | Exp::Box(e)
+            | Exp::Unbox(e)
+            | Exp::IsBool(e)
+            | Exp::IsInt(e)
+            | Exp::IsString(e)
+            | Exp::IsList(e)
+            | Exp::IsFun(e) => e.fresh_types(),
+            Exp::App(e1, e2)
+            | Exp::Let(_, e1, e2)
+            | Exp::AddOverload(e1, e2)
+            | Exp::Add(e1, e2)
+            | Exp::Mul(e1, e2)
+            | Exp::IntEq(e1, e2)
+            | Exp::Pair(e1, e2)
+            | Exp::Cons(e1, e2)
+            | Exp::BoxSet(e1, e2) => {
+                e1.fresh_types();
+                e2.fresh_types();
+            }
+            Exp::If(e1, e2, e3) => {
+                e1.fresh_types();
+                e2.fresh_types();
+                e3.fresh_types();
+            }
+        };
     }
 
     pub fn is_app_like(&self) -> bool {
