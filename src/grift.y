@@ -86,6 +86,7 @@ typs -> Vec<Typ> :
 
 typ -> Typ :
     '(' '->' typs ')'    { Typ::arrs($3) } 
+  | '(' typ '->' typ ')' { Typ::Arr(Box::new($2), Box::new($4)) } 
   | '(' 'List' typ ')'   { Typ::List(Box::new($3)) }
   | '(' 'Ref' typ ')'    { Typ::Box(Box::new($3)) }
   | '(' 'Vect' typ ')'   { Typ::Vect(Box::new($3)) }
