@@ -5,7 +5,6 @@
 \#t "true"
 [\(\[] "("
 [\)\]] ")"
-\(\) "()"
 define "define"
 lambda "lambda"
 repeat "repeat"

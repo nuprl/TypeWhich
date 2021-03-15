@@ -27,11 +27,11 @@ exp -> Exp :
     | '(' ':' exp typ ')' { Exp::Ann(Box::new($3), $4) }
     | '(' ':' exp typ str ')' { Exp::Ann(Box::new($3), $4) } // TODO(mmg): store blame label somewhere?
 
-    | '(' 'let'    '(' bindings ')' exps ')' { Exp::lets($4, Exp::begin($6)) }
-    | '(' 'letrec' '(' bindings ')' exps ')' { 
+    | '(' 'let'    bindings exps ')' { Exp::lets($3, Exp::begin($4)) }
+    | '(' 'letrec' bindings exps ')' { 
       Exp::LetRec(
-        $4.into_iter().map(|(x,to,e)| (x, to.unwrap_or_else(|| next_metavar()), e)).collect(), 
-        Box::new(Exp::begin($6)),
+        $3.into_iter().map(|(x,to,e)| (x, to.unwrap_or_else(|| next_metavar()), e)).collect(), 
+        Box::new(Exp::begin($4)),
       )
     }
 
@@ -61,8 +61,13 @@ exp -> Exp :
 ;
 
 bindings -> Vec<(String, Option<Typ>, Exp)> :
-      bindings binding { let mut v = $1; v.push($2); v }
-    | binding          { let mut v = Vec::new(); v.push($1); v }
+      '(' ')'                   { Vec::new() }
+    | '(' nonempty_bindings ')' { $2 }
+    ;
+
+nonempty_bindings -> Vec<(String, Option<Typ>, Exp)> :
+      nonempty_bindings binding { let mut v = $1; v.push($2); v }
+    | binding                   { let mut v = Vec::new(); v.push($1); v }
 ;
 
 binding -> (String, Option<Typ>, Exp) :
@@ -101,11 +106,11 @@ typ -> Typ :
   ;
 
 lit -> Lit :
-    i32  { Lit::Int($1) }
-  | f64  { Lit::Float($1) }
-  | bool { Lit::Bool($1) }
-  | str  { Lit::Str($1) }
-  | '()' { Lit::Unit }
+    i32     { Lit::Int($1) }
+  | f64     { Lit::Float($1) }
+  | bool    { Lit::Bool($1) }
+  | str     { Lit::Str($1) }
+  | '(' ')' { Lit::Unit }
   ;
 
 f64 -> f64 :
