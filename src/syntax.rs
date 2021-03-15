@@ -276,9 +276,51 @@ impl Exp {
         )
     }
 
+    pub fn repeat(
+        var: Id,
+        lo: Exp,
+        hi: Exp,
+        acc: Id,
+        acc_typ: Typ,
+        acc_init: Exp,
+        body: Exp,
+    ) -> Exp {
+        let loop_fun = format!("__loop_{}_{}", var, acc); // TODO(mmg): ensure freshness
+        let loop_hi = format!("__loop_{}_{}_hi", var, acc);
+        let index = Box::new(Exp::Var(var.clone()));
+
+        let loop_body = Exp::If(
+            Box::new(Exp::IntEq(
+                index.clone(),
+                Box::new(Exp::Var(loop_hi.clone())),
+            )),
+            // last loop
+            Box::new(body.clone()),
+            // body
+            Box::new(Exp::apps(vec![
+                Exp::Var(loop_fun.clone()),
+                Exp::Add(index.clone(), Box::new(Exp::Lit(Lit::Int(1)))),
+                body.clone(),
+            ])),
+        );
+
+        Exp::LetRec(
+            vec![
+                (loop_hi, next_metavar(), hi),
+                (
+                    loop_fun.clone(),
+                    next_metavar(),
+                    Exp::funs(vec![(var, next_metavar()), (acc, acc_typ)], loop_body),
+                ),
+            ],
+            Box::new(Exp::apps(vec![Exp::Var(loop_fun), lo, acc_init])),
+        )
+    }
+
     /// Replaces all type annotations with metavariables
     ///
     /// Removes `Exp::Ann` and `Exp::Coerce` nodes
+    /// TODO(mmg): allow coercions to Dyn
     pub fn fresh_types(&mut self) {
         match self {
             Exp::Ann(e, _) | Exp::Coerce(_, _, e) => {

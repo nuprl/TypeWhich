@@ -38,9 +38,20 @@ exp -> Exp :
     | '(' 'lambda' formals ':' typ exps ')' { Exp::funs($3, Exp::Ann(Box::new(Exp::begin($6)), $5)) }
     | '(' 'lambda' formals         exps ')' { Exp::funs($3, Exp::begin($4)) }
 
-    | '(' 'repeat' '(' id exp exp ')' '(' id ':' typ exp ')' exp ')'   { unimplemented!("repeat") }
-//    | '(' 'repeat' '(' id exp exp ')' '(' id         exp ')' exp ')' { unimplemented!("repeat") } // grr shift/reduce conflict
-    | '(' 'repeat' '(' id exp exp ')' exp ')'                          { unimplemented!("repeat") }
+
+    | '(' 'repeat' '(' id exp exp ')' exp exp ')' { 
+      match $8 {
+          Exp::App(e_id, e_rest) => {
+            match *e_id {
+              Exp::Var(id) => Exp::repeat($4, $5, $6, id, next_metavar(), *e_rest, $9) ,
+              _ => panic!("repeat accumulator should be of the form '(id [: typ] exp)', found {} instead of id", e_id),
+            }
+          },
+          _ => panic!("repeat accumulator should be of the form '(id [: typ] exp)'"),
+        }
+      }
+    | '(' 'repeat' '(' id exp exp ')' '(' id ':' typ exp ')' exp ')'   { Exp::repeat($4, $5, $6, $9, $11, $12, $14) }
+    | '(' 'repeat' '(' id exp exp ')' exp ')'                          { Exp::repeat($4, $5, $6, "_".to_string(), next_metavar(), Exp::Lit(Lit::Unit), $8) }
 
     | '(' 'switch' exp cases '(' 'else' exp ')' ')' { Exp::switch($3, $4, $7) }
     | '(' 'switch' exp       '(' 'else' exp ')' ')' { Exp::switch($3, Vec::new(), $6) }
@@ -93,6 +104,10 @@ formal -> (String, Typ) :
   | '(' id ':' typ ')' { ($2, $4) }
 ;
 
+repeat_acc -> (Typ, Exp) :
+    ':' typ exp { ($2, $3) }
+  | exp         { (next_metavar(), $1) }
+;
 
 cases -> Vec<(Vec<i32>, Exp)> :
     cases case { let mut v = $1; v.push($2); v }
