@@ -61,7 +61,14 @@ done
 
 printf "=================================\n"
 
-printf "\033[1m%d\033[0m/\033[1m%3d\033[0m passed (\033[31m%d\033[0m failures)\n" \
-       $((total - failures)) $total $failures
+printf "\033[1m%d\033[0m/\033[1m%d\033[0m passed" \
+       $((total - failures)) $total
+if [ $failures -eq 0 ]
+then
+    printf " (\033[32mPASSED\033[0m)\n"
+else
+    printf " (\033[31m%d\033[0m failures)\n" $failures
+fi
+
 
 [ $failures -eq 0 ]
