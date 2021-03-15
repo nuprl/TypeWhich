@@ -29,9 +29,9 @@
                (lambda (n) ((n (lambda (x) false)) true))]
          [fact : (((Dyn -> Dyn) -> (Dyn -> Dyn)) ->
                   ((Dyn -> Dyn) -> (Dyn -> Dyn)))
-               (lambda (n)
-                 ((#;if (is0 n)
-                        (lambda () one))
+               (lambda (n) ; MMG uncommented this if?!
+                 (if (is0 n)
+                        (lambda () one)
                         (lambda () ((mult n) (fact (pred n))))))]
          [realize (lambda ([n : ((Int -> Int) -> (Int -> Int))]) ((n add1) 0))])
   (begin

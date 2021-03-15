@@ -1,7 +1,7 @@
 (letrec ([one : (Dyn -> Dyn) (lambda (f) f)] 
          [const
           : ((-> Dyn) -> Dyn)
-          #;((! (-> ⋆)) -> ı)
+          ;((! (-> ⋆)) -> ı)
           (lambda (a) (a))])
   
   (let ([is0  : ((-> (Dyn -> Dyn)) -> (Dyn -> Dyn)) const])

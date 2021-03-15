@@ -64,9 +64,9 @@
 
 (define (main) : ()
   (begin
-    #;(display "The ")
-    #;(print-int (+ N-1 1))
-    #;(display "th prime number is: ")
+    ;(display "The ")
+    ;(print-int (+ N-1 1))
+    ;(display "th prime number is: ")
     (print-int (stream-get primes N-1))
     (display-char #\newline)))
 

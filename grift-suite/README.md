@@ -18,3 +18,5 @@ programs, these files are irrelevant. We've held on to them in case we
 ever want to run the programs.
 
 We moved `simple-map.grift` into `program` to have neater output.
+
+We turned S-exp comments of the form `#;...` into ordinary comments.
