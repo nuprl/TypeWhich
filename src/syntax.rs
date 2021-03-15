@@ -233,8 +233,51 @@ impl Exp {
         fun
     }
 
+    pub fn switch(scrutinee: Exp, cases: Vec<(Vec<i32>, Exp)>, default: Exp) -> Self {
+        let name = "__scrutinee".to_string(); // TODO(mmg): ensure freshness
+        let x = Exp::Var(name.clone());
+
+        let mut e = default;
+
+        for (vals, then) in cases.into_iter().rev() {
+            e = Exp::If(
+                Box::new(Exp::one_of_ints(&x, vals)),
+                Box::new(then),
+                Box::new(e),
+            );
+        }
+
+        Exp::Let(name, Box::new(scrutinee), Box::new(e))
+    }
+
+    fn one_of_ints(val: &Exp, ints: Vec<i32>) -> Self {
+        assert!(ints.len() >= 1);
+
+        let mut ints = ints.into_iter();
+        let mut e = Exp::IntEq(
+            Box::new(val.clone()),
+            Box::new(Exp::Lit(Lit::Int(ints.next().unwrap()))),
+        );
+        for i in ints {
+            e = Exp::or(
+                e,
+                Exp::IntEq(Box::new(val.clone()), Box::new(Exp::Lit(Lit::Int(i)))),
+            );
+        }
+
+        e
+    }
+
+    fn or(l: Exp, r: Exp) -> Self {
+        Exp::If(
+            Box::new(l),
+            Box::new(Exp::Lit(Lit::Bool(true))),
+            Box::new(r),
+        )
+    }
+
     /// Replaces all type annotations with metavariables
-    /// 
+    ///
     /// Removes `Exp::Ann` and `Exp::Coerce` nodes
     pub fn fresh_types(&mut self) {
         match self {

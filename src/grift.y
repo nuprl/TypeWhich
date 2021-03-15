@@ -38,9 +38,12 @@ exp -> Exp :
     | '(' 'lambda' formals ':' typ exps ')' { Exp::funs($3, Exp::Ann(Box::new(Exp::begin($6)), $5)) }
     | '(' 'lambda' formals         exps ')' { Exp::funs($3, Exp::begin($4)) }
 
-    | '(' 'repeat' '(' id exp exp ')' '(' id ':' typ exp ')' exp ')' { unimplemented!("repeat") }
+    | '(' 'repeat' '(' id exp exp ')' '(' id ':' typ exp ')' exp ')'   { unimplemented!("repeat") }
 //    | '(' 'repeat' '(' id exp exp ')' '(' id         exp ')' exp ')' { unimplemented!("repeat") } // grr shift/reduce conflict
-    | '(' 'repeat' '(' id exp exp ')' exp ')' { unimplemented!("repeat") }
+    | '(' 'repeat' '(' id exp exp ')' exp ')'                          { unimplemented!("repeat") }
+
+    | '(' 'switch' exp cases '(' 'else' exp ')' ')' { Exp::switch($3, $4, $7) }
+    | '(' 'switch' exp       '(' 'else' exp ')' ')' { Exp::switch($3, Vec::new(), $6) }
 
     | '(' 'if' exp exp exp ')' { Exp::If(Box::new($3), Box::new($4), Box::new($5)) }
 
@@ -90,6 +93,16 @@ formal -> (String, Typ) :
   | '(' id ':' typ ')' { ($2, $4) }
 ;
 
+
+cases -> Vec<(Vec<i32>, Exp)> :
+    cases case { let mut v = $1; v.push($2); v }
+  | case       { let mut v = Vec::new(); v.push($1); v }
+;
+
+case -> (Vec<i32>, Exp) :
+  '(' '(' ints ')' exp ')' { ($3, $5) }
+;
+
 typs -> Vec<Typ> :
     typs typ  { let mut v = $1; v.push($2); v }
   | typ       { let mut v = Vec::new(); v.push($1); v }
@@ -126,6 +139,11 @@ f64 -> f64 :
     }
   | 'FLO' { $lexer.span_str($1.unwrap().span()).parse::<f64>().unwrap() }
   ;
+
+ints -> Vec<i32> :
+    ints i32 { let mut v = $1; v.push($2); v }
+  | i32      { let mut v = Vec::new(); v.push($1); v }
+;
 
 i32 -> i32 :
     'NUM' { $lexer.span_str($1.unwrap().span()).parse::<i32>().unwrap() }

@@ -9,6 +9,8 @@
 define "define"
 lambda "lambda"
 repeat "repeat"
+switch "switch"
+else "else"
 begin "begin"
 ann "ann"
 if "if"
