@@ -64,12 +64,14 @@ impl<'a> State<'a> {
             ),
             // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
-            // Γ ⊢ fun x : T_1 . e => T_1 -> T_2, φ
+            // Γ ⊢ fun x : T_1 . e => T_1 -> α, φ && weaken(T_2, α)
             Exp::Fun(x, t, body) => {
                 let mut env = env.clone();
                 env.insert(x.clone(), t.clone());
                 let (t_body, phi) = self.cgen(&env, body);
-                (Typ::Arr(Box::new(t.clone()), Box::new(t_body)), phi)
+                let alpha = next_metavar();
+                let phi2 = self.weaken(t_body, alpha.clone(), body);
+                (Typ::Arr(Box::new(t.clone()), Box::new(alpha)), phi & phi2)
             }
             // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
@@ -341,7 +343,7 @@ impl<'a> State<'a> {
         result
     }
 
-    /// Provide a typ for the entire program, and false. Returns a constraint
+    /// Provide a typ for the entire program. Returns a constraint
     /// that ensures that every type in a negative position is any
     ///
     /// DO NOT evaluate (model.eval) t before passing in. model.eval
@@ -364,8 +366,8 @@ impl<'a> State<'a> {
             let t = self.z3.list_typ(&t);
             self.negative_any(model, &t)
         } else if self.z3.is_pair(model, &t) {
-            let t1 = model.eval(&self.z3.pair1(&t)).unwrap();
-            let t2 = model.eval(&self.z3.pair2(&t)).unwrap();
+            let t1 = self.z3.pair1(&t);
+            let t2 = self.z3.pair2(&t);
             self.negative_any(model, &t1) & self.negative_any(model, &t2)
         } else if self.z3.is_box(model, &t) {
             // A box is a negative position, no matter what is_neg says. For
@@ -373,8 +375,11 @@ impl<'a> State<'a> {
             // true`. so p must have type box any
             let t = self.z3.box_typ(&t);
             t._eq(&self.z3.any_z3)
+        } else if self.z3.is_vect(model, &t) {
+            let t = self.z3.vect_typ(&t);
+            t._eq(&self.z3.any_z3)
         } else {
-            panic!("missing case in negative_any");
+            panic!("missing case in negative_any {:?}", t);
         }
     }
 
@@ -387,7 +392,7 @@ impl<'a> State<'a> {
     }
 
     /// Modifies `exp` in place to coerce from t1 to t2. Generates a
-    /// constraint that T_1 must be any and T_2 must be ground, or they are
+    /// constraint that T_1 must be any and T_2 must be negative-any, or they are
     /// already equal. Caller's responsibility to ensure typ(exp) = t1
     ///
     /// In other words, the constraint is that t1 and t2 are dynamically
@@ -396,33 +401,10 @@ impl<'a> State<'a> {
     /// Because this can cause dynamic errors, **this should only be used
     /// at elimination forms** in order to be safe!
     ///
-    /// T_1 = T_2 || (T_1 = any && is_arr(t2) => t2 = any -> any
-    ///                         && is_list(t2) => t2 = List(any)
-    ///                         && is_box(t2) => t2 = Box(any)
-    ///                         && is_vect(t2) => t2 = Vect(any)
+    /// T_1 = T_2 || (T_1 = any && weak_negative_any(t2))
     #[must_use]
     fn strengthen(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
-        let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
-        let coerce_case = self.t2z3(&t1)._eq(&self.z3.any_z3)
-            & self.z3.z3_is_list(self.t2z3(&t2)).implies(
-                &self
-                    .t2z3(&t2)
-                    ._eq(&self.t2z3(&Typ::List(Box::new(Typ::Any)))),
-            )
-            & self
-                .z3
-                .z3_is_arr(self.t2z3(&t2))
-                .implies(&self.t2z3(&t2)._eq(&self.t2z3(&any_to_any)))
-            & self.z3.z3_is_box(self.t2z3(&t2)).implies(
-                &self
-                    .t2z3(&t2)
-                    ._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))),
-            )
-            & self.z3.z3_is_vect(self.t2z3(&t2)).implies(
-                &self
-                    .t2z3(&t2)
-                    ._eq(&self.t2z3(&Typ::Vect(Box::new(Typ::Any)))),
-            );
+        let coerce_case = self.t2z3(&t1)._eq(&self.z3.any_z3) & self.weak_negative_any(&t2);
         // we don't care about putting an ID coercion, that's fine
         let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&t2));
         self.coerce(t1, t2, exp);
@@ -430,27 +412,65 @@ impl<'a> State<'a> {
     }
 
     /// Modifies `exp` in place to corce from t1 to t2. Generates a constraint
-    /// that T_2 must be any or they are already equal
+    /// that they are already equal, or t2 is any and t1 is
+    /// negative-any. Caller's responsibility to ensure typ(exp) = t1
+    ///
+    /// In other words, the constraint is that t1 and t2 are dynamically
+    /// consistent, the type doesn't strengthen, and the coercion does not lose
+    /// track of important type information.
     ///
     /// This is always safe
     ///
-    /// Note the subtlety for anything that can be mutated. We cannot
-    /// coerce these containers to any unless they store anys, because when we
-    /// coerce them out of any we will assume they store any. This means we can
-    /// lose track of the type and end up mutating, say, a bool into a Box(int)
-    ///
-    /// (T_2 = any && is_box(T_1) => T_1 = Box(any)) || T_1 = T_2
+    /// T_1 = T_2 || (T_2 = any && weak_negative_any(T_1))
     #[must_use]
     fn weaken(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
-        let coerce_case = self.t2z3(&t2)._eq(&self.z3.any_z3)
-            & self.z3.z3_is_box(self.t2z3(&t1)).implies(
-                &self
-                    .t2z3(&t1)
-                    ._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))),
-            );
+        let coerce_case = self.t2z3(&t2)._eq(&self.z3.any_z3) & self.weak_negative_any(&t1);
         let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&t2));
         self.coerce(t1, t2, exp);
         coerce_case | dont_coerce_case
+    }
+
+    /// Provided a type, generate constraints that the type has any in all of
+    /// its negative forms. The function is more weak / general than it could be
+    /// due to the difficulties with z3.
+    ///
+    /// For example, if t has type * -> int, that type is safe to
+    /// coerce to any (with wrapping). However, because z3 cannot produce
+    /// recursive constraints, and the type * -> (int -> int) is forbidden,
+    /// weak_negative_any is forced to produce the constraint that t has type *
+    /// -> *.
+    ///
+    /// Note that anything that can be mutated is negative.
+    ///
+    /// One might think that lists are a special case: because lists are
+    /// immutable they have no negative positions. However, imagine a function that
+    /// is stored in a list. It is inferred to be int -> int, however after being
+    /// pulled out of the list it is called with a bool. This is incorrect. We
+    /// might say, lists simple must hold weak_negative_any types, rather than
+    /// any! And you would be right, but notice that we have now produced a
+    /// recursive constraint which z3 does not support.
+    ///
+    /// weak_negative_any t = is_arr(t) => t = any -> any
+    ///                    && is_list(t) => t = list any
+    ///                    && is_box(t) => t = box any
+    ///                    && is_vect(t) => t = vect any
+    fn weak_negative_any(&self, t: &Typ) -> Bool<'_> {
+        let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
+        self.z3
+            .z3_is_arr(self.t2z3(t))
+            .implies(&self.t2z3(t)._eq(&self.t2z3(&any_to_any)))
+            & self
+                .z3
+                .z3_is_list(self.t2z3(t))
+                .implies(&self.t2z3(t)._eq(&self.t2z3(&Typ::List(Box::new(Typ::Any)))))
+            & self
+                .z3
+                .z3_is_box(self.t2z3(t))
+                .implies(&self.t2z3(t)._eq(&self.t2z3(&Typ::Box(Box::new(Typ::Any)))))
+            & self
+                .z3
+                .z3_is_vect(self.t2z3(t))
+                .implies(&self.t2z3(t)._eq(&self.t2z3(&Typ::Vect(Box::new(Typ::Any)))))
     }
 }
 
@@ -587,6 +607,7 @@ pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp,
 mod test {
     use super::super::parser::parse;
     use super::typeinf;
+    use crate::syntax::Typ;
     use crate::tests_631::*;
 
     #[test]
@@ -689,19 +710,7 @@ mod test {
         coerces(
             "let force_any = fun x . 5 :: x in
             let _ = force_any true in
-            force_any (10 :: (empty: list int))",
-        );
-    }
-
-    #[test]
-    fn rastogi_outflows() {
-        coerces(
-            "let b = true in
-            let foo = fun f. if b then f true else 0 in
-            if b then
-                foo (fun x:bool.5)
-            else
-                foo (fun x:int.5)",
+            force_any (10 :: empty)",
         );
     }
 
@@ -731,5 +740,51 @@ mod test {
     fn annotate_exact() {
         succeeds("5 : int");
         // coerces("5 : bool"); // actually fails :|
+    }
+
+    #[test]
+    fn arr_in_lists() {
+        assert_eq!(
+            coerces(
+                "let id = fun x.x in // any -> any, but if not careful, int -> int
+                let call_head_bool = fun x. (head x) true in
+                let my_arr = id :: empty in
+                let tmp1 = call_head_bool my_arr in
+                id 5
+                "
+            ),
+            Typ::Any
+        )
+    }
+
+    #[test]
+    fn arjun_arr_in_any() {
+        assert_eq!(
+            coerces(
+                "let id = fun x . x in
+                let tmp0 = id 5 in
+                let id2 = id id in
+                let id3 = fun n.n in // if this is int -> int things are bad
+                let tmp1 = id3 5 in
+                let id4 = id2 id3 in
+                let tmp2 = id4 true in
+                id3 5"
+            ),
+            Typ::Any
+        )
+    }
+
+    #[test]
+    fn introduction_arr_in_any() {
+        assert_eq!(
+            coerces(
+                "let to_int = fun x.x*5 in
+                let id = fun x.x in
+                let tmp0 = id true in
+                let tmp1 = id to_int in
+                to_int 10"
+            ),
+            Typ::Any
+        )
     }
 }
