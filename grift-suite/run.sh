@@ -43,11 +43,14 @@ do
     
     printf "%24s..." "$test_name"
 
-    $HMSMT $HMSMT_ARGS $test_file >$(dirname $test_file)/$test_name.out 2>$(dirname $test_file)/$test_name.err
+    OUT="$(dirname $test_file)/$test_name.out"
+    ERR="$(dirname $test_file)/$test_name.err"
+    $HMSMT $HMSMT_ARGS $test_file >$OUT 2>$ERR
     status=$?
     : $((total += 1))
     if [ $status -eq 0 ]
     then
+        rm $ERR
         printf "....\033[32mOK\033[0m"
     else
         : $((failures += 1))

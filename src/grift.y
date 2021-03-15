@@ -35,8 +35,8 @@ exp -> Exp :
       )
     }
 
-    | '(' 'lambda' '(' formals ')' ':' typ exps ')' { Exp::funs($4, Exp::Ann(Box::new(Exp::begin($8)), $7)) }
-    | '(' 'lambda' '(' formals ')'         exps ')' { Exp::funs($4, Exp::begin($6)) }
+    | '(' 'lambda' formals ':' typ exps ')' { Exp::funs($3, Exp::Ann(Box::new(Exp::begin($6)), $5)) }
+    | '(' 'lambda' formals         exps ')' { Exp::funs($3, Exp::begin($4)) }
 
     | '(' 'repeat' '(' id exp exp ')' '(' id ':' typ exp ')' exp ')' { unimplemented!("repeat") }
 //    | '(' 'repeat' '(' id exp exp ')' '(' id         exp ')' exp ')' { unimplemented!("repeat") } // grr shift/reduce conflict
@@ -76,8 +76,13 @@ binding -> (String, Option<Typ>, Exp) :
 ;
 
 formals -> Vec<(String, Typ)> :
-     formals formal { let mut v = $1; v.push($2); v } 
-   |         formal { let mut v = Vec::new(); v.push($1); v }
+      '(' ')'                  { vec![("_".to_string(), next_metavar())] }
+    | '(' nonempty_formals ')' { $2 }
+;
+
+nonempty_formals -> Vec<(String, Typ)> :
+     nonempty_formals formal { let mut v = $1; v.push($2); v } 
+   |                  formal { let mut v = Vec::new(); v.push($1); v }
 ;
 
 formal -> (String, Typ) :
