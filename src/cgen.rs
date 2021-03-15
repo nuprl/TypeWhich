@@ -124,12 +124,11 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e1 => T_1, φ_1
             // -------------------
-            // Γ ⊢ e1 : T => T_1, φ_1 /\ strengthen(T_1, T)
-            // TODO(mmg): neither strengthen nor weaken is right...
+            // Γ ⊢ e1 : T => coerce(T_1, T, e), T, φ_1
             Exp::Ann(e, typ) => {
                 let (t1, phi1) = self.cgen(env, e);
-                let phi2 = self.strengthen(t1, typ.clone(), &mut *e);
-                (typ.clone(), phi1 & phi2)
+                self.coerce(t1, typ.clone(), &mut *e);
+                (typ.clone(), phi1)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
@@ -538,10 +537,10 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
 }
 
 #[cfg(test)]
-pub fn typeinf(exp: Exp) -> Result<Exp, ()> {
+pub fn typeinf(exp: Exp) -> Result<Exp, String> {
     typeinf_options(exp, &Default::default(), Options::default())
 }
-pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp, ()> {
+pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp, String> {
     let cfg = z3::Config::new();
     let cxt = z3::Context::new(&cfg);
     let typ = Z3State::typ(&cxt);
@@ -555,9 +554,13 @@ pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp,
     s.solver.assert(&phi);
     if s.options.context {
         s.solver.push();
+        if options.debug {
+            eprintln!("Solver state for precise type:");
+            eprintln!("{}", s.solver);
+        }
         match s.solver.check(&[]) {
-            SatResult::Unsat => return Err(()),
-            SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
+            SatResult::Unsat => return Err("unsat (precise type)".to_string()),
+            SatResult::Unknown => return Err("unknown from Z3 -- very bad".to_string()),
             SatResult::Sat => (),
         }
         let model = s.solver.get_model().expect("model not available");
@@ -565,8 +568,12 @@ pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp,
         let negative_any = s.negative_any(&model, &s.t2z3(&t));
         s.solver.assert(&negative_any);
     }
+    if options.debug {
+        eprintln!("Solver state for final type:");
+        eprintln!("{}", s.solver);
+    }
     match s.solver.check(&[]) {
-        SatResult::Unsat => return Err(()),
+        SatResult::Unsat => return Err("unsat".to_string()),
         SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
         SatResult::Sat => (),
     }

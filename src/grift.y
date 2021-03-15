@@ -71,6 +71,14 @@ exp -> Exp :
     | '(' 'unbox' exp ')'      { Exp::Unbox(Box::new($3)) }
     | '(' 'boxset' exp exp ')' { Exp::BoxSet(Box::new($3), Box::new($4)) }
 
+    | '(' 'gbox'   exp ')'      { Exp::Box(Box::new($3)) }
+    | '(' 'gunbox' exp ')'      { Exp::Unbox(Box::new($3)) }
+    | '(' 'gboxset' exp exp ')' { Exp::BoxSet(Box::new($3), Box::new($4)) }
+
+    | '(' 'mbox'   exp ')'      { Exp::Box(Box::new($3)) }
+    | '(' 'munbox' exp ')'      { Exp::Unbox(Box::new($3)) }
+    | '(' 'mboxset' exp exp ')' { Exp::BoxSet(Box::new($3), Box::new($4)) }
+
     | '(' exps ')' { Exp::apps($2) }
 ;
 
@@ -128,6 +136,8 @@ typ -> Typ :
   | '(' typs '->' typ ')' { let mut args = $2; args.push($4); Typ::arrs(args) } 
   | '(' 'List' typ ')'    { Typ::List(Box::new($3)) }
   | '(' 'Ref' typ ')'     { Typ::Box(Box::new($3)) }
+  | '(' 'GRef' typ ')'    { Typ::Box(Box::new($3)) }
+  | '(' 'MRef' typ ')'    { Typ::Box(Box::new($3)) }
   | '(' 'Vect' typ ')'    { Typ::Vect(Box::new($3)) }
   | '(' 'Tuple' typs ')'  { Typ::tuples($3) } 
   | 'Dyn'                 { Typ::Any }

@@ -20,6 +20,7 @@ pub enum Annot {
 pub struct Options {
     optimizer: bool,
     context: bool,
+    debug: bool,
     annot: Annot,
 }
 
@@ -28,6 +29,7 @@ impl Default for Options {
         Options {
             optimizer: true,
             context: true,
+            debug: false,
             annot: Annot::Hard,
         }
     }
@@ -42,6 +44,10 @@ fn main() -> Result<()> {
                 .default_value("-")
                 .index(1),
         )
+        .arg(Arg::with_name("DEBUG")
+            .help("Print debugging output")
+            .long("debug")
+            .short("d"))
         .arg(Arg::with_name("DISABLE_OPTIMIZER")
             .help("Disable the optimizer, which uses 'assert_soft' to reduce the number of coercions")
             .long("no-optimize"))
@@ -76,6 +82,7 @@ fn main() -> Result<()> {
     let options = Options {
         optimizer: !config.is_present("DISABLE_OPTIMIZER"),
         context: !config.is_present("UNSAFE"),
+        debug: config.is_present("DEBUG"),
         annot: match config.value_of("ANNOT").unwrap() {
             "ignore" => Annot::Ignore,
             "hard" => Annot::Hard,
@@ -107,12 +114,15 @@ fn main() -> Result<()> {
         parsed.fresh_types();
     }
 
-    println!("{}", parsed);
+    if options.debug {
+        eprintln!("Parsed program:");
+        eprintln!("{}", parsed);
+    }
     let inferred = cgen::typeinf_options(parsed, &env, options).unwrap();
 
     println!("{}", &inferred);
     match type_check::tcheck(&env, &inferred) {
-        Ok(typ) => println!("program type: {}", typ),
+        Ok(typ) => println!("{}", typ),
         Err(e) => panic!("type inference produced a poorly-typed program:\n{}", e),
     }
     Ok(())

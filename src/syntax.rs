@@ -319,10 +319,12 @@ impl Exp {
 
     /// Replaces all type annotations with metavariables
     ///
-    /// Removes `Exp::Ann` and `Exp::Coerce` nodes
-    /// TODO(mmg): allow coercions to Dyn
+    /// Removes `Exp::Ann` and `Exp::Coerce` nodes (but leaves in `Exp::Ann(e, Typ::Any))`)
     pub fn fresh_types(&mut self) {
         match self {
+            Exp::Ann(e, Typ::Any) => {
+                e.fresh_types();
+            }
             Exp::Ann(e, _) | Exp::Coerce(_, _, e) => {
                 e.fresh_types();
                 *self = e.take();
