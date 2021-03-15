@@ -94,8 +94,32 @@ impl<'a> State<'a> {
                 let alpha = next_metavar();
                 let beta = next_metavar();
                 let arr = Typ::Arr(Box::new(alpha.clone()), Box::new(beta.clone()));
-                let phi3 = self.strengthen(t1, arr, e1) & self.weaken(t2, alpha, e2);
-                (beta, phi1 & phi2 & phi3)
+                let phi3 = self.strengthen(t1.clone(), arr, e1);
+                // If the thing was annotated by the user, we allow strengthening
+                let phi4 = match t1 {
+                    Typ::Metavar(..) => self.weaken(t2, alpha, e2),
+                    // dynamic consistency
+                    Typ::Arr(arg_box, _) => match *arg_box {
+                        Typ::Metavar(..) => self.weaken(t2, alpha, e2),
+                        arg => {
+                            // rather than say strengthen(t2, arg), we say, if
+                            // it's annotated, it's on the user to make sure that
+                            // annotation is correct. That is, we will either infer
+                            // the annotation (covered by weaken) or we will infer
+                            // any, and the annotation needs to be right
+                            // Generates a constraint that t1 is dynamic consistent with t2, as well
+                            // as that t1 is a reasonable migration *assuming t2 is correct*. This
+                            // means that if t1 weakens to t2, weak_negative_any is true, but if t1
+                            // strengthens to t2, all bets are off
+                            self.t2z3(&t2)._eq(&self.z3.any_z3) | self.weaken(t2, arg, e2)
+                        }
+                    },
+                    _ => {
+                        eprintln!("applied non-arrow. will create failing coercion.");
+                        self.weaken(t2, alpha, e2)
+                    }
+                };
+                (beta, phi1 & phi2 & phi3 & phi4)
             }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ,x:T_1 ⊢ e2 => T_2, φ_2
@@ -126,11 +150,15 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e1 => T_1, φ_1
             // -------------------
-            // Γ ⊢ e1 : T => coerce(T_1, T, e), T, φ_1
+            // Γ ⊢ e1 : T => coerce(T_1, T, e), T, φ_1 && (T_1 = any || weaken(T_1, T))
             Exp::Ann(e, typ) => {
                 let (t1, phi1) = self.cgen(env, e);
-                self.coerce(t1, typ.clone(), &mut *e);
-                (typ.clone(), phi1)
+                // Generates a constraint that t1 is dynamic consistent with t2, as well
+                // as that t1 is a reasonable migration *assuming t2 is correct*. This
+                // means that if t1 weakens to t2, weak_negative_any is true, but if t1
+                // strengthens to t2, all bets are off
+                let phi2 = self.t2z3(&t1)._eq(&self.z3.any_z3) | self.weaken(t1, typ.clone(), e);
+                (typ.clone(), phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
