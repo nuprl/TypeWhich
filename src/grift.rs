@@ -92,9 +92,10 @@ pub fn env() -> Env {
         &Typ::arrs(vec![Typ::Int, Typ::Int, Typ::Int]),
     );
 
-    env.insert(
-        "and".to_string(),
-        Typ::arrs(vec![Typ::Any, Typ::Any, Typ::Any]),
+    add_ops(
+        &mut env,
+        &["and", "or"],
+        &Typ::arrs(vec![Typ::Any, Typ::Any, Typ::Any]),
     );
     env.insert("not".to_string(), Typ::arrs(vec![Typ::Bool, Typ::Bool]));
     add_read_print(&mut env, "int", &Typ::Int);
@@ -396,5 +397,14 @@ mod test {
     #[test]
     fn int_ops() {
         assert_eq!(exp_succeeds(parse("(< (* 1 2) (+ 3 4))")), Typ::Bool);
+    }
+    #[test]
+    fn scheme_cond() {
+        assert_eq!(
+            exp_coerces(parse(
+                "(lambda (n) (cond [(> n 0) 1] [(< n 0) -1] [else 0]))"
+            )),
+            Typ::arrs(vec![Typ::Any, Typ::Int])
+        );
     }
 }

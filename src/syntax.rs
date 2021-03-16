@@ -292,6 +292,20 @@ impl Exp {
         )
     }
 
+    pub fn cond(cases: Vec<(Exp, Exp)>, default: Exp) -> Exp {
+        let mut e = default;
+
+        for (condition, branch) in cases.into_iter().rev() {
+            e = Exp::If(
+                Box::new(condition),
+                Box::new(branch),
+                Box::new(e),
+            );
+        }
+
+        e
+    }
+
     pub fn repeat(
         var: Id,
         lo: Exp,

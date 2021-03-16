@@ -39,7 +39,6 @@ exp -> Exp :
     | '(' 'lambda' formals ':' typ exps ')' { Exp::funs($3, Exp::Ann(Box::new(Exp::begin($6)), $5)) }
     | '(' 'lambda' formals         exps ')' { Exp::funs($3, Exp::begin($4)) }
 
-
     | '(' 'repeat' '(' id exp exp ')' exp exp ')' { 
       match $8 {
           Exp::App(e_id, e_rest) => {
@@ -54,10 +53,12 @@ exp -> Exp :
     | '(' 'repeat' '(' id exp exp ')' '(' id ':' typ exp ')' exp ')'   { Exp::repeat($4, $5, $6, $9, $11, $12, $14) }
     | '(' 'repeat' '(' id exp exp ')' exp ')'                          { Exp::repeat($4, $5, $6, "_".to_string(), next_metavar(), Exp::Lit(Lit::Unit), $8) }
 
-    | '(' 'switch' exp cases '(' 'else' exp ')' ')' { Exp::switch($3, $4, $7) }
-    | '(' 'switch' exp       '(' 'else' exp ')' ')' { Exp::switch($3, Vec::new(), $6) }
+    | '(' 'switch' exp switch_cases '(' 'else' exp ')' ')' { Exp::switch($3, $4, $7) }
+    | '(' 'switch' exp              '(' 'else' exp ')' ')' { Exp::switch($3, Vec::new(), $6) }
 
     | '(' 'if' exp exp exp ')' { Exp::If(Box::new($3), Box::new($4), Box::new($5)) }
+
+    | '(' 'cond' cond_cases ')' { let (cases,default) = $3; Exp::cond(cases, default) }
 
     | '(' 'begin' exps ')' { Exp::begin($3) }
 
@@ -133,13 +134,22 @@ repeat_acc -> (Typ, Exp) :
   | exp         { (next_metavar(), $1) }
 ;
 
-cases -> Vec<(Vec<i32>, Exp)> :
-    cases case { let mut v = $1; v.push($2); v }
-  | case       { let mut v = Vec::new(); v.push($1); v }
+switch_cases -> Vec<(Vec<i32>, Exp)> :
+    switch_cases switch_case { let mut v = $1; v.push($2); v }
+  |              switch_case { let mut v = Vec::new(); v.push($1); v }
 ;
 
-case -> (Vec<i32>, Exp) :
+switch_case -> (Vec<i32>, Exp) :
   '(' '(' ints ')' exp ')' { ($3, $5) }
+;
+
+cond_cases -> (Vec<(Exp,Exp)>, Exp) :
+    cond_case cond_cases  { let (mut v, e) = $2; v.insert(0, $1); (v,e) }
+  | '(' 'else' exp ')'    { (Vec::new(), $3) }
+;
+
+cond_case -> (Exp, Exp) :
+  '(' exp exp ')' { ($2, $3) }
 ;
 
 typs -> Vec<Typ> :
