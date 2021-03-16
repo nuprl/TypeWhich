@@ -326,6 +326,30 @@ impl Pretty for Exp {
                 pp.space(),
                 parens_if(pp, &**e2, e2.is_app_like()).nest(2),
             ]),
+            Exp::Vector(e1, e2) => pp.concat(vec![
+                pp.text("vector "),
+                parens_if(pp, &**e1, e1.is_app_like()).nest(2),
+                pp.space(),
+                parens_if(pp, &**e2, e2.is_app_like()).nest(2),
+            ]),
+            Exp::VectorRef(e1, e2) => pp.concat(vec![
+                pp.text("vector-ref "),
+                parens_if(pp, &**e1, e1.is_app_like()).nest(2),
+                pp.space(),
+                parens_if(pp, &**e2, e2.is_app_like()).nest(2),
+            ]),
+            Exp::VectorSet(e1, e2, e3) => pp.concat(vec![
+                pp.text("vector-set! "),
+                parens_if(pp, &**e1, e1.is_app_like()).nest(2),
+                pp.space(),
+                parens_if(pp, &**e2, e2.is_app_like()).nest(2),
+                pp.space(),
+                parens_if(pp, &**e3, e3.is_app_like()).nest(2),
+            ]),
+            Exp::VectorLen(e) => pp.concat(vec![
+                pp.text("vector-length "),
+                parens_if(pp, &**e, e.is_app_like()).nest(2),
+            ]),
             Exp::IsBool(e) => pp.concat(vec![pp.text("is_bool"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::IsInt(e) => pp.concat(vec![pp.text("is_int"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::IsString(e) => {

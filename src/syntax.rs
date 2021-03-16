@@ -122,18 +122,30 @@ pub enum Exp {
     IntEq(Box<Exp>, Box<Exp>),
     Not(Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
+    // pairs
     Pair(Box<Exp>, Box<Exp>),
     Fst(Box<Exp>),
     Snd(Box<Exp>),
+    // lists
     Cons(Box<Exp>, Box<Exp>),
     // Γ ⊢ empty: T : List(T)
     Empty(Typ),
     IsEmpty(Box<Exp>),
     Head(Box<Exp>),
     Tail(Box<Exp>),
+    // boxes
     Box(Box<Exp>),
     Unbox(Box<Exp>),
     BoxSet(Box<Exp>, Box<Exp>),
+    // vectors
+    /// size, initial value
+    Vector(Box<Exp>, Box<Exp>),
+    /// vector, index
+    VectorRef(Box<Exp>, Box<Exp>),
+    /// vector, index, value
+    VectorSet(Box<Exp>, Box<Exp>, Box<Exp>),
+    /// vector
+    VectorLen(Box<Exp>), // built-in because we need the polymorphic type
     /// Type tests
     IsBool(Box<Exp>),
     IsInt(Box<Exp>),
@@ -358,7 +370,8 @@ impl Exp {
             | Exp::IsInt(e)
             | Exp::IsString(e)
             | Exp::IsList(e)
-            | Exp::IsFun(e) => e.fresh_types(),
+            | Exp::IsFun(e) 
+            | Exp::VectorLen(e) => e.fresh_types(),
             Exp::App(e1, e2)
             | Exp::Let(_, e1, e2)
             | Exp::AddOverload(e1, e2)
@@ -367,11 +380,14 @@ impl Exp {
             | Exp::IntEq(e1, e2)
             | Exp::Pair(e1, e2)
             | Exp::Cons(e1, e2)
-            | Exp::BoxSet(e1, e2) => {
+            | Exp::BoxSet(e1, e2) 
+            | Exp::Vector(e1, e2)
+            | Exp::VectorRef(e1, e2) => {
                 e1.fresh_types();
                 e2.fresh_types();
             }
-            Exp::If(e1, e2, e3) => {
+            Exp::If(e1, e2, e3) 
+            | Exp::VectorSet(e1, e2, e3) => {
                 e1.fresh_types();
                 e2.fresh_types();
                 e3.fresh_types();

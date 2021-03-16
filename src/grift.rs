@@ -92,6 +92,10 @@ pub fn env() -> Env {
         &Typ::arrs(vec![Typ::Int, Typ::Int, Typ::Int]),
     );
 
+    env.insert(
+        "and".to_string(),
+        Typ::arrs(vec![Typ::Any, Typ::Any, Typ::Any]),
+    );
     env.insert("not".to_string(), Typ::arrs(vec![Typ::Bool, Typ::Bool]));
     add_read_print(&mut env, "int", &Typ::Int);
     add_read_print(&mut env, "bool", &Typ::Bool);
@@ -151,8 +155,6 @@ pub fn env() -> Env {
         "int->float".to_string(),
         Typ::arrs(vec![Typ::Int, Typ::Float]),
     );
-
-    
     env.insert(
         "char->int".to_string(),
         Typ::arrs(vec![Typ::Char, Typ::Int]),
@@ -162,7 +164,10 @@ pub fn env() -> Env {
         Typ::arrs(vec![Typ::Int, Typ::Char]),
     );
     add_read_print(&mut env, "char", &Typ::Char);
-    env.insert("display-char".to_string(), Typ::arrs(vec![Typ::Char, Typ::Unit]));
+    env.insert(
+        "display-char".to_string(),
+        Typ::arrs(vec![Typ::Char, Typ::Unit]),
+    );
 
     add_ops(
         &mut env,
@@ -197,10 +202,10 @@ fn add_ops(env: &mut Env, ops: &[&str], typ: &Typ) {
 #[cfg(test)]
 mod test {
     use super::parse;
+    use crate::cgen::typeinf_options;
     use crate::syntax::*;
     use crate::tests_631::contains_coercions;
     use crate::type_check::tcheck;
-    use crate::cgen::typeinf_options;
 
     fn compile_verbose(orig: Exp) -> (Typ, Exp) {
         let env = super::env();

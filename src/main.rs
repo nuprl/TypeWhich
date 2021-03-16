@@ -173,7 +173,8 @@ mod tests_631 {
             | Exp::IsInt(e)
             | Exp::IsString(e)
             | Exp::IsList(e)
-            | Exp::IsFun(e) => contains_coercions(*e),
+            | Exp::IsFun(e) 
+            | Exp::VectorLen(e) => contains_coercions(*e),
             Exp::App(e1, e2)
             | Exp::Add(e1, e2)
             | Exp::AddOverload(e1, e2)
@@ -182,8 +183,11 @@ mod tests_631 {
             | Exp::Cons(e1, e2)
             | Exp::Pair(e1, e2)
             | Exp::BoxSet(e1, e2)
-            | Exp::Let(.., e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
-            Exp::If(e1, e2, e3) => contains_coercions(*e1)
+            | Exp::Let(.., e1, e2) 
+            | Exp::Vector(e1, e2)
+            | Exp::VectorRef(e1, e2) => contains_coercions(*e1).or(contains_coercions(*e2)),
+            Exp::If(e1, e2, e3) 
+            | Exp::VectorSet(e1, e2, e3) => contains_coercions(*e1)
                 .or(contains_coercions(*e2))
                 .or(contains_coercions(*e3)),
             Exp::LetRec(bindings, e) => bindings

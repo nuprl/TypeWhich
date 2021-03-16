@@ -85,9 +85,7 @@ pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
         // Γ ⊢ e : T
         // ---------
         // Γ ⊢ (e : T) : T
-        Exp::Ann(e, typ) => {
-            should_match(typ, tcheck(env, e)?)
-        }
+        Exp::Ann(e, typ) => should_match(typ, tcheck(env, e)?),
         // Γ ⊢ e_1 : int
         // Γ ⊢ e_2 : int
         // ----------------------------------------------
@@ -232,6 +230,48 @@ pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             let t1 = tcheck(env, e1)?;
             let t2 = tcheck(env, e2)?;
             should_match(&Typ::Box(Box::new(t2)), t1)
+        }
+        // Γ ⊢ e1 : int
+        // Γ ⊢ e2 : T
+        // ----------------------------------------------
+        // Γ ⊢ vector e1 e2 : Vect(T)
+        Exp::Vector(e1, e2) => {
+            should_match(&Typ::Int, tcheck(env, e1)?)?;
+            let t = tcheck(env, e2)?;
+            Ok(Typ::Vect(Box::new(t)))
+        }
+        // Γ ⊢ e1 : Vect(T)
+        // Γ ⊢ e2 : Int
+        // ----------------------------------------------
+        // Γ ⊢ vector-ref e1 e2 : T
+        Exp::VectorRef(e1, e2) => {
+            should_match(&Typ::Int, tcheck(env, e2)?)?;
+            let t = tcheck(env, e1)?;
+            match t {
+                Typ::Vect(t) => Ok(*t),
+                _ => Err("vector-ref non-vector".to_string()),
+            }
+        }
+        // Γ ⊢ e1 : Vect(T)
+        // Γ ⊢ e2 : int
+        // Γ ⊢ e3 : T
+        // ----------------------------------------------
+        // Γ ⊢ vector-set! e1 e2 e3 : unit
+        Exp::VectorSet(e1, e2, e3) => {
+            let t1 = tcheck(env, e1)?;
+            should_match(&Typ::Int, tcheck(env, e2)?)?;
+            let t3 = tcheck(env, e3)?;
+            should_match(&Typ::Vect(Box::new(t3)), t1)
+        }
+        // Γ ⊢ e : Vect(T)
+        // ----------------------------------------------
+        // Γ ⊢ vector-length e : int
+        Exp::VectorLen(e) => {
+            let t = tcheck(env, e)?;
+            match t {
+                Typ::Vect(_) => Ok(Typ::Int),
+                _ => Err("vector-length non-vector".to_string()),
+            }
         }
         // Γ ⊢ e : any
         // ----------------------------------------------

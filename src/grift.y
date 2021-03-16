@@ -24,7 +24,8 @@ exp -> Exp :
       lit { Exp::Lit($1) }
     | id  { Exp::Var($1) }
 
-    | '(' ':' exp typ ')' { Exp::Ann(Box::new($3), $4) }
+    | '(' ':' exp typ ')'     { Exp::Ann(Box::new($3), $4) }
+    | '(' 'ann' exp typ ')'   { Exp::Ann(Box::new($3), $4) }
     | '(' ':' exp typ str ')' { Exp::Ann(Box::new($3), $4) } // TODO(mmg): store blame label somewhere?
 
     | '(' 'let'    bindings exps ')' { Exp::lets($3, Exp::begin($4)) }
@@ -78,6 +79,21 @@ exp -> Exp :
     | '(' 'mbox'   exp ')'      { Exp::Box(Box::new($3)) }
     | '(' 'munbox' exp ')'      { Exp::Unbox(Box::new($3)) }
     | '(' 'mboxset' exp exp ')' { Exp::BoxSet(Box::new($3), Box::new($4)) }
+
+    | '(' 'vector'   exp exp ')'      { Exp::Vector(Box::new($3), Box::new($4)) }
+    | '(' 'vectorref' exp exp ')'     { Exp::VectorRef(Box::new($3), Box::new($4)) }
+    | '(' 'vectorset' exp exp exp ')' { Exp::VectorSet(Box::new($3), Box::new($4), Box::new($5)) }
+    | '(' 'vectorlen' exp ')'         { Exp::VectorLen(Box::new($3)) }
+
+    | '(' 'gvector'   exp exp ')'      { Exp::Vector(Box::new($3), Box::new($4)) }
+    | '(' 'gvectorref' exp exp ')'     { Exp::VectorRef(Box::new($3), Box::new($4)) }
+    | '(' 'gvectorset' exp exp exp ')' { Exp::VectorSet(Box::new($3), Box::new($4), Box::new($5)) }
+    | '(' 'gvectorlen' exp ')'         { Exp::VectorLen(Box::new($3)) }
+
+    | '(' 'mvector'   exp exp ')'      { Exp::Vector(Box::new($3), Box::new($4)) }
+    | '(' 'mvectorref' exp exp ')'     { Exp::VectorRef(Box::new($3), Box::new($4)) }
+    | '(' 'mvectorset' exp exp exp ')' { Exp::VectorSet(Box::new($3), Box::new($4), Box::new($5)) }
+    | '(' 'mvectorlen' exp ')'         { Exp::VectorLen(Box::new($3)) }
 
     | '(' exps ')' { Exp::apps($2) }
 ;
@@ -139,6 +155,8 @@ typ -> Typ :
   | '(' 'GRef' typ ')'    { Typ::Box(Box::new($3)) }
   | '(' 'MRef' typ ')'    { Typ::Box(Box::new($3)) }
   | '(' 'Vect' typ ')'    { Typ::Vect(Box::new($3)) }
+  | '(' 'GVect' typ ')'   { Typ::Vect(Box::new($3)) }
+  | '(' 'MVect' typ ')'   { Typ::Vect(Box::new($3)) }
   | '(' 'Tuple' typs ')'  { Typ::tuples($3) } 
   | 'Dyn'                 { Typ::Any }
   | 'Int'                 { Typ::Int }

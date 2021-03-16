@@ -312,7 +312,7 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ box e => box coerce(T, α) e, α, φ && weaken(T, α)
+            // Γ ⊢ box e => box coerce(T, α) e, Box(α), φ && weaken(T, α)
             Exp::Box(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar();
@@ -340,6 +340,57 @@ impl<'a> State<'a> {
                 let phi3 = self.strengthen(t1, Typ::Box(Box::new(alpha.clone())), e1);
                 let phi4 = self.weaken(t2, alpha.clone(), e2);
                 (alpha, phi1 & phi2 & phi3 & phi4)
+            }
+            // Γ ⊢ e1 => T_1, φ_1
+            // Γ ⊢ e2 => T_2, φ_2
+            // ----------------------------------------------
+            // Γ ⊢ vector e1 e2 => vector (coerce (T_1, int) e1) (coerce(T_2, α) e), Vect(α),
+            //                          φ_1 && φ_2 && && strengthen(T_1, int) && weaken(T, α)
+            Exp::Vector(e1, e2) => {
+                let (t1, phi1) = self.cgen(env, e1);
+                let (t2, phi2) = self.cgen(env, e2);
+                let phi3 = self.strengthen(t1, Typ::Int, e1);
+                let alpha = next_metavar();
+                let phi4 = self.weaken(t2, alpha.clone(), e2);
+                (Typ::Vect(Box::new(alpha)), phi1 & phi2 & phi3 & phi4)
+            }
+            // Γ ⊢ e1 => T_1, φ_1
+            // Γ ⊢ e2 => T_2, φ_2
+            // ----------------------------------------------
+            // Γ ⊢ vector-ref e1 e2 => vector-ref (coerce(T_1, Vect(α)) e1) (coerce(T_2, Int) e2), α,
+            //                              φ && strengthen(T_1, Vect(α)) && strengthen(T_2, Int)
+            Exp::VectorRef(e1, e2) => {
+                let (t1, phi1) = self.cgen(env, e1);
+                let (t2, phi2) = self.cgen(env, e2);
+                let alpha = next_metavar();
+                let phi3 = self.strengthen(t1, Typ::Vect(Box::new(alpha.clone())), e1);
+                let phi4 = self.strengthen(t2, Typ::Int, e2);
+                (alpha, phi1 & phi2 & phi3 & phi4)
+            }
+            // Γ ⊢ e1 => T_1, φ_1
+            // Γ ⊢ e2 => T_2, φ_2
+            // Γ ⊢ e3 => T_3, φ_3
+            // ----------------------------------------------
+            // Γ ⊢ vector-set! e1 e2 e3 => vector-set! coerce(T_1, Vect(α)) e_1 coerce(T_2, Int) e_2 coerce(T_3, α) e_3, Unit,
+            //                        strengthen(T_1, Box(α)) && weaken(T_2, α)
+            Exp::VectorSet(e1, e2, e3) => {
+                let (t1, phi1) = self.cgen(env, e1);
+                let (t2, phi2) = self.cgen(env, e2);
+                let (t3, phi3) = self.cgen(env, e3);
+                let alpha = next_metavar();
+                let phi4 = self.strengthen(t1, Typ::Vect(Box::new(alpha.clone())), e1);
+                let phi5 = self.strengthen(t2, Typ::Int, e2);
+                let phi6 = self.weaken(t3, alpha.clone(), e3);
+                (Typ::Unit, phi1 & phi2 & phi3 & phi4 & phi5 & phi6)
+            }
+            // Γ ⊢ e => T, φ
+            // ----------------------------------------------
+            // Γ ⊢ vector-length e => vector-length coerce(e, Vect(α)), int, φ && strengthen(T, Vect(α))
+            Exp::VectorLen(e) => {
+                let (t, phi1) = self.cgen(env, e);
+                let alpha = next_metavar();
+                let phi2 = self.strengthen(t, Typ::Vect(Box::new(alpha)), e);
+                (Typ::Int, phi1 & phi2)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
@@ -521,10 +572,10 @@ fn annotate_typ(env: &HashMap<u32, Typ>, t: &mut Typ) {
             annotate_typ(env, t1);
             annotate_typ(env, t2);
         }
-        Typ::List(t) | Typ::Box(t) => {
+        Typ::List(t) | Typ::Box(t) | Typ::Vect(t) => {
             annotate_typ(env, t);
         }
-        _ => (),
+        Typ::Unit | Typ::Int | Typ::Float | Typ::Bool | Typ::Str | Typ::Char | Typ::Any => (),
     }
 }
 
@@ -556,7 +607,8 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
         | Exp::IsInt(e)
         | Exp::IsString(e)
         | Exp::IsList(e)
-        | Exp::IsFun(e) => {
+        | Exp::IsFun(e) 
+        | Exp::VectorLen(e) => {
             annotate(env, e);
         }
         Exp::App(e1, e2)
@@ -567,11 +619,13 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
         | Exp::Pair(e1, e2)
         | Exp::Mul(e1, e2)
         | Exp::BoxSet(e1, e2)
-        | Exp::Let(_, e1, e2) => {
+        | Exp::Let(_, e1, e2)
+        | Exp::Vector(e1, e2)
+        | Exp::VectorRef(e1, e2) => {
             annotate(env, e1);
             annotate(env, e2);
         }
-        Exp::If(e1, e2, e3) => {
+        Exp::If(e1, e2, e3) | Exp::VectorSet(e1, e2, e3) => {
             annotate(env, e1);
             annotate(env, e2);
             annotate(env, e3);
