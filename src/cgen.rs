@@ -24,6 +24,7 @@ impl<'a> State<'a> {
             Typ::Float => self.z3.float_z3.clone(),
             Typ::Bool => self.z3.bool_z3.clone(),
             Typ::Str => self.z3.str_z3.clone(),
+            Typ::Char => self.z3.char_z3.clone(),
             Typ::Arr(t1, t2) => self.z3.arr_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
             Typ::List(t) => self.z3.list_ctor.apply(&[&self.t2z3(t)]),
             Typ::Pair(t1, t2) => self.z3.pair_ctor.apply(&[&self.t2z3(t1), &self.t2z3(t2)]),
@@ -383,6 +384,7 @@ impl<'a> State<'a> {
             || self.z3.is_float(model, &t)
             || self.z3.is_bool(model, &t)
             || self.z3.is_str(model, &t)
+            || self.z3.is_char(model, &t)
             || self.z3.is_any(model, &t)
         {
             self.z3.true_z3()

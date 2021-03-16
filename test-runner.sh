@@ -20,6 +20,9 @@ elif [ "$1" = "migeed-smt" ]; then
     : ${HMSMT_ARGS=""}
     : ${SUITE_DIR="migeed"}
     : ${EXT="*.gtlc"}
+else
+    printf "Usage: $(basename $0) [grift|migeed-ins-and-outs|migeed-context|migeed-smt]\n"
+    exit 2
 fi
 
 shift

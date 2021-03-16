@@ -58,6 +58,7 @@ impl Pretty for Typ {
             Typ::Float => pp.text("float"),
             Typ::Bool => pp.text("bool"),
             Typ::Str => pp.text("str"),
+            Typ::Char => pp.text("char"),
             Typ::Arr(t1, t2) => pp.concat(vec![
                 parens_if(pp, &**t1, t1.is_arr()),
                 pp.space(),
@@ -118,6 +119,7 @@ impl Pretty for Lit {
             Lit::Bool(true) => pp.text("true"),
             Lit::Bool(false) => pp.text("false"),
             Lit::Str(s) => pp.text("\"").append(pp.text(s)).append(pp.text("\"")),
+            Lit::Char(c) => pp.as_string(c).single_quotes(),
             Lit::Unit => pp.text("()"),
         }
     }

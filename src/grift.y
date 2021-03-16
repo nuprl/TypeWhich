@@ -144,6 +144,7 @@ typ -> Typ :
   | 'Int'                 { Typ::Int }
   | 'Float'               { Typ::Float }
   | 'Bool'                { Typ::Bool }
+  | 'Char'                { Typ::Char }
   | id                    { unimplemented!("type variable") }
   | '(' 'Rec' id typ ')'  { unimplemented!("recursive types") }
   ;
@@ -153,6 +154,7 @@ lit -> Lit :
   | f64     { Lit::Float($1) }
   | bool    { Lit::Bool($1) }
   | str     { Lit::Str($1) }
+  | char    { Lit::Char($1) }
   | '(' ')' { Lit::Unit }
   ;
 
@@ -180,6 +182,13 @@ pos -> u32 :
     'NUM' { $lexer.span_str($1.unwrap().span()).parse::<u32>().unwrap_or_else(|err| panic!("tuple indices must be non-negative: {:?}", err)) }
     ;
 
+char -> char :
+    'CHR'    { let span = $1.unwrap().span(); 
+                let str = $lexer.span_str(lrpar::Span::new(span.start() + 2, span.end()));
+                str.chars().next().unwrap()
+              }
+  | 'CHRnul' { '\0' }
+;
 bool -> bool :
     'true'  { true }
   | 'false' { false }

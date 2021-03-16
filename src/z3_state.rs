@@ -17,6 +17,7 @@ pub struct Z3State<'a> {
     pub unit_z3: Dynamic<'a>,
     pub vect_ctor: &'a FuncDecl<'a>,
     pub float_z3: Dynamic<'a>,
+    pub char_z3: Dynamic<'a>,
 }
 
 impl<'a> Z3State<'a> {
@@ -34,6 +35,7 @@ impl<'a> Z3State<'a> {
             unit_z3: typ.variants[8].constructor.apply(&[]),
             vect_ctor: &typ.variants[9].constructor,
             float_z3: typ.variants[10].constructor.apply(&[]),
+            char_z3: typ.variants[11].constructor.apply(&[]),
             typ_sort: &typ.sort,
             typ,
         }
@@ -72,6 +74,7 @@ impl<'a> Z3State<'a> {
                 vec![("vt", DatatypeAccessor::Datatype("Typ".into()))],
             )
             .variant("Float", vec![])
+            .variant("Char", vec![])
             .finish()
     }
     pub fn true_z3(&self) -> Bool<'a> {
@@ -114,6 +117,8 @@ impl<'a> Z3State<'a> {
             Typ::Vect(Box::new(t))
         } else if self.is_float(model, &e) {
             Typ::Float
+        } else if self.is_char(model, &e) {
+            Typ::Char
         } else {
             panic!("missing case in z3_to_typ");
         }
@@ -170,6 +175,9 @@ impl<'a> Z3State<'a> {
     }
     pub fn is_float(&self, model: &Model, e: &Dynamic) -> bool {
         self.is_variant(10, model, e)
+    }
+    pub fn is_char(&self, model: &Model, e: &Dynamic) -> bool {
+        self.is_variant(11, model, e)
     }
     pub fn arr_arg(&self, e: &Dynamic<'a>) -> Dynamic<'a> {
         self.typ.variants[3].accessors[0].apply(&[e])

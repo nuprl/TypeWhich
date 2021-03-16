@@ -7,6 +7,7 @@ pub enum Typ {
     Float,
     Bool,
     Str,
+    Char,
     Arr(Box<Typ>, Box<Typ>),
     List(Box<Typ>),
     Pair(Box<Typ>, Box<Typ>),
@@ -66,6 +67,7 @@ impl Typ {
             | Typ::Float
             | Typ::Bool
             | Typ::Str
+            | Typ::Char
             | Typ::Any
             | Typ::Metavar(..) => false,
             Typ::Arr(..) | Typ::List(..) | Typ::Pair(..) | Typ::Box(..) | Typ::Vect(..) => true,
@@ -79,6 +81,7 @@ pub enum Lit {
     Bool(bool),
     Str(String),
     Float(f64),
+    Char(char),
     Unit,
 }
 
@@ -89,6 +92,7 @@ impl Lit {
             Lit::Bool(_) => Typ::Bool,
             Lit::Str(_) => Typ::Str,
             Lit::Float(_) => Typ::Float,
+            Lit::Char(_) => Typ::Char,
             Lit::Unit => Typ::Unit,
         }
     }

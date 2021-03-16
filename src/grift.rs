@@ -152,7 +152,7 @@ pub fn env() -> Env {
         Typ::arrs(vec![Typ::Int, Typ::Float]),
     );
 
-    /*
+    
     env.insert(
         "char->int".to_string(),
         Typ::arrs(vec![Typ::Char, Typ::Int]),
@@ -162,8 +162,7 @@ pub fn env() -> Env {
         Typ::arrs(vec![Typ::Int, Typ::Char]),
     );
     add_read_print(&mut env, "char", &Typ::Char);
-    env.insert("display-char".to_string, Typ::arrs(vec![Typ::Char, Typ::Unit]));
-    */
+    env.insert("display-char".to_string(), Typ::arrs(vec![Typ::Char, Typ::Unit]));
 
     add_ops(
         &mut env,
