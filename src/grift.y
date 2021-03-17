@@ -173,6 +173,7 @@ typ -> Typ :
   | 'Float'               { Typ::Float }
   | 'Bool'                { Typ::Bool }
   | 'Char'                { Typ::Char }
+  | '(' ')'               { Typ::Unit }
   | id                    { parser_warning(format!("Treating type variable {} as Dyn.", $1)); Typ::Any }
   | '(' 'Rec' id typ ')'  { $4 }
   ;
