@@ -1,9 +1,9 @@
-#| UTILITIES |#
+;#| UTILITIES |#
 
 (define (add1 n) (+ n 1))
 (define (sub1 n) (- n 1))
 
-#| VECTOR |#
+;#| VECTOR |#
 
 (define (make-vector n init)
   (vector n init))
@@ -17,7 +17,7 @@
       (and (= (vector-ref v i) (vector-ref u i))
         (vector-equal^? v u (add1 i) n))))
 
-#| MAIN |#
+;#| MAIN |#
 
 (define V1 ;; #(3 4 2 1 5)
   (let ([v (make-vector 5 0)])
