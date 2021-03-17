@@ -9,6 +9,10 @@ sudo apt-get install libz3-dev
 
 ```
 cargo test -- --nocapture
+./test-runner.sh grift
+./test-runner.sh migeed-ins-and-outs
+./test-runner.sh migeed-context
+./test-runner.sh migeed-smt
 ```
 
 # TODO
