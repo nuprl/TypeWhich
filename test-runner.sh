@@ -1,5 +1,13 @@
 #!/bin/sh
 
+QUIET=
+
+if [ "$1" = "-q" ]
+then
+    QUIET="-q"
+    shift
+fi
+
 if [ "$1" = "grift" ]; then
     : ${HMSMT="target/debug/typeinf-playground"}
     : ${HMSMT_ARGS="-p grift"}
@@ -21,7 +29,8 @@ elif [ "$1" = "migeed-smt" ]; then
     : ${SUITE_DIR="migeed"}
     : ${EXT="*.gtlc"}
 else
-    printf "Usage: $(basename $0) [grift|migeed-ins-and-outs|migeed-context|migeed-smt]\n"
+    printf "Usage: $(basename $0) [-q] [grift|migeed-ins-and-outs|migeed-context|migeed-smt]\n\n"
+    printf "\t-q\tquiet mode (only show failures)\n"
     exit 2
 fi
 
@@ -64,8 +73,11 @@ do
         printf "\033[1m$test_group\033[0m\n"
         printf "=================================\n"
     fi
-    
-    printf "%24s..." "$test_name"
+
+    if ! [ "$QUIET" ]
+    then
+        printf "%24s..." "$test_name"
+    fi
 
     OUT="$(dirname $test_file)/$test_name.out"
     ERR="$(dirname $test_file)/$test_name.err"
@@ -75,12 +87,18 @@ do
     if [ $status -eq 0 ]
     then
         rm $ERR
-        printf "....\033[32mOK\033[0m"
+        if ! [ "$QUIET" ]
+        then
+           printf "....\033[32mOK\033[0m\n"
+        fi
     else
         : $((failures += 1))
-        printf "\033[31mFAILED\033[0m"
+        if [ "$QUIET" ]
+        then
+            printf "%24s..." "$test_name"
+        fi            
+        printf "\033[31mFAILED\033[0m\n"
     fi
-    printf "\n"
 done
 
 printf "=================================\n"
