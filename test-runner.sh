@@ -1,5 +1,11 @@
 #!/bin/sh
 
+cd $(dirname $0)
+[ -d grift-suite ] && [ -d migeed ] || {
+    printf "Couldn't find test suite directories. Run $0 from the 'hm-in-smt' root or with a relative path.\n"
+    exit 3
+}
+
 QUIET=
 
 if [ "$1" = "-q" ]

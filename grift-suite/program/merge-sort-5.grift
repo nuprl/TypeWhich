@@ -1,4 +1,4 @@
-#| LIST |#
+;#| LIST |#
 (define (null) (tuple #t))
 (define (null? ls) (tuple-proj ls 0))
 (define (cons a b) (tuple #f a b))
@@ -12,7 +12,7 @@
     [else (and (= (car l1) (car l2))
             (lon-equal? (cdr l1) (cdr l2)))]))
 
-#| MAIN |#
+;#| MAIN |#
 
 (define L1 ;; #(3 4 2 1 5)
   (cons 3
