@@ -10,7 +10,8 @@ tl -> Toplevel :
     exp { Toplevel::Exp($1) }
   | '(' 'define' id         exp ')' { Toplevel::Define($3, next_metavar(), $4) }  
   | '(' 'define' id ':' typ exp ')' { Toplevel::Define($3, $5, $6) }  
-  | '(' 'define' '(' id         ')'         exps ')' { Toplevel::Define($4, next_metavar(), Exp::Fun("__ignored".to_string(), Typ::Unit, Box::new(Exp::begin($6)))) }
+  | '(' 'define' '(' id                  ')'         exps ')' { Toplevel::Define($4, next_metavar(), Exp::Fun("__ignored".to_string(), Typ::Unit, Box::new(Exp::begin($6)))) }
+  | '(' 'define' '(' id                  ')' ':' typ exps ')' { Toplevel::Define($4, next_metavar(), Exp::Fun("__ignored".to_string(), Typ::Unit, Box::new(Exp::Ann(Box::new(Exp::begin($8)), $7)))) }
   | '(' 'define' '(' id nonempty_formals ')'         exps ')' { Toplevel::Define($4, next_metavar(), Exp::funs($5, Exp::begin($7))) } 
   | '(' 'define' '(' id nonempty_formals ')' ':' typ exps ')' { Toplevel::Define($4, next_metavar(), Exp::funs($5, Exp::Ann(Box::new(Exp::begin($9)), $8))) } 
 ;
@@ -216,7 +217,8 @@ char -> char :
                 let str = $lexer.span_str(lrpar::Span::new(span.start() + 2, span.end()));
                 str.chars().next().unwrap()
               }
-  | 'CHRnul' { '\0' }
+  | 'CHRnul'     { '\0' }
+  | 'CHRnewline' { '\n' }
 ;
 bool -> bool :
     'true'  { true }
