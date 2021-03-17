@@ -172,7 +172,7 @@ pub fn env() -> Env {
 
     add_ops(
         &mut env,
-        &["timer-start", "timer-stop", "timer-report"],
+        &["timer-start", "timer-stop", "timer-report", "time"],
         &Typ::arrs(vec![Typ::Unit]),
     );
 

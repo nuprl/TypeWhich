@@ -54,6 +54,19 @@ else
     files=$(find "$SUITE_DIR" -name "$EXT")
 fi
 
+first_header=1
+needs_header=
+header() {
+    if ! [ "$first_header" ]
+    then
+        printf "\n"
+    fi
+    first_header=
+    
+    printf "\033[1m$test_group\033[0m\n"
+    printf "=================================\n"
+}
+
 for test_file in $files
 do
     test_name=$(basename $test_file)
@@ -64,14 +77,14 @@ do
 
     if ! [ "$test_group" = "$last_group" ]
     then
-        if [ "$last_group" ]
-        then
-            printf "\n"
-        fi
         
         last_group=$test_group
-        printf "\033[1m$test_group\033[0m\n"
-        printf "=================================\n"
+        if [ "$QUIET" ]
+        then
+            needs_header=1
+        else
+            header
+        fi
     fi
 
     if ! [ "$QUIET" ]
@@ -95,6 +108,12 @@ do
         : $((failures += 1))
         if [ "$QUIET" ]
         then
+            if [ "$needs_header" ]
+            then
+                header
+                needs_header=
+            fi
+            
             printf "%24s..." "$test_name"
         fi            
         printf "\033[31mFAILED\033[0m\n"
