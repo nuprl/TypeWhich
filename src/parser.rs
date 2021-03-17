@@ -29,6 +29,14 @@ pub fn parser_warning(msg: impl AsRef<str>) {
     });
 }
 
+pub fn show_warnings() {
+    PARSER_WARNINGS.with(|ws| {
+        for w in ws.replace(HashSet::new()).into_iter() {
+            eprintln!("Warning: {}", w);
+        }
+    });
+}
+
 /// Parses the input string, producing an `Exp` where very type annotation
 /// is set to `Typ::Metavar`. Each `Typ::Metavar` is numbered sequentially,
 /// starting with `0`.
@@ -37,12 +45,8 @@ pub fn parse(input: impl AsRef<str>) -> Exp {
     let lexerdef = lexer_l::lexerdef();
     let lexer = lexerdef.lexer(input);
     let (res, errs) = parser_y::parse(&lexer);
-    PARSER_WARNINGS.with(|ws| {
-        for w in ws.replace(HashSet::new()).into_iter() {
-            eprintln!("Warning: {}", w);
-        }
-    });
     if errs.is_empty() {
+        show_warnings();
         return res.unwrap();
     }
     for err in errs.into_iter() {

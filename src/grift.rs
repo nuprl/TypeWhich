@@ -47,6 +47,7 @@ pub fn parse_toplevel(input: impl AsRef<str>) -> Vec<Toplevel> {
     let lexer = lexerdef.lexer(input);
     let (res, errs) = grift_y::parse(&lexer);
     if errs.is_empty() {
+        crate::parser::show_warnings();
         return res.unwrap();
     }
     for err in errs.into_iter() {
