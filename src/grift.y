@@ -173,8 +173,8 @@ typ -> Typ :
   | 'Float'               { Typ::Float }
   | 'Bool'                { Typ::Bool }
   | 'Char'                { Typ::Char }
-  | id                    { unimplemented!("type variable") }
-  | '(' 'Rec' id typ ')'  { unimplemented!("recursive types") }
+  | id                    { parser_warning(format!("Treating type variable {} as Dyn.", $1)); Typ::Any }
+  | '(' 'Rec' id typ ')'  { $4 }
   ;
 
 lit -> Lit :
@@ -233,4 +233,4 @@ id -> String :
 %%
 
 use crate::syntax::{Toplevel, Exp, Lit, Typ};
-use crate::parser::next_metavar;
+use crate::parser::{next_metavar, parser_warning};
