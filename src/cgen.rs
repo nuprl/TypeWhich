@@ -331,7 +331,7 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ boxset! e_1 e_2 => boxset! coerce(T_1, Box(α)) e_1 coerce(T_2, α) e_2, Box(α),
+            // Γ ⊢ boxset! e_1 e_2 => boxset! coerce(T_1, Box(α)) e_1 coerce(T_2, α) e_2, Unit,
             //                        strengthen(T_1, Box(α)) && weaken(T_2, α)
             Exp::BoxSet(e1, e2) => {
                 let (t1, phi1) = self.cgen(env, e1);
@@ -339,7 +339,7 @@ impl<'a> State<'a> {
                 let alpha = next_metavar();
                 let phi3 = self.strengthen(t1, Typ::Box(Box::new(alpha.clone())), e1);
                 let phi4 = self.weaken(t2, alpha.clone(), e2);
-                (alpha, phi1 & phi2 & phi3 & phi4)
+                (Typ::Unit, phi1 & phi2 & phi3 & phi4)
             }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ ⊢ e2 => T_2, φ_2

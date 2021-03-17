@@ -225,11 +225,12 @@ pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
         // Γ ⊢ e_1 : Box(T)
         // Γ ⊢ e_2 : T
         // ----------------------------------------------
-        // Γ ⊢ boxset! e1 e2 : Box(T)
+        // Γ ⊢ boxset! e1 e2 : Unit
         Exp::BoxSet(e1, e2) => {
             let t1 = tcheck(env, e1)?;
             let t2 = tcheck(env, e2)?;
-            should_match(&Typ::Box(Box::new(t2)), t1)
+            should_match(&Typ::Box(Box::new(t2)), t1)?;
+            Ok(Typ::Unit)
         }
         // Γ ⊢ e1 : int
         // Γ ⊢ e2 : T
