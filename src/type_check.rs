@@ -262,7 +262,8 @@ pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             let t1 = tcheck(env, e1)?;
             should_match(&Typ::Int, tcheck(env, e2)?)?;
             let t3 = tcheck(env, e3)?;
-            should_match(&Typ::Vect(Box::new(t3)), t1)
+            should_match(&Typ::Vect(Box::new(t3)), t1)?;
+            Ok(Typ::Unit)
         }
         // Γ ⊢ e : Vect(T)
         // ----------------------------------------------
