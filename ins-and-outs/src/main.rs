@@ -26,12 +26,12 @@ fn main() -> Result<()> {
         }
     };
     let parsed = parser::parse(source);
-    typeinf(parsed);
+    println!("GOT TYPE:\n{}", typeinf(parsed).1);
     Ok(())
 }
 
-pub fn typeinf(parsed: syntax::Exp) -> syntax::Exp {
-    let (mut coerced, coercions) = collect_coercions::compile_coercions(parsed);
+pub fn typeinf(parsed: syntax::Exp) -> (syntax::Exp, syntax::Typ) {
+    let (mut coerced, mut typ, coercions) = collect_coercions::compile_coercions(parsed);
     println!(
         "{}\ncoercions:\n{}",
         coerced,
@@ -42,8 +42,9 @@ pub fn typeinf(parsed: syntax::Exp) -> syntax::Exp {
     let solution = solve::solve_closure(coercions_closure);
     println!("solution:\n{:?}", solution);
     decorate::decorate(&mut coerced, &solution);
+    decorate::decorate_typ(&mut typ, &solution);
     println!("annotated:\n{}", coerced);
-    coerced
+    (coerced, typ)
 }
 
 #[cfg(test)]
@@ -69,16 +70,16 @@ mod tests {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig);
-        println!("\nAfter type inference:\n{}", e);
-        let coercions = contains_coercions(e);
+        println!("\nAfter type inference:\n{}", e.1);
+        let coercions = contains_coercions(e.0);
         assert!(!coercions);
     }
     pub fn coerces(program: &str) {
         let orig = parse(program);
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig);
-        println!("\nAfter type inference:\n{}", e);
-        let coercions = contains_coercions(e);
+        println!("\nAfter type inference:\n{}", e.1);
+        let coercions = contains_coercions(e.0);
         assert!(coercions);
     }
     #[test]
@@ -177,7 +178,7 @@ mod tests {
     }
     #[test]
     fn identity_public() {
-        let e = typeinf(parse("(fun i . i)"));
+        let e = typeinf(parse("(fun i . i)")).0;
         match e {
             Exp::Fun(_, Typ::Any, _, Typ::Any) => (),
             _ => panic!(),
@@ -199,6 +200,10 @@ mod tests {
     #[test]
     fn broke_migeed() {
         coerces("(fun i.(fun a.fun b.b) (i 5) (i true)) (fun x.x)");
+    }
+    #[test]
+    fn add_apply_self() {
+        coerces("fun f.fun g.f 1 + g f")
     }
     // =======================================
     // ~~~~~~~~~ migeed and palsberg ~~~~~~~~~

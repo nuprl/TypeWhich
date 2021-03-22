@@ -39,7 +39,6 @@ fn p(c: &mut Closure, description: &'static str, reasons: Vec<(&Typ, &Typ)>, t1:
         reasoning.push_str(&format!("==> {} |> {}", t1, t2));
         let as_tup = (t1, t2);
         if !c.contains(&as_tup) {
-            eprintln!("{}", reasoning);
             e(c, as_tup.0, as_tup.1);
         }
     }

@@ -39,19 +39,19 @@ atom -> Exp :
   | id          { Exp::Var($1) }
   ;
 
-plus -> Exp :
-    plus '+' atom { Exp::Add(Box::new($1), Box::new($3)) }
+funExp -> Exp :
+    funExp atom   { app_($1, $2) }
   | atom          { $1 }
   ;
 
-funExp -> Exp :
-    funExp plus   { app_($1, $2) }
-  | plus          { $1 }
+plus -> Exp :
+    plus '+' funExp { Exp::Add(Box::new($1), Box::new($3)) }
+  | funExp          { $1 }
   ;
 
 assignExp -> Exp :
     id '=' assignExp { Exp::Assign($1, Box::new($3)) }
-  | funExp           { $1 }
+  | plus             { $1 }
   ;
 
 exp -> Exp :

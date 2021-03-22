@@ -1,0 +1,1 @@
+fun f.fun x.(x (fun h. f x) 0) 0

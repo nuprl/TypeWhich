@@ -97,11 +97,11 @@ impl<'a> State<'a> {
                 let arr = Typ::Arr(Box::new(alpha.clone()), Box::new(beta.clone()));
                 let phi3 = self.strengthen(t1.clone(), arr, e1);
                 // If the thing was annotated by the user, we allow strengthening
-                let phi4 = match t1 {
-                    Typ::Metavar(..) => self.weaken(t2, alpha, e2),
+                let (phi3, phi4) = match t1 {
+                    Typ::Metavar(..) => (phi3, self.weaken(t2, alpha, e2)),
                     // dynamic consistency
                     Typ::Arr(arg_box, _) => match *arg_box {
-                        Typ::Metavar(..) => self.weaken(t2, alpha, e2),
+                        Typ::Metavar(..) => (phi3, self.weaken(t2, alpha, e2)),
                         arg => {
                             // rather than say strengthen(t2, arg), we say, if
                             // it's annotated, it's on the user to make sure that
@@ -112,12 +112,15 @@ impl<'a> State<'a> {
                             // as that t1 is a reasonable migration *assuming t2 is correct*. This
                             // means that if t1 weakens to t2, weak_negative_any is true, but if t1
                             // strengthens to t2, all bets are off
-                            self.t2z3(&t2)._eq(&self.z3.any_z3) | self.weaken(t2, arg, e2)
+                            (
+                                phi3,
+                                self.t2z3(&t2)._eq(&self.z3.any_z3) | self.weaken(t2, arg, e2),
+                            )
                         }
                     },
                     _ => {
                         eprintln!("applied non-arrow. will create failing coercion.");
-                        self.weaken(t2, alpha, e2)
+                        (self.z3.true_z3(), self.weaken(t2, alpha, e2))
                     }
                 };
                 (beta, phi1 & phi2 & phi3 & phi4)

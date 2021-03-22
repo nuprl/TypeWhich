@@ -3,7 +3,7 @@ use crate::syntax::*;
 use im_rc::{HashMap, HashSet};
 
 /// This also performs Base and Comp of the closure computation
-pub fn compile_coercions(x: Exp) -> (Exp, HashSet<(Typ, Typ)>) {
+pub fn compile_coercions(x: Exp) -> (Exp, Typ, HashSet<(Typ, Typ)>) {
     // Base
     let (e, t, mut c) = compile(x, &HashMap::new());
     // Comp
@@ -21,7 +21,7 @@ pub fn compile_coercions(x: Exp) -> (Exp, HashSet<(Typ, Typ)>) {
             c.insert((Typ::Any, t.get_arg()));
         }
     }
-    (e, c)
+    (e, t, c)
 }
 
 /// this matches Figure 3: Compilation judgment, except that we collect

@@ -19,20 +19,55 @@ if [ "$1" = "grift" ]; then
     : ${HMSMT_ARGS="-p grift"}
     : ${SUITE_DIR="grift-suite"}
     : ${EXT="*.grift"}
+elif [ "$1" = "migeed-migeed" ]; then
+    # i have tried to make this cleaner than this cd mess but stack doesn't
+    # allow a lot of things on the command line and i don't wanna make a whole
+    # package so...
+    cd migeed
+    export STACK_YAML="../../Maximal-Migration/stack.yaml"
+    : ${HMSMT="stack runghc Migrate.hs"}
+    : ${HMSMT_ARGS=""}
+    : ${SUITE_DIR="."}
+    : ${EXT="*.gtlc"}
 elif [ "$1" = "migeed-ins-and-outs" ]; then
     : ${HMSMT="ins-and-outs/target/debug/ins-and-outs"}
     : ${HMSMT_ARGS=""}
-    : ${SUITE_DIR="migeed"}
-    : ${EXT="*.gtlc"}
-elif [ "$1" = "migeed-context" ]; then
-    : ${HMSMT="target/debug/typeinf-playground"}
-    : ${HMSMT_ARGS="--unsafe"}
     : ${SUITE_DIR="migeed"}
     : ${EXT="*.gtlc"}
 elif [ "$1" = "migeed-smt" ]; then
     : ${HMSMT="target/debug/typeinf-playground"}
     : ${HMSMT_ARGS=""}
     : ${SUITE_DIR="migeed"}
+    : ${EXT="*.gtlc"}
+elif [ "$1" = "migeed-no-context" ]; then
+    : ${HMSMT="target/debug/typeinf-playground"}
+    : ${HMSMT_ARGS="--unsafe"}
+    : ${SUITE_DIR="migeed"}
+    : ${EXT="*.gtlc"}
+elif [ "$1" = "adversarial-migeed" ]; then
+    # i have tried to make this cleaner than this cd mess but stack doesn't
+    # allow a lot of things on the command line and i don't wanna make a whole
+    # package so...
+    cd migeed
+    export STACK_YAML="../../Maximal-Migration/stack.yaml"
+    : ${HMSMT="stack runghc Migrate.hs"}
+    : ${HMSMT_ARGS=""}
+    : ${SUITE_DIR="../adversarial"}
+    : ${EXT="*.gtlc"}
+elif [ "$1" = "adversarial-ins-and-outs" ]; then
+    : ${HMSMT="ins-and-outs/target/debug/ins-and-outs"}
+    : ${HMSMT_ARGS=""}
+    : ${SUITE_DIR="adversarial"}
+    : ${EXT="*.gtlc"}
+elif [ "$1" = "adversarial-smt" ]; then
+    : ${HMSMT="target/debug/typeinf-playground"}
+    : ${HMSMT_ARGS=""}
+    : ${SUITE_DIR="adversarial"}
+    : ${EXT="*.gtlc"}
+elif [ "$1" = "adversarial-no-context" ]; then
+    : ${HMSMT="target/debug/typeinf-playground"}
+    : ${HMSMT_ARGS="--unsafe"}
+    : ${SUITE_DIR="adversarial"}
     : ${EXT="*.gtlc"}
 else
     printf "Usage: $(basename $0) [-q] [grift|migeed-ins-and-outs|migeed-context|migeed-smt]\n\n"
@@ -41,6 +76,12 @@ else
 fi
 
 shift
+
+if [ "$1" = "--print-types" ]; then
+    : ${PRINT_TYPES=1}
+    echo "PRINTING TYPES"
+    shift
+fi
 
 total=0
 failures=0
@@ -108,7 +149,7 @@ do
         rm $ERR
         if ! [ "$QUIET" ]
         then
-           printf "....\033[32mOK\033[0m\n"
+           printf "....\033[32mOK\033[0m"
         fi
     else
         : $((failures += 1))
@@ -122,7 +163,13 @@ do
             
             printf "%24s..." "$test_name"
         fi            
-        printf "\033[31mFAILED\033[0m\n"
+        printf "\033[31mFAILED\033[0m"
+    fi
+    if [ "$PRINT_TYPES" ] && [ $status -eq 0 ]; then
+        printf "    "
+        tail -n 1 $OUT
+    else
+        printf "\n"
     fi
 done
 

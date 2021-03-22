@@ -11,12 +11,10 @@ pub fn solve_closure(cs: Closure) -> HashMap<Typ, Typ> {
             inflows.entry(to).or_insert(vec![]).push(from);
         }
     }
-    eprintln!("inflows (T+): {:?}", inflows);
     // this is the big summation that goes into Î
     // it is the least upper bound of the given
     let mut lubs = HashMap::new();
     for (x, t) in inflows.into_iter() {
-        eprintln!("solving {}", x);
         // all entries will either not exist or have at least a 0th entry
         let (first, t) = t.split_first().unwrap();
         let lub = t.iter().fold(first.kind_of_typ_var(&x), |lub, k| {
@@ -24,7 +22,6 @@ pub fn solve_closure(cs: Closure) -> HashMap<Typ, Typ> {
         });
         lubs.insert(x, lub);
     }
-    eprintln!("pre-recursion lubs: {:?}", lubs);
     let mut solution = HashMap::new();
     for (x, i) in lubs.clone() {
         solution.insert(x, solve_recursively(i, &lubs));

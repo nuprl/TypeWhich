@@ -32,7 +32,7 @@ pub fn decorate(exp: &mut Exp, solution: &HashMap<Typ, Typ>) {
     }
 }
 
-fn decorate_typ(t: &mut Typ, solution: &HashMap<Typ, Typ>) {
+pub fn decorate_typ(t: &mut Typ, solution: &HashMap<Typ, Typ>) {
     match t {
         // this isn't exactly said in the paper but i think it's necessary to
         // fully decorate. well after all none of decoration is really written
