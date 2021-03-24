@@ -10,7 +10,7 @@ pub trait Pretty {
         A: Clone;
 }
 
-pub const DEFAULT_WIDTH: usize = 80;
+pub const DEFAULT_WIDTH: usize = 800;
 
 // Copied from jankscripten
 #[macro_export]
@@ -32,6 +32,8 @@ macro_rules! impl_Display_Pretty {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+const PRINT_COERCIONS: bool = false;
 
 fn parens_if<'b, D, A, T>(pp: &'b D, d: &'b T, b: bool) -> pretty::DocBuilder<'b, D, A>
 where
@@ -110,11 +112,11 @@ impl Pretty for Exp {
             Exp::Lit(x) => x.pretty(pp),
             Exp::Var(x) => pp.text(x),
             Exp::Assign(x, v) => pp.concat(vec![pp.text(x), pp.text(": "), v.pretty(pp)]),
-            Exp::Fun(x, t1, e, t2) => pp.concat(vec![
+            Exp::Fun(x, t1, e, _) => pp.concat(vec![
                 pp.text("fun "),
-                pretty_arr(t1, t2, pp),
-                pp.space(),
                 pp.text(x),
+                pp.text(":"),
+                t1.pretty(pp),
                 pp.text("."),
                 pp.softline(),
                 e.pretty(pp).nest(2),
@@ -140,13 +142,14 @@ impl Pretty for Exp {
                 pp.text(" + "),
                 parens_if(pp, &**e2, !e2.is_atom()),
             ]),
-            Exp::Coerce(t1, t2, e) => pp.concat(vec![
+            Exp::Coerce(t1, t2, e) if PRINT_COERCIONS => pp.concat(vec![
                 pp.text("⟨"),
                 pretty_coercion(t1, t2, pp),
                 pp.text("⟩"),
                 pp.space(),
                 parens_if(pp, &**e, e.is_app_like()),
             ]),
+            Exp::Coerce(_, _, e) => e.pretty(pp),
             Exp::Seq(e1, e2) => pp.concat(vec![
                 e1.pretty(pp),
                 pp.text(";"),

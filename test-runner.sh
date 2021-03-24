@@ -14,65 +14,19 @@ then
     shift
 fi
 
+tool="$1"
+STACK_YAML="../../Maximal-Migration/stack.yaml" stack ghc Migrate.hs -- -o /tmp/migeed >/dev/null 2>/dev/null
+shift
+
 if [ "$1" = "grift" ]; then
-    : ${HMSMT="target/debug/typeinf-playground"}
-    : ${HMSMT_ARGS="-p grift"}
     : ${SUITE_DIR="grift-suite"}
     : ${EXT="*.grift"}
-elif [ "$1" = "migeed-migeed" ]; then
-    # i have tried to make this cleaner than this cd mess but stack doesn't
-    # allow a lot of things on the command line and i don't wanna make a whole
-    # package so...
-    cd migeed
-    export STACK_YAML="../../Maximal-Migration/stack.yaml"
-    : ${HMSMT="stack runghc Migrate.hs"}
-    : ${HMSMT_ARGS=""}
-    : ${SUITE_DIR="."}
-    : ${EXT="*.gtlc"}
-elif [ "$1" = "migeed-ins-and-outs" ]; then
-    : ${HMSMT="ins-and-outs/target/debug/ins-and-outs"}
-    : ${HMSMT_ARGS=""}
+elif [ "$1" = "migeed" ]; then
     : ${SUITE_DIR="migeed"}
     : ${EXT="*.gtlc"}
-elif [ "$1" = "migeed-smt" ]; then
-    : ${HMSMT="target/debug/typeinf-playground"}
-    : ${HMSMT_ARGS=""}
-    : ${SUITE_DIR="migeed"}
-    : ${EXT="*.gtlc"}
-elif [ "$1" = "migeed-no-context" ]; then
-    : ${HMSMT="target/debug/typeinf-playground"}
-    : ${HMSMT_ARGS="--unsafe"}
-    : ${SUITE_DIR="migeed"}
-    : ${EXT="*.gtlc"}
-elif [ "$1" = "adversarial-migeed" ]; then
-    # i have tried to make this cleaner than this cd mess but stack doesn't
-    # allow a lot of things on the command line and i don't wanna make a whole
-    # package so...
-    cd migeed
-    export STACK_YAML="../../Maximal-Migration/stack.yaml"
-    : ${HMSMT="stack runghc Migrate.hs"}
-    : ${HMSMT_ARGS=""}
-    : ${SUITE_DIR="../adversarial"}
-    : ${EXT="*.gtlc"}
-elif [ "$1" = "adversarial-ins-and-outs" ]; then
-    : ${HMSMT="ins-and-outs/target/debug/ins-and-outs"}
-    : ${HMSMT_ARGS=""}
+elif [ "$1" = "adversarial" ]; then
     : ${SUITE_DIR="adversarial"}
     : ${EXT="*.gtlc"}
-elif [ "$1" = "adversarial-smt" ]; then
-    : ${HMSMT="target/debug/typeinf-playground"}
-    : ${HMSMT_ARGS=""}
-    : ${SUITE_DIR="adversarial"}
-    : ${EXT="*.gtlc"}
-elif [ "$1" = "adversarial-no-context" ]; then
-    : ${HMSMT="target/debug/typeinf-playground"}
-    : ${HMSMT_ARGS="--unsafe"}
-    : ${SUITE_DIR="adversarial"}
-    : ${EXT="*.gtlc"}
-else
-    printf "Usage: $(basename $0) [-q] [grift|migeed-ins-and-outs|migeed-context|migeed-smt]\n\n"
-    printf "\t-q\tquiet mode (only show failures)\n"
-    exit 2
 fi
 
 shift
@@ -141,7 +95,7 @@ do
 
     OUT="$(dirname $test_file)/$test_name.out"
     ERR="$(dirname $test_file)/$test_name.err"
-    timeout 5 $HMSMT $HMSMT_ARGS $test_file >$OUT 2>$ERR
+    timeout 5 ./run_tool.sh $tool $test_file >$OUT 2>$ERR
     status=$?
     : $((total += 1))
     if [ $status -eq 0 ]

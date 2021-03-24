@@ -26,7 +26,9 @@ fn main() -> Result<()> {
         }
     };
     let parsed = parser::parse(source);
-    println!("GOT TYPE:\n{}", typeinf(parsed).1);
+    let (term, typ) = typeinf(parsed);
+    println!("GOT TYPE:\n{}", typ);
+    println!("MIGRATED PROGRAM:\n{}", term);
     Ok(())
 }
 

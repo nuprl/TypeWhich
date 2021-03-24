@@ -1,0 +1,1 @@
+(fun i.(fun a.fun b.b) (i 5) (i true)) (fun x.x)

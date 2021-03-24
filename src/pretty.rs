@@ -3,6 +3,7 @@ use super::syntax::*;
 // it does end up sometimes being useful to print metavariables in programs,
 // though usually it's just noise
 const PRINT_METAVARS: bool = false;
+const PRINT_COERCIONS: bool = false;
 
 // Copied from jankscripten
 pub trait Pretty {
@@ -13,7 +14,7 @@ pub trait Pretty {
         A: Clone;
 }
 
-pub const DEFAULT_WIDTH: usize = 72;
+pub const DEFAULT_WIDTH: usize = 720;
 
 // Copied from jankscripten
 #[macro_export]
@@ -171,7 +172,7 @@ impl Pretty for Exp {
                 e1.pretty(pp).nest(2),
                 pp.space(),
                 pp.text("in"),
-                pp.line(),
+                pp.softline(),
                 e2.pretty(pp),
             ]),
             Exp::LetRec(bindings, e) => pp.concat(vec![
@@ -206,7 +207,7 @@ impl Pretty for Exp {
                 pp.text(x),
                 pp.space(),
                 pp.text("."),
-                pp.line(),
+                pp.softline(),
                 e.pretty(pp).nest(2),
             ]),
             Exp::Fun(x, Typ::Metavar(_), e) if !PRINT_METAVARS => pp
@@ -227,7 +228,7 @@ impl Pretty for Exp {
                 pp.text(":"),
                 t.pretty(pp),
                 pp.text("."),
-                pp.line(),
+                pp.softline(),
                 e.pretty(pp).nest(2),
             ]),
             Exp::Fix(x, t, e) => pp.concat(vec![
@@ -357,7 +358,7 @@ impl Pretty for Exp {
             }
             Exp::IsList(e) => pp.concat(vec![pp.text("is_list"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::IsFun(e) => pp.concat(vec![pp.text("is_fun"), pp.space(), e.pretty(pp).nest(2)]),
-            Exp::Coerce(from, to, e) => pp.concat(vec![
+            Exp::Coerce(from, to, e) if PRINT_COERCIONS => pp.concat(vec![
                 pp.text("coerce("),
                 from.pretty(pp),
                 pp.text(", "),
@@ -366,6 +367,7 @@ impl Pretty for Exp {
                 pp.space(),
                 e.pretty(pp).nest(2),
             ]),
+            Exp::Coerce(_, _, e) => e.pretty(pp),
         }
     }
 }
