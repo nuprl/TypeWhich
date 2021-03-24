@@ -20,42 +20,43 @@ sc = L.space
   (L.skipBlockComment "/*" "*/") -- (4)
 
 symbol = L.symbol sc
+lexeme = L.lexeme sc
 
 fun = symbol "fun"
 dot = symbol "."
 
-ident = many letterChar
+ident = lexeme $ some letterChar
 
 lambda = do
     fun
-    space
     name <- ident
-    space
     dot
-    space
     body <- e
-    space
     return $ Lam Tdyn name body
 
-identifier = do
-    name <- ident
-    return $ Vv name
+identifier = Vv <$> ident
 
-number = do
-    n <- L.decimal
-    return $ Vi n
+number = Vi <$> (lexeme L.decimal)
 
-atom = number <|> do
-    char '('
+true = do
+    symbol "true"
+    return $ Vb True
+
+false = do
+    symbol "false"
+    return $ Vb False
+
+atom = number <|> true <|> false <|> do
+    symbol "("
     exp <- e
-    char ')'
+    symbol ")"
     return exp
-    <|> try(identifier)
+    <|> identifier
 
 add x = App (App (Vv "+") x)
 
-table = [ [ InfixL $ App <$ char ' ' ],
-          [ InfixL $ add <$ char '+' ] ]
+table = [ [ InfixL $ App <$ symbol "" ],
+          [ InfixL $ add <$ symbol "+" ] ]
 
 app = makeExprParser atom table <|> atom
 
@@ -63,6 +64,5 @@ e = lambda <|> app
 
 parseMigeed = do
     res <- e
-    space
     eof
     return res
