@@ -41,6 +41,7 @@ jobs:
             suite: grift
           - tool: ins-and-outs
             suite: migeed
+            experimental: true
           - tool: no-context
             suite: migeed
           - tool: smt
@@ -58,6 +59,8 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Compile (Rust)
       if: steps.cache-cargo.outputs.cache-hit != 'true'
-      run: cargo build
+      run: |
+        echo Build step ran but the results weren't in cache. What's up?
+        exit 1
     - name: ${{ matrix.tool }} on ${{ matrix.suite }}
       run: ./test-runner.sh ${{ matrix.tool }} ${{ matrix.suite }}
