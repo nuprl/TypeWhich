@@ -20,12 +20,15 @@ sudo apt-get install libz3-dev
 
 # Testing
 
+Take a look in `.github/workflows/build.yml` to see our CI
+testing. The gist of it is:
+
 ```
 cargo test -- --nocapture
-./test-runner.sh grift
-./test-runner.sh migeed-ins-and-outs
-./test-runner.sh migeed-context
-./test-runner.sh migeed-smt
+./test-runner.sh grift grift
+./test-runner.sh ins-and-outs migeed
+./test-runner.sh no-context migeed
+./test-runner.sh smt migeed
 ```
 
 # TODO

@@ -27,5 +27,13 @@ jobs:
     - name: Compile (Rust)
       if: steps.cache-cargo.outputs.cache-hit != 'true'
       run: cargo build
+    - name: Unit tests
+      run: cargo test -- --nocapture
     - name: Grift tests w/safe SMT
       run: ./test-runner.sh grift grift
+    - name: Migeed tests w/Ins and Outs
+      run: ./test-runner.sh ins-and-outs migeed
+    - name: Migeed tests w/unsafe SMT
+      run: ./test-runner.sh no-context migeed
+    - name: Migeed tests w/safe SMT
+      run: ./test-runner.sh smt migeed
