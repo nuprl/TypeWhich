@@ -11,7 +11,6 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -27,19 +26,43 @@ jobs:
     - name: Compile (Rust)
       if: steps.cache-cargo.outputs.cache-hit != 'true'
       run: cargo build
-      continue-on-error: true
+        
+  test-units:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
     - name: Unit tests
       run: cargo test -- --nocapture
-      continue-on-error: true
+
+  test-grift:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:      
     - name: Grift tests w/safe SMT
       run: ./test-runner.sh grift grift
-      continue-on-error: true
+
+  test-migeed-ins-and-outs:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:      
     - name: Migeed tests w/Ins and Outs
       run: ./test-runner.sh ins-and-outs migeed
-      continue-on-error: true
+
+  test-migeed-unsafe:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:      
     - name: Migeed tests w/unsafe SMT
       run: ./test-runner.sh no-context migeed
-      continue-on-error: true
+
+  test-migeed-smt:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
     - name: Migeed tests w/safe SMT
       run: ./test-runner.sh smt migeed
-      continue-on-error: true
