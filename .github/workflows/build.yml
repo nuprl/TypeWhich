@@ -33,19 +33,23 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
 
+    continue-on-error: ${{ matrix.ignore }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - tool: grift
             suite: grift
+            ignore: false
           - tool: ins-and-outs
             suite: migeed
-            experimental: true
+            ignore: true
           - tool: no-context
             suite: migeed
+            ignore: false
           - tool: smt
             suite: migeed
+            ignore: false
       
     steps:
     - uses: actions/checkout@v2
