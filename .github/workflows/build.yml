@@ -23,7 +23,7 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Compile (Rust)
+    - name: Compile (smt)
       if: steps.cache-cargo.outputs.cache-hit != 'true'
       run: cargo build
     - name: Unit tests
@@ -42,7 +42,7 @@ jobs:
             ignore: false
           - tool: ins-and-outs
             suite: migeed
-            ignore: true
+            ignore: false
           - tool: no-context
             suite: migeed
             ignore: false
@@ -60,11 +60,17 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Compile (Rust)
+    - name: Compile (smt)
       if: steps.cache-cargo.outputs.cache-hit != 'true'
       run: |
         echo Build step ran but the results weren't in cache. What's up?
         exit 1
+    - name: Compile and test (ins-and-outs)
+      if: ${{ matrix.tool }} == 'ins-and-outs'
+      working-directory: ins-and-outs
+      run: |
+        cargo build
+        cargo test -- --nocapture
     - name: ${{ matrix.tool }} on ${{ matrix.suite }}
       run: ./test-runner.sh ${{ matrix.tool }} ${{ matrix.suite }}
       continue-on-error: ${{ matrix.ignore }}
