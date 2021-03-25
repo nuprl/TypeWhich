@@ -13,6 +13,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: grift
+            suite: grift
+          - tool: ins-and-outs
+            suite: migeed
+          - tool: no-context
+            suite: migeed
+          - tool: smt
+            suite: migeed
+      
     steps:
     - uses: actions/checkout@v2
     - id: cache-cargo
@@ -26,43 +39,7 @@ jobs:
     - name: Compile (Rust)
       if: steps.cache-cargo.outputs.cache-hit != 'true'
       run: cargo build
-        
-  test-units:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
     - name: Unit tests
       run: cargo test -- --nocapture
-
-  test-grift:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:      
-    - name: Grift tests w/safe SMT
-      run: ./test-runner.sh grift grift
-
-  test-migeed-ins-and-outs:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:      
-    - name: Migeed tests w/Ins and Outs
-      run: ./test-runner.sh ins-and-outs migeed
-
-  test-migeed-unsafe:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:      
-    - name: Migeed tests w/unsafe SMT
-      run: ./test-runner.sh no-context migeed
-
-  test-migeed-smt:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Migeed tests w/safe SMT
-      run: ./test-runner.sh smt migeed
+    - name: ${{ matrix.tool }} on ${{ matrix.suite }}
+      run: ./test-runner.sh ${{ matrix.tool }} ${{ matrix.suite }}
