@@ -13,6 +13,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    steps:
+    - uses: actions/checkout@v2
+    - id: cache-cargo
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Compile (Rust)
+      if: steps.cache-cargo.outputs.cache-hit != 'true'
+      run: cargo build
+    - name: Unit tests
+      run: cargo test -- --nocapture
+      
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +59,5 @@ jobs:
     - name: Compile (Rust)
       if: steps.cache-cargo.outputs.cache-hit != 'true'
       run: cargo build
-    - name: Unit tests
-      run: cargo test -- --nocapture
     - name: ${{ matrix.tool }} on ${{ matrix.suite }}
       run: ./test-runner.sh ${{ matrix.tool }} ${{ matrix.suite }}
