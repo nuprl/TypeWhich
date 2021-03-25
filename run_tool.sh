@@ -1,5 +1,5 @@
 if [ "$1" = "migeed" ]; then
-    /tmp/migeed $2
+    ./bin/MaxMigrate $2
 elif [ "$1" = "ins-and-outs" ]; then
     ins-and-outs/target/debug/ins-and-outs $2
 elif [ "$1" = "smt" ]; then
