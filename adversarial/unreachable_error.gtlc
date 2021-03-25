@@ -1,1 +1,0 @@
-(fun b.fun x.(b (fun h.5 5) (fun h.x)) 0) (fun t.fun f.f) 5

@@ -1,1 +1,0 @@
-(fun f.(fun y.f) (f 5)) (fun x.10+x)

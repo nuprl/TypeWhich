@@ -1,0 +1,1 @@
+(fun b . b (fun c . 5 5) (fun d . 0)) (fun t . fun f . f)
