@@ -33,7 +33,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
 
-    continue-on-error: ${{ matrix.ignore }}
     strategy:
       fail-fast: false
       matrix:
@@ -68,3 +67,5 @@ jobs:
         exit 1
     - name: ${{ matrix.tool }} on ${{ matrix.suite }}
       run: ./test-runner.sh ${{ matrix.tool }} ${{ matrix.suite }}
+      continue-on-error: ${{ matrix.ignore }}
+
