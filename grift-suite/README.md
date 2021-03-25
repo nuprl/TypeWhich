@@ -20,3 +20,8 @@ ever want to run the programs.
 We moved `simple-map.grift` into `program` to have neater output.
 
 We turned S-exp comments of the form `#;...` into ordinary comments.
+
+Three tests are disabled, i.e., have `.disabled` appended to their
+names: `monoboxes/stress.grift` (which taxes our tuple encoding in
+SMT); and `core/blame2.grift` and `static/blame2.grift`, which have
+static errors that we choose to reject.
