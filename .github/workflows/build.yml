@@ -42,7 +42,7 @@ jobs:
             ignore: false
           - tool: ins-and-outs
             suite: migeed
-            ignore: false
+            ignore: true
           - tool: no-context
             suite: migeed
             ignore: false
