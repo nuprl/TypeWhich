@@ -410,6 +410,7 @@ mod tests_migeed_and_parsberg {
         assert_eq!(e, correct);
     }
     #[test]
+    #[ignore]
     fn apply_add() {
         assert_maximal("fun x . x (x + 1)", "fun x: any . x (x + 1)");
     }
