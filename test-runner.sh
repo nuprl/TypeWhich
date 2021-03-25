@@ -6,6 +6,20 @@ cd $(dirname $0)
     exit 3
 }
 
+usage() {
+    printf "Usage: $(basename $0) [-q] TOOL SUITE [--print-types]\n\n"
+    printf "       TOOL           'migeed', 'ins-and-outs', 'smt', 'no-context', or 'grift'\n"
+    printf "       SUITE          'grift', 'migeed', or 'adversarial'\n"
+    printf "       -q             quiet mode\n"
+    printf "       --print-types  show inferred types\n"
+    exit 4
+}
+
+if [ $# -eq 0 ]
+then
+    usage
+fi
+
 QUIET=
 
 if [ "$1" = "-q" ]
@@ -15,6 +29,10 @@ then
 fi
 
 tool="$1"
+case $tool in
+    (migeed|ins-and-outs|smt|no-context|grift) ;;
+    (*) usage;;
+esac
 STACK_YAML="../../Maximal-Migration/stack.yaml" stack ghc Migrate.hs -- -o /tmp/migeed >/dev/null 2>/dev/null
 shift
 
@@ -27,6 +45,8 @@ elif [ "$1" = "migeed" ]; then
 elif [ "$1" = "adversarial" ]; then
     : ${SUITE_DIR="adversarial"}
     : ${EXT="*.gtlc"}
+else
+    usage
 fi
 
 shift
