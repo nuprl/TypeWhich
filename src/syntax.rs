@@ -296,11 +296,7 @@ impl Exp {
         let mut e = default;
 
         for (condition, branch) in cases.into_iter().rev() {
-            e = Exp::If(
-                Box::new(condition),
-                Box::new(branch),
-                Box::new(e),
-            );
+            e = Exp::If(Box::new(condition), Box::new(branch), Box::new(e));
         }
 
         e
@@ -352,9 +348,6 @@ impl Exp {
     /// Removes `Exp::Ann` and `Exp::Coerce` nodes (but leaves in `Exp::Ann(e, Typ::Any))`)
     pub fn fresh_types(&mut self) {
         match self {
-            Exp::Ann(e, Typ::Any) => {
-                e.fresh_types();
-            }
             Exp::Ann(e, _) | Exp::Coerce(_, _, e) => {
                 e.fresh_types();
                 *self = e.take();
@@ -384,7 +377,7 @@ impl Exp {
             | Exp::IsInt(e)
             | Exp::IsString(e)
             | Exp::IsList(e)
-            | Exp::IsFun(e) 
+            | Exp::IsFun(e)
             | Exp::VectorLen(e) => e.fresh_types(),
             Exp::App(e1, e2)
             | Exp::Let(_, e1, e2)
@@ -394,14 +387,13 @@ impl Exp {
             | Exp::IntEq(e1, e2)
             | Exp::Pair(e1, e2)
             | Exp::Cons(e1, e2)
-            | Exp::BoxSet(e1, e2) 
+            | Exp::BoxSet(e1, e2)
             | Exp::Vector(e1, e2)
             | Exp::VectorRef(e1, e2) => {
                 e1.fresh_types();
                 e2.fresh_types();
             }
-            Exp::If(e1, e2, e3) 
-            | Exp::VectorSet(e1, e2, e3) => {
+            Exp::If(e1, e2, e3) | Exp::VectorSet(e1, e2, e3) => {
                 e1.fresh_types();
                 e2.fresh_types();
                 e3.fresh_types();

@@ -219,6 +219,7 @@ char -> char :
               }
   | 'CHRnul'     { '\0' }
   | 'CHRnewline' { '\n' }
+  | 'CHRspace'   { ' ' }
 ;
 bool -> bool :
     'true'  { true }

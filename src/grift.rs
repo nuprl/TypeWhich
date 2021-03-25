@@ -138,6 +138,7 @@ pub fn env() -> Env {
             "flatan",
             "fllog",
             "flep",
+            "flexp",
             "flsqrt",
             "flnegate",
         ],
@@ -148,6 +149,11 @@ pub fn env() -> Env {
         Typ::arrs(vec![Typ::Float, Typ::Int, Typ::Unit]),
     );
     env.insert("read-float".to_string(), Typ::arrs(vec![Typ::Float]));
+    env.insert(
+        "print-int".to_string(),
+        Typ::arrs(vec![Typ::Int, Typ::Unit]),
+    );
+    env.insert("read-int".to_string(), Typ::arrs(vec![Typ::Int]));
 
     env.insert(
         "float->int".to_string(),

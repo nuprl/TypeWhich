@@ -14,7 +14,7 @@ pub trait Pretty {
         A: Clone;
 }
 
-pub const DEFAULT_WIDTH: usize = 720;
+pub const DEFAULT_WIDTH: usize = 72;
 
 // Copied from jankscripten
 #[macro_export]
@@ -172,7 +172,7 @@ impl Pretty for Exp {
                 e1.pretty(pp).nest(2),
                 pp.space(),
                 pp.text("in"),
-                pp.softline(),
+                pp.line(),
                 e2.pretty(pp),
             ]),
             Exp::LetRec(bindings, e) => pp.concat(vec![
@@ -193,9 +193,9 @@ impl Pretty for Exp {
                     }),
                     pp.concat(vec![pp.line(), pp.text("and"), pp.space()]),
                 ),
-                pp.softline(),
+                pp.space(),
                 pp.text("in"),
-                pp.softline(),
+                pp.line(),
                 e.pretty(pp),
             ]),
             Exp::Ann(e, typ) => {

@@ -27,7 +27,7 @@ files=$(ls $SUITE_DIR/$EXT)
 for test_file in $files
 do
     for tool in $tools; do
-        out=$(timeout 1 ./run_tool.sh $tool $test_file 2>/dev/null)
+        out=$(timeout 10 ./run_tool.sh $tool $test_file 2>/dev/null)
         status=$?
         if [ $status -ne 0 ]
         then

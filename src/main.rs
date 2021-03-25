@@ -120,10 +120,8 @@ fn main() -> Result<()> {
     }
     let inferred = cgen::typeinf_options(parsed, &env, options).unwrap();
 
-    match type_check::tcheck(&env, &inferred) {
-        Ok(typ) => println!("{}", typ),
-        Err(e) => panic!("type inference produced a poorly-typed program:\n{}", e),
-    }
+    type_check::tcheck(&env, &inferred)
+        .map_err(|e| Error::new(ErrorKind::Other, format!("{}", e)))?;
     println!("{}", &inferred);
     Ok(())
 }
