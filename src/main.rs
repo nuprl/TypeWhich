@@ -77,6 +77,10 @@ fn main() -> Result<()> {
             .possible_value("hard")
             .default_value_if("PARSER", Some("grift"), "ignore")
             .default_value("hard"))
+        .arg(Arg::with_name("COMPARE")
+            .help("Provide a file and we will ROUGHLY compare our migration to the provided program's types")
+            .long("compare")
+            .takes_value(true))
         .get_matches();
 
     let options = Options {
@@ -122,8 +126,26 @@ fn main() -> Result<()> {
 
     type_check::tcheck(&env, &inferred)
         .map_err(|e| Error::new(ErrorKind::Other, format!("{}", e)))?;
-    println!("{}", &inferred);
-    Ok(())
+    match config.value_of("COMPARE") {
+        None => {
+            println!("{}", &inferred);
+            Ok(())
+        }
+        Some(f) => {
+            let compare_to_str = std::fs::read_to_string(f)?;
+            let compare_to = grift::parse(&compare_to_str);
+            match inferred.matches_roughly(&compare_to) {
+                Ok(()) => {
+                    println!("MATCHES");
+                    Ok(())
+                }
+                Err(e) => {
+                    println!("{}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

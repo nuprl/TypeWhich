@@ -30,7 +30,8 @@
           [br : Int size]
           [bc : Int size])
       (let ([a : (Vect Int) (create ar ac)]
-            [b : (Vect Int) (create br bc)])
+            [b : (Vect Int) (create br bc)]
+            [bx : (Ref Dyn) (box 0)])
         (begin
           (print-int (vector-ref (mult a ar ac b br bc) (- (* ar bc) 1)))
           (display-char #\newline))))))

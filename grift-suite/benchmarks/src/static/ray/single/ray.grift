@@ -196,4 +196,6 @@
                         (box-set! counter (- (unbox counter) 1))))))
     (tracer res)))
 
-(time (run-benchmark))
+(time
+ (begin (run-benchmark)
+        (display-char #\newline)))

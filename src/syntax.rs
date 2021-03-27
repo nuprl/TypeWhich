@@ -60,6 +60,9 @@ impl Typ {
     pub fn is_arr(&self) -> bool {
         matches!(self, Typ::Arr(..))
     }
+    pub fn is_metavar(&self) -> bool {
+        matches!(self, Typ::Metavar(..))
+    }
     pub fn is_atom(&self) -> bool {
         match self {
             Typ::Unit
@@ -399,6 +402,98 @@ impl Exp {
                 e3.fresh_types();
             }
         };
+    }
+
+    /// Returns true when for every annotation in other, self matches
+    ///
+    /// Should be used like
+    /// inferred_program.matches_when_both_annotated(parsed_program), otherwise
+    /// the Ann/Coerce stuff won't match
+    ///
+    /// Resolves a problem where the grift static benchmarks aren't actually
+    /// fully annotated. This is kind of like whether they can be unified. When
+    /// other has a type variable, the comparison is skipped.
+    ///
+    /// Also, the resolution for a separate issue is folded into this: When
+    /// other has an annotation, the comparison is skipped, and when self has
+    /// a coercion, the comparison is skipped
+    pub fn matches_roughly(&self, other: &Exp) -> Result<(), String> {
+        match (self, other) {
+            (_, Exp::Ann(e, _)) => self.matches_roughly(e),
+            (Exp::Ann(..), _) => panic!("why ann on left-hand side?"),
+            (Exp::Coerce(.., e), _) => e.matches_roughly(other),
+            (Exp::Lit(_), Exp::Lit(_)) | (Exp::Var(_), Exp::Var(_)) => Ok(()),
+            (Exp::Empty(t1), Exp::Empty(t2)) => {
+                if t2.is_metavar() || t1 == t2 {
+                    Ok(())
+                } else {
+                    Err(format!("empty mismatch {} vs {}", t1, t2))
+                }
+            }
+            (Exp::Fun(id1, t1, e1), Exp::Fun(id2, t2, e2))
+            | (Exp::Fix(id1, t1, e1), Exp::Fix(id2, t2, e2)) => {
+                e1.matches_roughly(e2)?;
+                if t2.is_metavar() || t1 == t2 {
+                    Ok(())
+                } else {
+                    Err(format!("fun mismatch {}: {} vs {}: {}", id1, t1, id2, t2))
+                }
+            }
+            (Exp::LetRec(bindings1, e1), Exp::LetRec(bindings2, e2)) => {
+                bindings1.iter().zip(bindings2.iter()).fold(
+                    Ok(()),
+                    |acc, ((id1i, t1i, e1i), (id2i, t2i, e2i))| {
+                        acc?;
+                        e1i.matches_roughly(e2i)?;
+                        if t2i.is_metavar() || t1i == t2i {
+                            Ok(())
+                        } else {
+                            Err(format!(
+                                "letrec mismatch {}: {} vs {}: {}",
+                                id1i, t1i, id2i, t2i
+                            ))
+                        }
+                    },
+                )?;
+                e1.matches_roughly(e2)
+            }
+            (Exp::Not(e1), Exp::Not(e2))
+            | (Exp::Fst(e1), Exp::Fst(e2))
+            | (Exp::Snd(e1), Exp::Snd(e2))
+            | (Exp::IsEmpty(e1), Exp::IsEmpty(e2))
+            | (Exp::Head(e1), Exp::Head(e2))
+            | (Exp::Tail(e1), Exp::Tail(e2))
+            | (Exp::Box(e1), Exp::Box(e2))
+            | (Exp::Unbox(e1), Exp::Unbox(e2))
+            | (Exp::IsBool(e1), Exp::IsBool(e2))
+            | (Exp::IsInt(e1), Exp::IsInt(e2))
+            | (Exp::IsString(e1), Exp::IsString(e2))
+            | (Exp::IsList(e1), Exp::IsList(e2))
+            | (Exp::IsFun(e1), Exp::IsFun(e2))
+            | (Exp::VectorLen(e1), Exp::VectorLen(e2)) => e1.matches_roughly(e2),
+            (Exp::App(e11, e12), Exp::App(e21, e22))
+            | (Exp::Let(_, e11, e12), Exp::Let(_, e21, e22))
+            | (Exp::AddOverload(e11, e12), Exp::AddOverload(e21, e22))
+            | (Exp::Add(e11, e12), Exp::Add(e21, e22))
+            | (Exp::Mul(e11, e12), Exp::Mul(e21, e22))
+            | (Exp::IntEq(e11, e12), Exp::IntEq(e21, e22))
+            | (Exp::Pair(e11, e12), Exp::Pair(e21, e22))
+            | (Exp::Cons(e11, e12), Exp::Cons(e21, e22))
+            | (Exp::BoxSet(e11, e12), Exp::BoxSet(e21, e22))
+            | (Exp::Vector(e11, e12), Exp::Vector(e21, e22))
+            | (Exp::VectorRef(e11, e12), Exp::VectorRef(e21, e22)) => e11
+                .matches_roughly(e21)
+                .and_then(|_| e12.matches_roughly(e22)),
+            (Exp::If(e11, e12, e13), Exp::If(e21, e22, e23))
+            | (Exp::VectorSet(e11, e12, e13), Exp::VectorSet(e21, e22, e23)) => e11
+                .matches_roughly(e21)
+                .and_then(|_| e12.matches_roughly(e22))
+                .and_then(|_| e13.matches_roughly(e23)),
+            _ => Err(format!(
+                "strange. PROGRAM mismatch:\nINFERRED:\n{}\nGIVEN:\n{}",
+                self, other
+            )),
+        }
     }
 
     pub fn is_app_like(&self) -> bool {

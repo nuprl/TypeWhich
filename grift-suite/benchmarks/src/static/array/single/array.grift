@@ -26,7 +26,8 @@
 (define (run-benchmark) : Unit
   (let ([input1 : Int (read-int)])
     (let ([input2 : Int (read-int)])
-      (begin (print-int (go input1 input2 0))
-             (display-char #\newline)))))
+      (print-int (go input1 input2 0)))))
 
-(time (run-benchmark))
+(time
+ (begin (run-benchmark)
+        (display-char #\newline)))

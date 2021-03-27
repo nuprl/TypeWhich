@@ -11,7 +11,9 @@
   (let ([x : Int (read-int)])
     (let ([y : Int (read-int)])
       (let ([z : Int (read-int)])
-        (begin (print-int (tak x y z))
-               (display-char #\newline))))))
+        (print-int (tak x y z))))))
 
-(time (run-benchmark))
+(time
+ (begin
+   (run-benchmark)
+   (display-char #\newline)))
