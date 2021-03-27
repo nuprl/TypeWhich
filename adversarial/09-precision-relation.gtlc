@@ -1,0 +1,1 @@
+(fun f. f true + (fun g.g 5) f) (fun x.5)
