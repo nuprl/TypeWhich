@@ -1,0 +1,7 @@
+(define (f tag x)
+  (if tag
+      (+ x 1)
+    (if x 1 0)))
+
+(print-int (f #t 5))
+(print-int (f #f #t))

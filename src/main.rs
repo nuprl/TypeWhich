@@ -123,9 +123,18 @@ fn main() -> Result<()> {
         eprintln!("{}", parsed);
     }
     let inferred = cgen::typeinf_options(parsed, &env, options).unwrap();
+    if options.debug {
+        eprintln!("Annotated program:");
+        eprintln!("{}", inferred);
+    }
 
-    type_check::tcheck(&env, &inferred)
+    let typ = type_check::tcheck(&env, &inferred)
         .map_err(|e| Error::new(ErrorKind::Other, format!("{}", e)))?;
+    if options.debug {
+        eprintln!("Inferred type:");
+        eprintln!("{}", typ);
+    }
+
     match config.value_of("COMPARE") {
         None => {
             println!("{}", &inferred);
