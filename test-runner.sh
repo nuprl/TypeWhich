@@ -85,7 +85,7 @@ header() {
     first_header=
     
     printf "\033[1m$test_group\033[0m\n"
-    printf "=================================\n"
+    printf "====================================\n"
 }
 
 for test_file in $files
@@ -110,7 +110,7 @@ do
 
     if ! [ "$QUIET" ]
     then
-        printf "%24s..." "$test_name"
+        printf "%27s..." "$test_name"
     fi
 
     OUT="$(dirname $test_file)/$test_name.out"
@@ -135,7 +135,7 @@ do
                 needs_header=
             fi
             
-            printf "%24s..." "$test_name"
+            printf "%27s..." "$test_name"
         fi            
         printf "\033[31mFAILED\033[0m"
     fi
@@ -147,7 +147,7 @@ do
     fi
 done
 
-printf "=================================\n"
+printf "====================================\n"
 
 printf "\033[1m%d\033[0m/\033[1m%d\033[0m passed" \
        $((total - failures)) $total

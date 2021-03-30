@@ -1,0 +1,1 @@
+(fun tag. fun x. if tag then x + 1 else (if x then 1 else 0))
