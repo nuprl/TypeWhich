@@ -1,0 +1,72 @@
+01-farg-mismatch.gtlc
+
+PROGRAM 61fa6f0dcd198b70
+(\f : ?. ([fun?] (f)) ([bool!] (true)))
+([(int? ↝ int!) ; fun!] (\x : int. x +i 100))
+:
+?
+02-rank2-poly-id.gtlc
+
+PROGRAM 242f020ba0809f09
+(\i : ?. (\a : ?. ([fun?] (i)) ([bool!] (true))) (([fun?] (i)) ([int!] (5))))
+([fun!] (\x : ?. x))
+:
+?
+03-unreachable-error.gtlc
+[2021-03-30T22:22:42Z ERROR mgt::infer] constraint generation produced false pattern (i.e., statically untypable)
+[2021-03-30T22:22:42Z ERROR mgt] Constraint generation failed
+04-f-in-f-out.gtlc
+
+PROGRAM 878a3ad54753b40c
+(\f : int -> int. (\y : int. f) (f 5)) (\x : int. 10 +i x)
+:
+int -> int
+05-order3-fun.gtlc
+
+PROGRAM 95cc08de2aaeff64
+\f : (? -> ?) -> ?. \x : ? -> ?. x (f x)
+:
+((? -> ?) -> ?) -> (? -> ?) -> ?
+06-order3-intfun.gtlc
+
+PROGRAM cffdf92c8fc80b94
+\f : (int -> int) -> int -> ?. \g : int -> int. f g ((g 10) +i 1)
+:
+((int -> int) -> int -> ?) -> (int -> int) -> ?
+07-double-f.gtlc
+
+PROGRAM cee7caa195437997
+\f : bool -> bool. f (f true)
+:
+(bool -> bool) -> bool
+08-outflows.gtlc
+
+PROGRAM 2a9e52d1fc20f060
+(\x : ?. (([fun?] (x)) ([int!] (5))) +? x) ([int!] (5))
+:
+?
+09-precision-relation.gtlc
+
+PROGRAM 7e5487d19f3f4f7f
+(\f : ?.
+(([fun?] (f)) ([bool!] (true))) +? ((\g : int -> ?. g 5)
+  ([fun? ; (int! ↝ ɩ[?])] (f))))
+([(ɩ[?] ↝ int!) ; fun!] (\x : ?. 5))
+:
+?
+
+PROGRAM 43ae0418d6bb5ce7
+(\f : bool -> int.
+([int!] (f true)) +? ((\g : ?. ([fun?] (g)) ([int!] (5)))
+  ([(bool? ↝ int!) ; fun!] (f))))
+(\x : bool. 5)
+:
+?
+10-if-tag.gtlc
+
+PROGRAM f5d9c924bee58534
+\tag : bool.
+\x : bool.
+  if tag then [int?] (([bool!] (x)) +? ([int!] (1))) else if x then 1 else 0
+:
+bool -> bool -> int
