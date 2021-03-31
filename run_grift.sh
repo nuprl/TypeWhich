@@ -1,4 +1,7 @@
 #!/bin/sh
+# The programs with static types are very well annotated, but do not have
+# annotations everywhere that they could. We assume that our annotations match
+# for these terms.
 
 cd $(dirname $0)
 

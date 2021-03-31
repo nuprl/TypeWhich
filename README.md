@@ -24,12 +24,59 @@ Take a look in `.github/workflows/build.yml` to see our CI
 testing. The gist of it is:
 
 ```
+: $(cd ins-and-outs && cargo build)
+cargo build
 cargo test -- --nocapture
 ./test-runner.sh grift grift
 ./test-runner.sh ins-and-outs migeed
 ./test-runner.sh no-context migeed
 ./test-runner.sh smt migeed
 ```
+
+# Rastogi et al
+
+In the directory [ins-and-outs](ins-and-outs/) is an implementation of Rastogi
+et al's paper, The Ins and Outs of Gradual Type Inference. The implementation
+has a number of problems, such as not dealing with context appropriately.
+
+# Benchmarks and test suites
+
+## [migeed](migeed)
+
+These benchmarks were included in Migeed et al's paper and have been written in
+the concrete syntax used by our tool, the Rastogi et al implementation, and our
+parser for Migeed et al's tool.
+
+These examples are duplicated in our distribution of [Siek and Vachharajani's
+tool](https://github.com/arjunguha/siek-vachharajani-dls2008) with their
+concrete syntax and needed environments.
+
+## [adversarial](adversarial)
+
+These benchmarks are presented in the paper as the "Challenge set." They are in
+the concrete syntax used by our tool, the Rastogi et al implementation, and our
+parser for Migeed et al's tool.
+
+These examples are also duplicated in our Siek and Vachharajani distribution.
+
+## [grift-suite](grift-suite)
+
+This is a clone of [the test suite from
+Grift](https://github.com/Gradual-Typing/Grift/tree/master/tests/suite). The
+mu/ directory has been modified to use Dyn where it originally used recursive
+types.
+
+### [grift-suite/benchmarks](grift-suite/benchmarks)
+
+This is a clone of the [benchmarks from the Grift
+paper](https://github.com/Gradual-Typing/benchmarks) with the following
+adjustments:
+
+- The getters and setters in n-body have been removed. They were neither used
+nor exported we opted to remove these functions from the benchmark. This is
+discussed in the paper.
+- We have changed where in the program some benchmarks print a terminating
+newline for consistency between the static and dynamic versions.
 
 # TODO
 
