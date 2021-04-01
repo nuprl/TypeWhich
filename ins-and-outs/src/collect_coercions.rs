@@ -6,22 +6,23 @@ use im_rc::{HashMap, HashSet};
 pub fn compile_coercions(x: Exp) -> (Exp, Typ, HashSet<(Typ, Typ)>) {
     // Base
     let (e, t, mut c) = compile(x, &HashMap::new());
-    // Comp
-    // ignore base types
-    if t.is_arr() || t.is_metavar() {
-        // the paper doesn't support type annotations, so it doesn't take into
-        // account that this can produce, for example, any |> int, which makes
-        // not a lot of sense. it would probably be possible to fortify the flow
-        // calculations for that case (and it might happen organically?) but this
-        // particular one breaks things, and can be easily sidestepped
-        if !t.get_ret().is_base() {
-            c.insert((t.get_ret(), Typ::Any));
-        }
-        if !t.get_arg().is_base() {
-            c.insert((Typ::Any, t.get_arg()));
-        }
-    }
+    c = c.union(comp(t.clone(), true));
     (e, t, c)
+}
+
+fn comp(t: Typ, pos: bool) -> HashSet<(Typ, Typ)> {
+    match t {
+        Typ::Metavar(_) | Typ::MetavarArg(_) | Typ::MetavarRet(_) => {
+            if pos {
+                HashSet::unit((t, Typ::Any))
+            } else {
+                HashSet::unit((Typ::Any, t))
+            }
+        }
+        Typ::Null | Typ::Int | Typ::Bool if !pos => panic!("How did this happen?"),
+        Typ::Any | Typ::Null | Typ::Int | Typ::Bool => empty(),
+        Typ::Arr(t1, t2) => comp(*t1, !pos).union(comp(*t2, pos)),
+    }
 }
 
 /// this matches Figure 3: Compilation judgment, except that we collect

@@ -7,6 +7,11 @@ mod solve;
 mod syntax;
 //mod type_check;
 
+#[cfg(not(test))]
+const DEBUG: bool = false;
+#[cfg(test)]
+const DEBUG: bool = true;
+
 use std::io::*;
 
 lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
@@ -34,18 +39,26 @@ fn main() -> Result<()> {
 
 pub fn typeinf(parsed: syntax::Exp) -> (syntax::Exp, syntax::Typ) {
     let (mut coerced, mut typ, coercions) = collect_coercions::compile_coercions(parsed);
-    println!(
-        "{}\ncoercions:\n{}",
-        coerced,
-        pretty::DisplayClosure(&coercions)
-    );
+    if DEBUG {
+        println!(
+            "{}\ncoercions:\n{}",
+            coerced,
+            pretty::DisplayClosure(&coercions)
+        );
+    }
     let coercions_closure = flow::compute_closure(coercions);
-    println!("closure:\n{}", pretty::DisplayClosure(&coercions_closure));
+    if DEBUG {
+        println!("closure:\n{}", pretty::DisplayClosure(&coercions_closure));
+    }
     let solution = solve::solve_closure(coercions_closure);
-    println!("solution:\n{:?}", solution);
+    if DEBUG {
+        println!("solution:\n{:?}", solution);
+    }
     decorate::decorate(&mut coerced, &solution);
     decorate::decorate_typ(&mut typ, &solution);
-    println!("annotated:\n{}", coerced);
+    if DEBUG {
+        println!("annotated:\n{}", coerced);
+    }
     (coerced, typ)
 }
 

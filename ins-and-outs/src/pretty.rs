@@ -112,6 +112,17 @@ impl Pretty for Exp {
             Exp::Lit(x) => x.pretty(pp),
             Exp::Var(x) => pp.text(x),
             Exp::Assign(x, v) => pp.concat(vec![pp.text(x), pp.text(": "), v.pretty(pp)]),
+            Exp::Fun(x, t1, e, t2) if crate::DEBUG => pp.concat(vec![
+                t2.pretty(pp).parens(),
+                pp.space(),
+                pp.text("fun "),
+                pp.text(x),
+                pp.text(":"),
+                t1.pretty(pp),
+                pp.text("."),
+                pp.softline(),
+                e.pretty(pp).nest(2),
+            ]),
             Exp::Fun(x, t1, e, _) => pp.concat(vec![
                 pp.text("fun "),
                 pp.text(x),

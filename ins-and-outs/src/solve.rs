@@ -49,7 +49,7 @@ fn solve_recursively(t: Typ, i: &HashMap<Typ, Typ>) -> Typ {
                     t
                 );
                 // this is probly definitely wrong, and this oddness in *never* specified
-                Typ::Any
+                Typ::Metavar(4444)
             }
         },
         _ => t,

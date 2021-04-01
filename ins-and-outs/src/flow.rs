@@ -3,6 +3,10 @@ use crate::Closure;
 
 /// provide Base and Comp (from Figure 4) (aka Def 3.9: 1)
 pub fn compute_closure(cs: Closure) -> Closure {
+    compute_closure_check_complete(split_fun(tran_and_exp_fun(pull_and_factor(cs))))
+}
+
+fn compute_closure_check_complete(cs: Closure) -> Closure {
     let init = cs.clone();
     let step2 = pull_and_factor(cs);
     // Def 3.9: 5
@@ -31,12 +35,15 @@ fn e(c: &mut Closure, t1: Typ, t2: Typ) {
 /// the coercion that is added to the closure, along with that coercion
 fn p(c: &mut Closure, description: &'static str, reasons: Vec<(&Typ, &Typ)>, t1: Typ, t2: Typ) {
     if t1 != t2 {
-        let mut reasoning = String::from(description);
-        reasoning.push_str(": ");
-        for reason in reasons {
-            reasoning.push_str(&format!("{} |> {}, ", reason.0, reason.1));
+        if crate::DEBUG {
+            let mut reasoning = String::from(description);
+            reasoning.push_str(": ");
+            for reason in reasons {
+                reasoning.push_str(&format!("{} |> {}, ", reason.0, reason.1));
+            }
+            reasoning.push_str(&format!("==> {} |> {}", t1, t2));
+            eprintln!("{}", reasoning);
         }
-        reasoning.push_str(&format!("==> {} |> {}", t1, t2));
         let as_tup = (t1, t2);
         if !c.contains(&as_tup) {
             e(c, as_tup.0, as_tup.1);

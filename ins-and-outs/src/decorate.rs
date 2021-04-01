@@ -55,7 +55,7 @@ pub fn decorate_typ(t: &mut Typ, solution: &HashMap<Typ, Typ>) {
                 there are no constraints on the type. Writing int",
                     t
                 );
-                *t = Typ::Int;
+                *t = Typ::Metavar(4444);
             }
         },
         _ => (),
