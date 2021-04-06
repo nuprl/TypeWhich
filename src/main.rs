@@ -5,6 +5,7 @@ mod pretty;
 mod syntax;
 mod type_check;
 mod z3_state;
+mod ins_and_outs;
 
 use std::io::*;
 use clap::Clap;
@@ -56,7 +57,7 @@ pub struct Opts {
     debug: bool,
     /// Disable the optimizer, which uses 'assert_soft' to reduce the number of 
     /// coercions.
-    #[clap(short, long)]
+    #[clap(long = "no-optimize")]
     disable_optimizer: bool,
     /// Produce an exact type that may not be safe in all contexts
     #[clap(long = "unsafe")]
