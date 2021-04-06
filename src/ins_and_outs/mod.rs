@@ -1,40 +1,22 @@
 mod collect_coercions;
 mod decorate;
 mod flow;
-mod parser;
 mod pretty;
 mod solve;
 mod syntax;
-//mod type_check;
+mod to_from_portable_ast;
 
 #[cfg(not(test))]
 const DEBUG: bool = false;
 #[cfg(test)]
 const DEBUG: bool = true;
 
-use std::io::*;
-
-lrlex::lrlex_mod!("lexer.l"); // effectively mod `lexer_l`
-lrpar::lrpar_mod!("parser.y"); // effectively mod `parser_y`
-
 type Closure = im_rc::HashSet<(syntax::Typ, syntax::Typ)>;
 
-fn main() -> Result<()> {
-    let mut args = std::env::args();
-    args.next();
-    let source = match args.next() {
-        Some(file) => std::fs::read_to_string(file)?,
-        None => {
-            let mut out = String::new();
-            stdin().read_to_string(&mut out)?;
-            out
-        }
-    };
-    let parsed = parser::parse(source);
-    let (term, typ) = typeinf(parsed);
-    println!("GOT TYPE:\n{}", typ);
-    println!("MIGRATED PROGRAM:\n{}", term);
-    Ok(())
+pub fn typeinf_portable(exp: crate::syntax::Exp) -> crate::syntax::Exp {
+  let internal_e = to_from_portable_ast::from_exp(&exp).expect("unsupported features in input program");
+  let (checked_e, _) = typeinf(internal_e);
+  return to_from_portable_ast::to_exp(checked_e).expect("migrated program has unsupported features");
 }
 
 pub fn typeinf(parsed: syntax::Exp) -> (syntax::Exp, syntax::Typ) {
@@ -51,9 +33,9 @@ pub fn typeinf(parsed: syntax::Exp) -> (syntax::Exp, syntax::Typ) {
         println!("closure:\n{}", pretty::DisplayClosure(&coercions_closure));
     }
     let solution = solve::solve_closure(coercions_closure);
-    if DEBUG {
-        println!("solution:\n{:?}", solution);
-    }
+    // if DEBUG {
+    //     println!("solution:\n{:?}", solution);
+    // }
     decorate::decorate(&mut coerced, &solution);
     decorate::decorate_typ(&mut typ, &solution);
     if DEBUG {
@@ -64,10 +46,14 @@ pub fn typeinf(parsed: syntax::Exp) -> (syntax::Exp, syntax::Typ) {
 
 #[cfg(test)]
 mod tests {
-    use super::parser::parse;
     use super::syntax::*;
     use super::typeinf;
-    //use super::type_check::type_check;
+
+    fn parse(s: &str) -> Exp {
+        let portable_input_e = crate::parser::parse(s);
+        return super::to_from_portable_ast::from_exp(&portable_input_e).expect("unsupported features");
+    }
+
     pub fn contains_coercions(e: Exp) -> bool {
         match e {
             Exp::Coerce(..) => true,
@@ -164,7 +150,7 @@ mod tests {
     #[test]
     fn conditional_int_arr_int() {
         succeeds(
-            "let b = null in
+            "let b = () in
             let elim_int = fun x: int. x in // an elimanation form for int, for use rather than +
             let foo = fun x.
                 if b then
@@ -177,7 +163,7 @@ mod tests {
     #[test]
     fn callable_by_existing_code() {
         coerces(
-            "let b = null in
+            "let b = () in
             let foo = fun x.
                 if b then
                     (fun i: int. i) x // an elimanation form for int, for use rather than +
@@ -189,7 +175,7 @@ mod tests {
     }
     #[test]
     fn identity_twice() {
-        succeeds("(fun i.i) ((fun i.i) null)");
+        succeeds("(fun i.i) ((fun i.i) ())");
     }
     #[test]
     fn identity_public() {
@@ -201,7 +187,7 @@ mod tests {
     }
     #[test]
     fn call_identity() {
-        succeeds("(fun i.i null) (fun x.x)");
+        succeeds("(fun i.i ()) (fun x.x)");
     }
     #[test]
     fn i_on_f() {
@@ -240,7 +226,7 @@ mod tests {
     fn add_two_applies() {
         coerces(
             "let elim_add = fun x: int. x in
-            fun x             . elim_add (x 4); elim_add (x true)",
+            fun x             . let _ = elim_add (x 4) in elim_add (x true)",
         );
     }
     #[test]

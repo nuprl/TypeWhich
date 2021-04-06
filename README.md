@@ -24,7 +24,6 @@ Take a look in `.github/workflows/build.yml` to see our CI
 testing. The gist of it is:
 
 ```
-: $(cd ins-and-outs && cargo build)
 cargo build
 cargo test -- --nocapture
 ./test-runner.sh grift grift

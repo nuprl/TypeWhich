@@ -1,5 +1,4 @@
-use crate::parser::next_metavar_typ;
-use crate::syntax::*;
+use super::syntax::*;
 use im_rc::{HashMap, HashSet};
 
 /// This also performs Base and Comp of the closure computation
@@ -100,7 +99,7 @@ fn compile(exp: Exp, env: &HashMap<Id, Typ>) -> (Exp, Typ, HashSet<(Typ, Typ)>) 
             let (ep, _t, c1) = compile(*e, env);
             let (e1p, t1, c2) = compile(*e1, env);
             let (e2p, t2, c3) = compile(*e2, env);
-            let alpha = next_metavar_typ();
+            let alpha = Typ::Metavar(crate::parser::inc_metavar());
             let (e1pp, c4) = coerce(t1, alpha.clone(), e1p);
             let (e2pp, c5) = coerce(t2, alpha.clone(), e2p);
             let res_e = Exp::If(Box::new(ep), Box::new(e1pp), Box::new(e2pp));

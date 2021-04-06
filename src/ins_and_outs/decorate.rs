@@ -1,4 +1,4 @@
-use crate::syntax::*;
+use super::syntax::*;
 use im_rc::HashMap;
 
 pub fn decorate(exp: &mut Exp, solution: &HashMap<Typ, Typ>) {

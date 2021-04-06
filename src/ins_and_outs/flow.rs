@@ -1,5 +1,5 @@
-use crate::syntax::*;
-use crate::Closure;
+use super::syntax::*;
+use super::Closure;
 
 /// provide Base and Comp (from Figure 4) (aka Def 3.9: 1)
 pub fn compute_closure(cs: Closure) -> Closure {
@@ -35,7 +35,7 @@ fn e(c: &mut Closure, t1: Typ, t2: Typ) {
 /// the coercion that is added to the closure, along with that coercion
 fn p(c: &mut Closure, description: &'static str, reasons: Vec<(&Typ, &Typ)>, t1: Typ, t2: Typ) {
     if t1 != t2 {
-        if crate::DEBUG {
+        if super::DEBUG {
             let mut reasoning = String::from(description);
             reasoning.push_str(": ");
             for reason in reasons {

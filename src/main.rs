@@ -63,7 +63,7 @@ pub struct Opts {
     #[clap(long = "unsafe")]
     unsafe_mode: bool,
     // Select the parser
-    #[clap(short,long, default_value = "default")]
+    #[clap(short,long, default_value = "empty")]
     parser: Parser,
     /// Use a predefined environment; when '-p grift' is set, will default to
     /// 'grift', otherwise it will be 'empty'
@@ -72,8 +72,11 @@ pub struct Opts {
     /// Specifies behavior on type annotations; when '-p grift' is set, will
     /// default to 'ignore'.
     #[clap(short,long,default_value_if("parser", Some("grift"), "ignore"),
-      default_value("empty"))]
+      default_value("ignore"))]
     annot: Annot,
+    /// Use ins and outs. Lots of features unsupported in this mode.
+    #[clap(long)]
+    ins_and_outs: bool,
     /// Provide a file and we will ROUGHLY compare our migration to the 
     /// provided program's types
     #[clap(long)]
@@ -136,7 +139,13 @@ let config = Opts::parse();
         eprintln!("Parsed program:");
         eprintln!("{}", parsed);
     }
-    let inferred = cgen::typeinf_options(parsed, &env, options).unwrap();
+    let inferred = if config.ins_and_outs {
+        ins_and_outs::typeinf_portable(parsed)
+    }
+    else {
+        cgen::typeinf_options(parsed, &env, options).unwrap()
+    };
+
     if options.debug {
         eprintln!("Annotated program:");
         eprintln!("{}", inferred);

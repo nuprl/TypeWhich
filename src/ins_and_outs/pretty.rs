@@ -1,31 +1,16 @@
 use super::syntax::*;
-use crate::Closure;
-
-// Copied from jankscripten
-pub trait Pretty {
-    fn pretty<'b, D, A>(&'b self, pp: &'b D) -> pretty::DocBuilder<'b, D, A>
-    where
-        D: pretty::DocAllocator<'b, A>,
-        D::Doc: Clone,
-        A: Clone;
-}
-
-pub const DEFAULT_WIDTH: usize = 800;
+use super::Closure;
+use crate::pretty::Pretty;
 
 // Copied from jankscripten
 #[macro_export]
-macro_rules! impl_Display_Pretty {
+macro_rules! impl_Display_Pretty2 {
     ($T:ty) => {
-        impl std::fmt::Debug for $T {
+        impl std::fmt::Display for $T {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let pp = pretty::BoxAllocator;
                 let doc = self.pretty::<_, ()>(&pp);
                 doc.1.render_fmt($crate::pretty::DEFAULT_WIDTH, f)
-            }
-        }
-        impl std::fmt::Display for $T {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{:?}", self)
             }
         }
     };
@@ -112,7 +97,7 @@ impl Pretty for Exp {
             Exp::Lit(x) => x.pretty(pp),
             Exp::Var(x) => pp.text(x),
             Exp::Assign(x, v) => pp.concat(vec![pp.text(x), pp.text(": "), v.pretty(pp)]),
-            Exp::Fun(x, t1, e, t2) if crate::DEBUG => pp.concat(vec![
+            Exp::Fun(x, t1, e, t2) if super::DEBUG => pp.concat(vec![
                 t2.pretty(pp).parens(),
                 pp.space(),
                 pp.text("fun "),
@@ -249,6 +234,7 @@ impl Pretty for DisplayClosure<'_> {
     }
 }
 
-impl_Display_Pretty!(Typ);
-impl_Display_Pretty!(Exp);
-impl_Display_Pretty!(DisplayClosure<'_>);
+
+impl_Display_Pretty2!(Typ);
+impl_Display_Pretty2!(Exp);
+impl_Display_Pretty2!(DisplayClosure<'_>);

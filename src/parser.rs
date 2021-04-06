@@ -12,7 +12,7 @@ pub fn next_metavar() -> Typ {
     Typ::Metavar(inc_metavar())
 }
 
-fn inc_metavar() -> u32 {
+pub fn inc_metavar() -> u32 {
     NEXT_METAVAR.with(|mv| {
         let mut mv = mv.borrow_mut();
         let i = *mv;

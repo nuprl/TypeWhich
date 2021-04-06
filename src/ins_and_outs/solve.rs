@@ -1,5 +1,5 @@
-use crate::syntax::Typ;
-use crate::Closure;
+use super::syntax::Typ;
+use super::Closure;
 use im_rc::HashMap;
 
 pub fn solve_closure(cs: Closure) -> HashMap<Typ, Typ> {

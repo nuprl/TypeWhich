@@ -22,6 +22,7 @@ lit -> Lit :
     i32  { Lit::Int($1) }
   | bool { Lit::Bool($1) }
   | str { Lit::Str($1) }
+  | '(' ')' { Lit::Unit }
   ;
 
 typ_atom -> Typ :
