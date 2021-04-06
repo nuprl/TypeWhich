@@ -1,1 +1,0 @@
-let f = fun x. x in let y = f 5 in f

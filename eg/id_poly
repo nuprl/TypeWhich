@@ -1,6 +1,0 @@
-let id = fun x . x in
-            let f = fun anid .
-                let n = id 10 in
-                let b = id true in
-                5 in
-            f id
