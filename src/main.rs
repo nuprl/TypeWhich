@@ -7,13 +7,76 @@ mod type_check;
 mod z3_state;
 
 use std::io::*;
+use clap::Clap;
 
-use clap::{App, Arg};
+#[derive(Clap)]
+enum Parser {
+    Empty,
+    Grift,
+}
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Annot {
+enum Annot {
     Ignore,
     Hard,
+}
+
+impl std::str::FromStr for Annot {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "ignore" => Ok(Annot::Ignore),
+            "hard" => Ok(Annot::Hard),
+            _ => Err("invalid annotation behavior")
+        }
+    }
+}
+
+impl std::str::FromStr for Parser {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "grift" => Ok(Parser::Grift),
+            "empty" => Ok(Parser::Empty),
+            _ => Err("invalid parser")
+        }
+    }
+}
+
+#[derive(Clap)]
+#[clap(name = env!("CARGO_PKG_NAME"), version = env!("CARGO_PKG_VERSION"))]
+pub struct Opts {
+    /// Input file (defaults to '-', meaning STDIN)
+    #[clap(index = 1, default_value = "-")]
+    input: String,
+    /// Print debugging output
+    #[clap(short, long)]
+    debug: bool,
+    /// Disable the optimizer, which uses 'assert_soft' to reduce the number of 
+    /// coercions.
+    #[clap(short, long)]
+    disable_optimizer: bool,
+    /// Produce an exact type that may not be safe in all contexts
+    #[clap(long = "unsafe")]
+    unsafe_mode: bool,
+    // Select the parser
+    #[clap(short,long, default_value = "default")]
+    parser: Parser,
+    /// Use a predefined environment; when '-p grift' is set, will default to
+    /// 'grift', otherwise it will be 'empty'
+    #[clap(short,long, default_value_if("parser", Some("grift"), "grift"), default_value("empty"))]
+    env: Parser,
+    /// Specifies behavior on type annotations; when '-p grift' is set, will
+    /// default to 'ignore'.
+    #[clap(short,long,default_value_if("parser", Some("grift"), "ignore"),
+      default_value("empty"))]
+    annot: Annot,
+    /// Provide a file and we will ROUGHLY compare our migration to the 
+    /// provided program's types
+    #[clap(long)]
+    compare: Option<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -36,70 +99,21 @@ impl Default for Options {
 }
 
 fn main() -> Result<()> {
-    let config = App::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .arg(
-            Arg::with_name("INPUT")
-                .help("Input file (defaults to '-', meaning STDIN)")
-                .default_value("-")
-                .index(1),
-        )
-        .arg(Arg::with_name("DEBUG")
-            .help("Print debugging output")
-            .long("debug")
-            .short("d"))
-        .arg(Arg::with_name("DISABLE_OPTIMIZER")
-            .help("Disable the optimizer, which uses 'assert_soft' to reduce the number of coercions")
-            .long("no-optimize"))
-        .arg(Arg::with_name("UNSAFE")
-            .help("Produce an exact type that may not be safe in all contexts")
-            .long("unsafe"))
-        .arg(Arg::with_name("PARSER")
-            .help("Select the parser")
-            .long("parser")
-            .short("p")
-            .possible_value("default")
-            .possible_value("grift")
-            .default_value("default"))
-        .arg(Arg::with_name("ENV")
-            .help("Use a predefined environment; when '-p grift' is set, will default to 'grift', otherwise it will be 'empty'")
-            .long("env")
-            .short("e")
-            .possible_value("empty")
-            .possible_value("grift")
-            .default_value_if("PARSER", Some("grift"), "grift")
-            .default_value("empty"))
-        .arg(Arg::with_name("ANNOT")
-            .help("Specifies behavior on type annotations; when '-p grift' is set, will default to 'ignore'")
-            .long("annot")
-            .short("a")
-            .possible_value("ignore")
-            .possible_value("hard")
-            .default_value_if("PARSER", Some("grift"), "ignore")
-            .default_value("hard"))
-        .arg(Arg::with_name("COMPARE")
-            .help("Provide a file and we will ROUGHLY compare our migration to the provided program's types")
-            .long("compare")
-            .takes_value(true))
-        .get_matches();
+
+let config = Opts::parse();
 
     let options = Options {
-        optimizer: !config.is_present("DISABLE_OPTIMIZER"),
-        context: !config.is_present("UNSAFE"),
-        debug: config.is_present("DEBUG"),
-        annot: match config.value_of("ANNOT").unwrap() {
-            "ignore" => Annot::Ignore,
-            "hard" => Annot::Hard,
-            other => panic!("Unknown annotation mode '{}'", other),
-        },
+        optimizer: !config.disable_optimizer,
+        context: !config.unsafe_mode,
+        debug: config.debug,
+        annot: config.annot,
     };
 
-    let env = match config.value_of("ENV").unwrap() {
-        "grift" => grift::env(),
-        "empty" => Default::default(),
-        other => panic!("Unknown environment '{}'", other),
+    let env = match config.env {
+        Parser::Grift => grift::env(),
+        _ => Default::default(),
     };
-    let source = match config.value_of("INPUT").unwrap() {
+    let source = match config.input.as_str() {
         "-" => {
             let mut out = String::new();
             stdin().read_to_string(&mut out)?;
@@ -108,10 +122,9 @@ fn main() -> Result<()> {
         file => std::fs::read_to_string(file)?,
     };
 
-    let mut parsed = match config.value_of("PARSER").unwrap() {
-        "default" => parser::parse(&source),
-        "grift" => grift::parse(&source),
-        other => panic!("Unknown parser '{}'", other),
+    let mut parsed = match config.parser {
+        Parser::Empty => parser::parse(&source),
+        Parser::Grift => grift::parse(&source),
     };
 
     if options.annot == Annot::Ignore {
@@ -135,7 +148,7 @@ fn main() -> Result<()> {
         eprintln!("{}", typ);
     }
 
-    match config.value_of("COMPARE") {
+    match config.compare {
         None => {
             println!("{}", &inferred);
             Ok(())
