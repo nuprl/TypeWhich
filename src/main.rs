@@ -48,6 +48,18 @@ impl std::str::FromStr for Parser {
 
 #[derive(Clap)]
 #[clap(name = env!("CARGO_PKG_NAME"), version = env!("CARGO_PKG_VERSION"))]
+struct TopLevel {
+    #[clap(subcommand)]
+    sub_command: SubCommand,
+}
+
+#[derive(Clap)]
+enum SubCommand {
+    Migrate(Opts),
+}
+
+#[derive(Clap)]
+#[clap(name = env!("CARGO_PKG_NAME"), version = env!("CARGO_PKG_VERSION"))]
 pub struct Opts {
     /// Input file (defaults to '-', meaning STDIN)
     #[clap(index = 1, default_value = "-")]
@@ -103,8 +115,13 @@ impl Default for Options {
 }
 
 fn main() -> Result<()> {
+    let top_level = TopLevel::parse();
+    match top_level.sub_command {
+        SubCommand::Migrate(opts) => migrate_main(opts)
+    }
+}
 
-let config = Opts::parse();
+fn migrate_main(config: Opts) -> Result<()> {
 
     let options = Options {
         optimizer: !config.disable_optimizer,
