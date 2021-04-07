@@ -528,6 +528,10 @@ impl Exp {
         }
     }
 
+    pub fn is_coercion(&self) -> bool {
+        matches!(self, Exp::Coerce(..))
+    }
+
     pub fn is_atom(&self) -> bool {
         matches!(self, Exp::Lit(..) | Exp::Var(..) | Exp::Empty(..))
     }
