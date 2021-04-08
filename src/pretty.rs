@@ -359,6 +359,10 @@ impl Pretty for Exp {
                 e.pretty(pp).nest(2),
             ]),
             Exp::Coerce(_, _, e) => e.pretty(pp),
+            Exp::PrimCoerce(_k, e) => pp.concat(vec![
+                pp.text("[..]"),
+                e.pretty(pp).nest(2),
+            ])
         }
     }
 }

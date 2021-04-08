@@ -52,6 +52,7 @@ impl<'a> State<'a> {
 
     fn cgen(&self, env: &Env, exp: &mut Exp) -> (Typ, Bool<'_>) {
         match exp {
+            Exp::PrimCoerce(..) => panic!("PrimCoerce should not appear in source"),
             // ---------------------------
             // Γ ⊢ lit => lit.typ(), true
             Exp::Lit(lit) => (lit.typ(), self.z3.true_z3()),
@@ -584,6 +585,7 @@ fn annotate_typ(env: &HashMap<u32, Typ>, t: &mut Typ) {
 
 fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
     match &mut *exp {
+        Exp::PrimCoerce(..) => panic!("PrimCoerce should not appear in source"),
         Exp::Lit(..) | Exp::Var(..) => {}
         Exp::Empty(t) => annotate_typ(env, t),
         Exp::Fun(_, t, e) | Exp::Fix(_, t, e) | Exp::Ann(e, t) => {

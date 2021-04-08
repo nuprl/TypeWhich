@@ -1,5 +1,34 @@
 use crate::parser::next_metavar;
 
+/// Several ground types are presently missing. But, these are all we need
+/// for the non-Grift benchmarks.
+#[derive(Debug, PartialEq, Clone)]
+pub enum GroundTyp {
+    Int,
+    Bool,
+    Fun
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Coerce {
+    Id,
+    Tag(GroundTyp),
+    Untag(GroundTyp),
+    Wrap(Box<Coerce>, Box<Coerce>),
+    Seq(Box<Coerce>, Box<Coerce>),
+}
+
+impl Coerce {
+
+    pub fn seq(&self, other: &Coerce) -> Coerce {
+        match (self, other) {
+            (Coerce::Id, _) => other.clone(),
+            (_, Coerce::Id) => self.clone(),
+            _ => Coerce::Seq(Box::new(self.clone()), Box::new(other.clone()))
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Typ {
     Unit,
@@ -156,6 +185,10 @@ pub enum Exp {
     IsList(Box<Exp>),
     IsFun(Box<Exp>),
     Coerce(Typ, Typ, Box<Exp>),
+    /// The Coerce variant is unfortunately named, since it is really an
+    /// occurrence of the coerce metafunction. This PrimCoerce is actually a
+    /// coercion application.
+    PrimCoerce(Coerce, Box<Exp>),
 }
 
 impl Exp {
@@ -400,7 +433,8 @@ impl Exp {
                 e1.fresh_types();
                 e2.fresh_types();
                 e3.fresh_types();
-            }
+            },
+            Exp::PrimCoerce(..) => panic!("PrimCoerce should not appear in source"),
         };
     }
 

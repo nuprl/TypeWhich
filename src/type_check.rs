@@ -289,6 +289,7 @@ pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
             should_match(t1, tcheck(env, e)?)?;
             Ok(t2.clone())
         }
+        Exp::PrimCoerce(..) => unimplemented!("PrimCoerce should not appear in source"),
     }
 }
 
