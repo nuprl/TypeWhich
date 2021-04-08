@@ -85,7 +85,7 @@ pair -> Exp :
   ;
 
 exp -> Exp :
-    'fun' id '.' exp { Exp::Fun($2, next_metavar(), Box::new($4)) }
+    'fun' id '.' exp { Exp::Fun($2, Typ::Any, Box::new($4)) }
   | 'fun' id ':' typ '.' exp { Exp::Fun($2, $4, Box::new($6)) }
   | 'fix' id '.' exp { Exp::Fix($2, next_metavar(), Box::new($4)) }
   | pair             { $1 }
