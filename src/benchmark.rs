@@ -19,7 +19,12 @@ enum Expect {
   Rejection(Rejection),
   NewRuntimeError,
   Unusable,
-  FullyCompatible { num_stars: usize },
+  FullyCompatible { 
+    num_stars: usize,
+    #[serde(skip_serializing_if = "is_false")] 
+    manually_verify: bool 
+  },
+  Disaster,
   Restricted { num_stars: usize },
 }
 
@@ -40,7 +45,8 @@ struct RuntimeError {
 struct Benchmark {
     file: String,
     #[serde(skip_serializing_if = "is_none")]
-    context: Option<String>,    
+    context: Option<String>,  
+    #[serde(default)]  
     results: std::collections::HashMap<String, Outcome>,
     #[serde(default)] // default is zero
     num_stars: usize
@@ -87,13 +93,17 @@ fn get_outcome<'a>(tool_name: &str, results: &'a mut std::collections::HashMap<S
 
 // Run the program after coercion insertion. True means it ran successfully.
 // False means a coercion error occurred. Anything else causes a panic.
-fn eval(code: String, num_stars: Option<&mut usize>) -> bool {
-    let mut ast = super::parser::parse(code);
-    if let Some(num_stars) = num_stars {
-        *num_stars = count_stars(&ast);
+fn eval(code: String, num_stars: Option<&mut usize>) -> Option<bool> {
+    match super::parser::parse(code) {
+        Ok(mut ast) => {
+            if let Some(num_stars) = num_stars {
+                *num_stars = count_stars(&ast);
+            }
+            super::insert_coercions::insert_coercions(&mut ast).expect("coercion insertion failed");
+            Some(super::eval::eval(ast).is_ok())
+        }
+        Err(messages) => None
     }
-    super::insert_coercions::insert_coercions(&mut ast).expect("coercion insertion failed");
-    super::eval::eval(ast).is_ok()
 }
 
 fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
@@ -125,16 +135,18 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
     
     match &benchmark.context {
         None => match (original_runs_ok, migrated_runs_ok) {
-            (true, false) => {
+            (None, _) => outcome.result = Some(Expect::Disaster),
+            (_, None) => outcome.result = Some(Expect::Disaster),
+            (Some(true), Some(false)) => {
                 outcome.result = Some(Expect::NewRuntimeError);
             }
-            (true, true) => {
-                outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration });
+            (Some(true), Some(true)) => {
+                outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration, manually_verify: benchmark.num_stars != stars_after_migration });
             }
-            (false, false) => {
-                outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration });
+            (Some(false), Some(false)) => {
+                outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration, manually_verify: false });
             }
-            (false, true) => {
+            (Some(false), Some(true)) => {
                 panic!("Migration eliminated an error!");
             }
         }
@@ -147,7 +159,7 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
                 migrated_runs_ok,
                 original_runs_ok_in_context,
                 migrated_runs_ok_in_context) {
-                (true, true, true, false) => {
+                (Some(true), Some(true), Some(true), Some(false)) => {
                     if outcome.assert_unusable {
                         outcome.result = Some(Expect::Unusable);
                     }
@@ -155,11 +167,11 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
                         outcome.result = Some(Expect::Restricted { num_stars: stars_after_migration });
                     }
                 }
-                (true, true, true, true) => {
-                    outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration });
+                (Some(true), Some(true), Some(true), Some(true)) => {
+                    outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration, manually_verify: benchmark.num_stars != stars_after_migration });
                 }
                 _ => {
-                    outcome.result = None;
+                    outcome.result = Some(Expect::Disaster);
                 }
             }
         
@@ -197,7 +209,7 @@ fn summarize(benchmarks: &Benchmarks) {
                 Some(Expect::Unusable) => {
                     *unusable.get_mut(tool_title).unwrap() += 1;
                 }
-                Some(Expect::FullyCompatible { num_stars }) => {
+                Some(Expect::FullyCompatible { num_stars, .. }) => {
                     *num_stars_left.get_mut(tool_title).unwrap() += num_stars as i32;
                     *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
                     *compatible.get_mut(tool_title).unwrap() += 1;
@@ -207,6 +219,7 @@ fn summarize(benchmarks: &Benchmarks) {
                     *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
                     *restricted.get_mut(tool_title).unwrap() += 1;
                 }
+                Some(Expect::Disaster) => { }
                 None => {
                     panic!("missing outcome");
                 }

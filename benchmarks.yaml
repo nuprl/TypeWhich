@@ -30,3 +30,15 @@ benchmarks:
     results: { } 
   - file: adversarial/09-precision-relation.gtlc
     results: { } 
+  - file: migeed/01_apply_add.gtlc
+  - file: migeed/02_add_applied.gtlc
+  - file: migeed/03_add_two_applies.gtlc
+  - file: migeed/04_identity_four.gtlc
+  - file: migeed/05_succ_id_id.gtlc
+  - file: migeed/06_identity.gtlc
+  - file: migeed/07_apply2.gtlc
+  - file: migeed/08_indirect_apply_self.gtlc
+  - file: migeed/09_the_long_one.gtlc
+  - file: migeed/10_apply_self.gtlc
+  - file: migeed/11_untypable_in_sys_f.gtlc
+  - file: migeed/12_self_interpreter.gtlc    

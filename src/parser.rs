@@ -40,27 +40,20 @@ pub fn show_warnings() {
 /// Parses the input string, producing an `Exp` where very type annotation
 /// is set to `Typ::Metavar`. Each `Typ::Metavar` is numbered sequentially,
 /// starting with `0`.
-pub fn parse(input: impl AsRef<str>) -> Exp {
+pub fn parse(input: impl AsRef<str>) -> Result<Exp, String> {
     let input = input.as_ref();
     let lexerdef = lexer_l::lexerdef();
     let lexer = lexerdef.lexer(input);
     let (res, errs) = parser_y::parse(&lexer);
-    if errs.is_empty() {
-        show_warnings();
-        return res.unwrap();
-    }
+    let mut errors = String::new();
+    let did_err = errs.is_empty() == false;
     for err in errs.into_iter() {
-        eprintln!("{}", err.pp(&lexer, &|t| parser_y::token_epp(t)));
+        errors.push_str(&format!("{}", err.pp(&lexer, &|t| parser_y::token_epp(t))));
     }
-    panic!("Error parsing expressions {}", input);
-}
 
-#[cfg(test)]
-mod test {
-    use super::parse;
-
-    #[test]
-    fn test_parse() {
-        parse("fun x . x");
+    match res {
+        Some(Ok(exp)) => if did_err == false { Ok(exp) } else { Err(errors) },
+        Some(Err()) | None => Err(errors)
     }
 }
+

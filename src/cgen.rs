@@ -701,30 +701,30 @@ mod test {
 
     #[test]
     fn test_typeinf() {
-        typeinf(parse("(fun x . x) 10 ")).unwrap();
+        typeinf(parse("(fun x . x) 10 ").unwrap()).unwrap();
     }
 
     #[test]
     fn identity_alone() {
-        println!("{:?}", typeinf(parse("fun x . x")).unwrap())
+        println!("{:?}", typeinf(parse("fun x . x").unwrap()).unwrap())
     }
 
     #[test]
     fn occurs_check_fun_any() {
         // In HM, this would be an occurs-check failure
-        println!("{:?}", typeinf(parse("fun f . f f")).unwrap())
+        println!("{:?}", typeinf(parse("fun f . f f").unwrap()).unwrap())
     }
 
     #[test]
     fn test_typeinf_add() {
-        typeinf(parse("(fun x . x +? 20) 10 ")).unwrap();
+        typeinf(parse("(fun x . x +? 20) 10 ").unwrap()).unwrap();
     }
 
     #[test]
     fn str_add() {
         println!(
             "{:?}",
-            typeinf(parse(r#"(fun x . x +? x) "everything is ""#)).unwrap()
+            typeinf(parse(r#"(fun x . x +? x) "everything is ""#).unwrap()).unwrap()
         );
     }
 

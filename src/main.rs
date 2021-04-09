@@ -139,7 +139,7 @@ fn main() -> Result<()> {
 
 fn eval_main(opts: EvalOpts) -> Result<()> {
     let src_txt = std::fs::read_to_string(opts.input)?;
-    let mut src_ast = parser::parse(&src_txt);
+    let mut src_ast = parser::parse(&src_txt).expect("parse error");
     insert_coercions::insert_coercions(&mut src_ast).unwrap();
     match eval::eval(src_ast) {
         Ok(_) => println!("OK"),
@@ -171,7 +171,7 @@ fn migrate_main(config: Opts) -> Result<()> {
     };
 
     let mut parsed = match config.parser {
-        Parser::Empty => parser::parse(&source),
+        Parser::Empty => parser::parse(&source).unwrap(),
         Parser::Grift => grift::parse(&source),
     };
 
@@ -294,16 +294,16 @@ mod tests_631 {
         }
     }
     pub fn succeeds(program: &str) -> Typ {
-        exp_succeeds(parse(program))
+        exp_succeeds(parse(program).unwrap())
     }
     pub fn no_from_any(program: &str) {
         let orig = parse(program);
-        let (_, e) = compile_verbose(orig);
+        let (_, e) = compile_verbose(orig).unwrap();
         let coercions = contains_coercions(e);
         assert!(!coercions.1);
     }
     pub fn coerces(program: &str) -> Typ {
-        exp_coerces(parse(program))
+        exp_coerces(parse(program).unwrap())
     }
     fn compile_verbose(orig: Exp) -> (Typ, Exp) {
         println!("\nOriginal program:\n{}", &orig);
@@ -493,12 +493,12 @@ mod tests_migeed_and_parsberg {
     // TODO(arjun): _maximal in the name is not accurate. Alternative name:
     // assert_ti_ok
     fn assert_maximal(program: &str, annotated: &str) {
-        let orig = parse(program);
+        let orig = parse(program).unwrap();
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig).expect("type inference failed on the original program");
         println!("\nAfter type inference:\n{}", e);
         let correct =
-            typeinf(parse(annotated)).expect("type inference failed on the expected program");
+            typeinf(parse(annotated).unwrap()).expect("type inference failed on the expected program");
         println!(
             "\nProgram type:\n{}",
             type_check(&e).expect("failed to typecheck")
