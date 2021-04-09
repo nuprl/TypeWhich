@@ -1,0 +1,32 @@
+tools:
+  - title: TypeWhich
+    command: [ "./bin/TypeWhich", "migrate", "--unsafe" ]
+  - title: InsAndOuts
+    command: [ "./bin/TypeWhich", "migrate", "--ins-and-outs" ]
+  - title: Gtubi
+    command: [ "./bin/gtubi" ]
+  - title: MaxMigrate
+    command: [ "./bin/MaxMigrate" ]
+benchmarks:
+  - file: adversarial/01-farg-mismatch.gtlc
+    results: { }
+  - file: adversarial/02-rank2-poly-id.gtlc
+    results: { }
+  - file: adversarial/03-unreachable-error.gtlc
+    results: { }
+  - file: adversarial/04-f-in-f-out.gtlc
+    results: { }
+  - file: adversarial/05-order3-fun.gtlc
+    context: |
+      (HOLE) (fun a . a) (fun b . true)
+    results: { }
+  - file: adversarial/06-order3-intfun.gtlc
+    results: { }
+  - file: adversarial/07-double-f.gtlc
+    context: |
+      (HOLE) (fun x . fun y . y)
+    results: { }
+  - file: adversarial/08-outflows.gtlc
+    results: { } 
+  - file: adversarial/09-precision-relation.gtlc
+    results: { } 

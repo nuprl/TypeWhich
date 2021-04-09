@@ -8,6 +8,7 @@ mod z3_state;
 mod ins_and_outs;
 mod eval;
 mod insert_coercions;
+mod benchmark;
 
 use std::io::*;
 use clap::Clap;
@@ -59,10 +60,16 @@ struct TopLevel {
 enum SubCommand {
     Migrate(Opts),
     Eval(EvalOpts),
+    Benchmark(BenchmarkOpts),
 }
 
 #[derive(Clap)]
 struct EvalOpts {
+  input: String
+}
+
+#[derive(Clap)]
+struct BenchmarkOpts {
   input: String
 }
 
@@ -126,6 +133,7 @@ fn main() -> Result<()> {
     match top_level.sub_command {
         SubCommand::Migrate(opts) => migrate_main(opts),
         SubCommand::Eval(opts) => eval_main(opts),
+        SubCommand::Benchmark(opts) => benchmark::benchmark_main(&opts.input),
     }
 }
 
@@ -133,9 +141,11 @@ fn eval_main(opts: EvalOpts) -> Result<()> {
     let src_txt = std::fs::read_to_string(opts.input)?;
     let mut src_ast = parser::parse(&src_txt);
     insert_coercions::insert_coercions(&mut src_ast).unwrap();
-    let ans = eval::eval(src_ast);
-    println!("OK");
-    return Ok(());
+    match eval::eval(src_ast) {
+        Ok(_) => println!("OK"),
+        Err(_) => println!("Coercion failed")
+    };
+    Ok(())
 }
 
 fn migrate_main(config: Opts) -> Result<()> {

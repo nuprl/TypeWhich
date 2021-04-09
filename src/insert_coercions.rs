@@ -25,14 +25,14 @@ fn fun_typ(t: Typ) -> Result<(Typ, Typ), String> {
     match t {
         Typ::Arr(dom, rng) => Ok((*dom, *rng)),
         Typ::Any => Ok((Typ::Any, Typ::Any)),
-        _ => Err(format!("expected function or *, but got {:?}", t))
+        _ => Ok((Typ::Any, Typ::Any)) // will be doomed
     }
 }
 
-fn coerce(src: &Typ, dst: &Typ) -> Coerce {
+pub fn coerce(src: &Typ, dst: &Typ) -> Coerce {
     match (src, dst) {
         (Typ::Int, Typ::Any) => Coerce::Tag(GroundTyp::Int),
-        (Typ::Bool, Typ::Any) => Coerce::Tag(GroundTyp::Int),
+        (Typ::Bool, Typ::Any) => Coerce::Tag(GroundTyp::Bool),
         (Typ::Arr(dom, rng), Typ::Any) => Coerce::Wrap(Box::new(coerce(&Typ::Any, dom)), Box::new(coerce(rng, &Typ::Any))).seq(&Coerce::Tag(GroundTyp::Fun)),
         (Typ::Any, Typ::Int) => Coerce::Untag(GroundTyp::Int),
         (Typ::Any, Typ::Bool) => Coerce::Untag(GroundTyp::Bool),
@@ -43,7 +43,7 @@ fn coerce(src: &Typ, dst: &Typ) -> Coerce {
                 Coerce::Id
             }
             else {
-                todo!("doomed to fail")
+                Coerce::Doomed
             }
         }
     }
@@ -70,7 +70,7 @@ fn ins(mut env: Env, exp: &mut Exp) -> R {
             let k1 = coerce(&t1, &Typ::Int);
             let e1_inner = std::mem::replace(&mut **e1, Exp::Lit(Lit::Unit));
             **e1 = Exp::PrimCoerce(k1, Box::new(e1_inner));
-            let e2_inner = std::mem::replace(&mut **e1, Exp::Lit(Lit::Unit));
+            let e2_inner = std::mem::replace(&mut **e2, Exp::Lit(Lit::Unit));
             **e2 = Exp::PrimCoerce(k2, Box::new(e2_inner));
             Ok(Typ::Int)
         }
@@ -85,6 +85,10 @@ fn ins(mut env: Env, exp: &mut Exp) -> R {
             let e2_inner = std::mem::replace(&mut **e2, Exp::Lit(Lit::Unit));
             **e2 = Exp::PrimCoerce(k2, Box::new(e2_inner));
             Ok(t12)
+        }
+        Exp::Coerce(_, t2, e) => {
+            ins(env.clone(), e)?;
+            Ok(t2.clone())
         }
         _ => unimplemented!("{:?}", exp),
     }

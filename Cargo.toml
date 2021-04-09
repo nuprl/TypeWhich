@@ -20,3 +20,6 @@ pretty = "*"
 z3 = { git = "https://github.com/prove-rs/z3.rs" }
 lexpr = "0.2.6"
 clap = "3.0.0-beta.2"
+serde = { version = "1.*", features = ["derive"] }
+serde_yaml = "*"
+derive_more = "*"

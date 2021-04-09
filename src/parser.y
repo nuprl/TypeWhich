@@ -28,6 +28,7 @@ lit -> Lit :
 typ_atom -> Typ :
     'any'       { Typ::Any }
   | 'int_typ'   { Typ::Int }
+  | ID          { Typ::Any }
   | 'bool'      { Typ::Bool }
   | '(' typ ')' { $2 }
   ;

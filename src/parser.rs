@@ -52,7 +52,7 @@ pub fn parse(input: impl AsRef<str>) -> Exp {
     for err in errs.into_iter() {
         eprintln!("{}", err.pp(&lexer, &|t| parser_y::token_epp(t)));
     }
-    panic!("Error parsing expressions");
+    panic!("Error parsing expressions {}", input);
 }
 
 #[cfg(test)]

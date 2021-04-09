@@ -1,6 +1,6 @@
 //! An evaluator for GTLC + extensions needed for the comparative evaluation.
 use im_rc::HashMap;
-
+use derive_more::Display;
 use super::syntax::{Lit, Exp, Id, Coerce, GroundTyp};
 
 type Env<'a> = HashMap<&'a Id, Val<'a>>;
@@ -17,8 +17,10 @@ pub enum Answer {
     Closure
 }
 
+#[derive(Display)]
 pub enum Error {
-    Coercion,
+    #[display(fmt = "coercion failed: {}", _0)]
+    Coercion(String),
 }
 
 struct Eval {
@@ -51,6 +53,7 @@ impl Eval {
 
     fn eval_k<'a>(&'a self, k: &Coerce, v: Val<'a>) -> EvalResult<'a>  {
         match k {
+            Coerce::Doomed => Err(Error::Coercion("doomed".to_string())),
             Coerce::Id => Ok(v),
             Coerce::Seq(k1, k2) => self.eval_k(k2, self.eval_k(k1, v)?),
             Coerce::Tag(g) => {
@@ -59,7 +62,7 @@ impl Eval {
                     Ok(Val::Tagged(g2, Box::new(v)))
                 }
                 else {
-                    Err(Error::Coercion)
+                    Err(Error::Coercion(format!("tag({:?}) on {:?}", g, v)))
                 }
             },
             Coerce::Untag(g) => {
@@ -69,10 +72,10 @@ impl Eval {
                             Ok(*v)
                         }
                         else {
-                            Err(Error::Coercion)
+                            Err(Error::Coercion(format!("untag({:?})", g)))
                         }
                     }
-                    _ => Err(Error::Coercion)
+                    _ => Err(Error::Coercion(format!("untagged a not-tagged value")))
                 }
             }
             Coerce::Wrap(dom, rng) => {
@@ -81,7 +84,7 @@ impl Eval {
                         // TODO(arjun): Ordering matters
                         Ok(Val::Closure(env, x, body, dom.seq(&dom1), rng.seq(&rng1)))
                     }
-                    _ => Err(Error::Coercion)
+                    _ => Err(Error::Coercion(format!("wrap on a non-function"))),
                 }
             }
         }
@@ -96,6 +99,7 @@ impl Eval {
             }
             Exp::Fun(x, _, e) => Ok(Val::Closure(env.clone(), x, e, Coerce::Id, Coerce::Id)),
             Exp::App(e1, e2) => {
+               
                 let v1 = self.eval(env.clone(), e1)?;
                 let v2 = self.eval(env.clone(), e2)?;
                 match v1 {
@@ -108,6 +112,11 @@ impl Eval {
                     // Coercion insertion should ensure this does not occur
                     _ => panic!("expected closure value in function position (got {:?})", v1)
                 }
+            }
+            Exp::Coerce(t1, t2, e) => {
+                let k = super::insert_coercions::coerce(&t1, &t2);
+                let v = self.eval(env, e)?;
+                self.eval_k(&k, v)
             }
             Exp::PrimCoerce(k, e) => {
                 self.eval_k(k, self.eval(env, e)?)
@@ -126,7 +135,7 @@ impl Eval {
     }
 }
 
-//! Assumes that the expression has coercions inserted.
+/// Assumes that the expression has coercions inserted.
 pub fn eval(exp: Exp) -> Result<Answer, Error> {
     let eval = Eval {  };
     let v = eval.eval(Env::new(), &exp)?;

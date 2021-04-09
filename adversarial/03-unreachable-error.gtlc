@@ -1,1 +1,5 @@
-(fun b . b (fun c . 5 5) (fun d . 0)) (fun t . fun f . f)
+(fun b . 
+  b (fun c . 
+       ((fun x . x x) 5) 5) 
+    (fun d . 0)) 
+  (fun t . fun f . f)

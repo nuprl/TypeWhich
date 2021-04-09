@@ -1,0 +1,262 @@
+use serde::{Serialize, Deserialize};
+use std::process::{Command, Stdio};
+use std::collections::HashMap;
+
+/// Several outcomes involve running the program before and after migration.
+/// Those outcomes have a steps field. The program is expected to terminate
+/// in at most the given number of steps, or we have an unexpected outcome.
+#[derive(Debug, Serialize, Deserialize)]
+struct Outcome {
+    #[serde(default, skip_serializing_if = "is_false")]
+    assert_unusable: bool,
+    result: Option<Expect>,
+    #[serde(default, skip_serializing_if = "is_none")]
+    migration: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+enum Expect {
+  Rejection(Rejection),
+  NewRuntimeError,
+  Unusable,
+  FullyCompatible { num_stars: usize },
+  Restricted { num_stars: usize },
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct Rejection {
+    stdout: String,
+    stderr: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RuntimeError {
+    /// Output from the tool
+    message: Option<String>,
+    program: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Benchmark {
+    file: String,
+    #[serde(skip_serializing_if = "is_none")]
+    context: Option<String>,    
+    results: std::collections::HashMap<String, Outcome>,
+    #[serde(default)] // default is zero
+    num_stars: usize
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct MigrationTool {
+    title: String,
+    command: Vec<String>,
+
+}
+#[derive(Debug, Serialize, Deserialize)]
+struct Benchmarks {
+    tools: Vec<MigrationTool>,
+    benchmarks: Vec<Benchmark>
+}
+
+fn is_false(b: &bool) -> bool {
+    return !b;
+}
+
+fn is_none<T>(v: &Option<T>) -> bool {
+    return v.is_none();
+}
+
+fn count_stars(e: &super::syntax::Exp) -> usize {
+    use super::syntax::{Exp, Typ};
+    match e {
+        Exp::Lit(..) | Exp::Var(..) => 0,
+        Exp::App(e1, e2) | Exp::Add(e1, e2) => count_stars(e1) + count_stars(e2),
+        Exp::Fun(_, t, e) => (match t { Typ::Any => 1, _ => 0 }) + count_stars(e),
+        _ => panic!("count_stars on {:?}", e)
+    }
+}
+
+fn get_outcome<'a>(tool_name: &str, results: &'a mut std::collections::HashMap<String, Outcome>) -> &'a mut Outcome {
+  if results.contains_key(tool_name) == false {
+    results.insert(tool_name.to_string(),
+      Outcome { assert_unusable: false, result: None, migration: None });
+  }
+  return results.get_mut(tool_name).unwrap();
+}
+
+
+// Run the program after coercion insertion. True means it ran successfully.
+// False means a coercion error occurred. Anything else causes a panic.
+fn eval(code: String, num_stars: Option<&mut usize>) -> bool {
+    let mut ast = super::parser::parse(code);
+    if let Some(num_stars) = num_stars {
+        *num_stars = count_stars(&ast);
+    }
+    super::insert_coercions::insert_coercions(&mut ast).expect("coercion insertion failed");
+    super::eval::eval(ast).is_ok()
+}
+
+fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
+    let child = Command::new(&tool.command[0])
+        .args(&tool.command[1..])
+        .arg(&benchmark.file)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn().expect("failed to spawn");
+    let mut outcome = get_outcome(&tool.title, &mut benchmark.results);
+    let output = child.wait_with_output().expect("failed to wait for output");
+    let tool_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let tool_stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    if output.status.success() == false {
+        outcome.result = Some(Expect::Rejection(Rejection {
+            stdout: tool_stdout,
+            stderr: tool_stderr
+        }));
+        return;
+    }
+
+    // For us to manually check the result of migration
+    outcome.migration = Some(tool_stdout.clone());
+    let original_program = std::fs::read_to_string(&benchmark.file).expect("reading benchmark");
+    let original_runs_ok = eval(original_program.clone(), Some(&mut benchmark.num_stars));
+    let mut stars_after_migration = 0;
+    let migrated_runs_ok = eval(tool_stdout.clone(), Some(&mut stars_after_migration));
+    
+    match &benchmark.context {
+        None => match (original_runs_ok, migrated_runs_ok) {
+            (true, false) => {
+                outcome.result = Some(Expect::NewRuntimeError);
+            }
+            (true, true) => {
+                outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration });
+            }
+            (false, false) => {
+                outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration });
+            }
+            (false, true) => {
+                panic!("Migration eliminated an error!");
+            }
+        }
+        Some(context) => {
+            let original_in_context = context.replace("HOLE", &original_program);
+            let migrated_in_context = context.replace("HOLE", &tool_stdout);
+            let original_runs_ok_in_context = eval(original_in_context, None);
+            let migrated_runs_ok_in_context = eval(migrated_in_context, None);
+            match (original_runs_ok,
+                migrated_runs_ok,
+                original_runs_ok_in_context,
+                migrated_runs_ok_in_context) {
+                (true, true, true, false) => {
+                    if outcome.assert_unusable {
+                        outcome.result = Some(Expect::Unusable);
+                    }
+                    else {
+                        outcome.result = Some(Expect::Restricted { num_stars: stars_after_migration });
+                    }
+                }
+                (true, true, true, true) => {
+                    outcome.result = Some(Expect::FullyCompatible { num_stars: stars_after_migration });
+                }
+                _ => {
+                    outcome.result = None;
+                }
+            }
+        
+        }
+    }
+}
+
+fn summarize(benchmarks: &Benchmarks) {
+    let mut rejected = HashMap::<String,i32>::new();
+    let mut new_runtime_err = HashMap::<String,i32>::new();
+    let mut unusable = HashMap::<String,i32>::new();
+    let mut restricted = HashMap::<String,i32>::new();
+    let mut compatible = HashMap::<String,i32>::new();
+    let mut num_stars_left = HashMap::<String,i32>::new();
+    let mut num_original_stars = HashMap::<String,i32>::new();
+    for tool in &benchmarks.tools {
+        rejected.insert(tool.title.clone(), 0);
+        new_runtime_err.insert(tool.title.clone(), 0);
+        unusable.insert(tool.title.clone(), 0);
+        restricted.insert(tool.title.clone(), 0);
+        compatible.insert(tool.title.clone(), 0);
+        num_stars_left.insert(tool.title.clone(), 0);
+        num_original_stars.insert(tool.title.clone(), 0);
+    }
+
+    for b in &benchmarks.benchmarks {
+        for (tool_title, outcome) in &b.results {
+            match outcome.result {
+                Some(Expect::Rejection(..)) => {
+                    *rejected.get_mut(tool_title).unwrap() += 1;
+                }
+                Some(Expect::NewRuntimeError) => {
+                    *new_runtime_err.get_mut(tool_title).unwrap() += 1;
+                }
+                Some(Expect::Unusable) => {
+                    *unusable.get_mut(tool_title).unwrap() += 1;
+                }
+                Some(Expect::FullyCompatible { num_stars }) => {
+                    *num_stars_left.get_mut(tool_title).unwrap() += num_stars as i32;
+                    *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
+                    *compatible.get_mut(tool_title).unwrap() += 1;
+                }
+                Some(Expect::Restricted { num_stars }) => {
+                    *num_stars_left.get_mut(tool_title).unwrap() += num_stars as i32;
+                    *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
+                    *restricted.get_mut(tool_title).unwrap() += 1;
+                }
+                None => {
+                    panic!("missing outcome");
+                }
+            }          
+        }
+    }
+
+    let num_benchmarks = benchmarks.benchmarks.len();
+
+    for tool in &benchmarks.tools {
+        let title = &tool.title;
+        let rejected = rejected.get(title).unwrap();
+        let rejected_denom = num_benchmarks as i32;
+        let new_runtime_err = new_runtime_err.get(title).unwrap();
+        let new_runtime_err_denom = rejected_denom - rejected;
+        let unusable = unusable.get(title).unwrap();
+        let unusable_denom = new_runtime_err_denom - new_runtime_err;
+        let restricted = restricted.get(title).unwrap();
+        let restricted_denom = unusable_denom - unusable;
+        let compatible = compatible.get(title).unwrap();
+        let compatible_denom = restricted_denom - restricted;
+        let stars = num_stars_left.get(title).unwrap();
+        let stars_denom = num_original_stars.get(title).unwrap();
+        println!("{} & {} / {} & {} / {} & {} / {} &  {} / {} & {} / {} &  {} / {} \\\\ ",
+            title, 
+            rejected, rejected_denom, 
+            new_runtime_err, new_runtime_err_denom,
+            unusable, unusable_denom,
+            restricted, restricted_denom,
+            compatible, compatible_denom,
+            stars, stars_denom);
+
+    }
+
+
+
+}
+
+pub fn benchmark_main(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
+    let src_text = std::fs::read_to_string(src_file.as_ref())?;
+    let mut benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
+    for mut b in benchmarks.benchmarks.iter_mut() {
+        for t in &benchmarks.tools {
+            println!("Running {} on {} ...", t.title, b.file);
+            benchmark_one(&t, &mut b);
+        }
+    }
+
+    println!("{}", serde_yaml::to_string(&benchmarks).unwrap());
+
+    summarize(&benchmarks);
+    return Ok(());
+}

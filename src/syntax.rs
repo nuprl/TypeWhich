@@ -16,6 +16,7 @@ pub enum Coerce {
     Untag(GroundTyp),
     Wrap(Box<Coerce>, Box<Coerce>),
     Seq(Box<Coerce>, Box<Coerce>),
+    Doomed,
 }
 
 impl Coerce {
