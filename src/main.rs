@@ -315,7 +315,8 @@ mod tests_631 {
         (t, e)
     }
     pub fn exp_succeeds(orig: Exp) -> Typ {
-        let (t, e) = compile_verbose(orig);
+        let (t, mut e) = compile_verbose(orig);
+        e.fresh_types();
         let coercions = contains_coercions(e);
         assert!(!coercions.0 && !coercions.1);
         t
@@ -494,7 +495,8 @@ mod tests_migeed_and_parsberg {
     // TODO(arjun): _maximal in the name is not accurate. Alternative name:
     // assert_ti_ok
     fn assert_maximal(program: &str, annotated: &str) {
-        let orig = parse(program).unwrap();
+        let mut orig = parse(program).unwrap();
+        orig.fresh_types();
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig).expect("type inference failed on the original program");
         println!("\nAfter type inference:\n{}", e);
