@@ -732,23 +732,23 @@ mod test {
     fn add_str_int_any() {
         println!(
             "{:?}",
-            typeinf(parse(r#"(fun x . fun y . x +? y) "everything is " 10"#)).unwrap()
+            typeinf(parse(r#"(fun x . fun y . x +? y) "everything is " 10"#).unwrap()).unwrap()
         );
     }
 
     #[test]
     fn infer_arr() {
-        println!("{:?}", typeinf(parse("fun f . f 200")).unwrap());
+        println!("{:?}", typeinf(parse("fun f . f 200").unwrap()));
     }
 
     #[test]
     fn ambiguous_add() {
-        println!("{:?}", typeinf(parse("fun x . x +? x")).unwrap());
+        println!("{:?}", typeinf(parse("fun x . x +? x").unwrap()).unwrap());
     }
 
     #[test]
     fn heterogenous_list() {
-        println!("{:?}", typeinf(parse("true :: 10 :: empty")).unwrap());
+        println!("{:?}", typeinf(parse("true :: 10 :: empty").unwrap()));
     }
 
     #[test]
@@ -780,7 +780,7 @@ mod test {
                 "let f = fun b.fun x. if b then x + 1 else not x in
                  let y = f true 5 in
                  f false false"
-            ))
+            ).unwrap())
             .unwrap()
         );
     }

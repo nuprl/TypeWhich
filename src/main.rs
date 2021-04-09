@@ -297,8 +297,8 @@ mod tests_631 {
         exp_succeeds(parse(program).unwrap())
     }
     pub fn no_from_any(program: &str) {
-        let orig = parse(program);
-        let (_, e) = compile_verbose(orig).unwrap();
+        let orig = parse(program).unwrap();
+        let (_, e) = compile_verbose(orig);
         let coercions = contains_coercions(e);
         assert!(!coercions.1);
     }

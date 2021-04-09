@@ -50,7 +50,7 @@ mod tests {
     use super::typeinf;
 
     fn parse(s: &str) -> Exp {
-        let portable_input_e = crate::parser::parse(s);
+        let portable_input_e = crate::parser::parse(s).unwrap();
         return super::to_from_portable_ast::from_exp(&portable_input_e).expect("unsupported features");
     }
 
