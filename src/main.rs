@@ -184,6 +184,7 @@ fn migrate_main(config: Opts) -> Result<()> {
         eprintln!("{}", parsed);
     }
     let inferred = if config.ins_and_outs {
+        parsed.fresh_types();
         ins_and_outs::typeinf_portable(parsed)
     }
     else {
@@ -241,7 +242,7 @@ mod tests_631 {
     // (to_any, from_any)
     pub fn contains_coercions(e: Exp) -> (bool, bool) {
         match e {
-            Exp::PrimCoerce(..) => (true, true),
+            Exp::PrimCoerce(..) => (false, false),
             Exp::Coerce(t1, t2, e) => {
                 let cts = contains_coercions(*e);
                 if t1 == t2 {
