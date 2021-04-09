@@ -239,17 +239,14 @@ fn summarize(benchmarks: &Benchmarks) {
         let unusable_denom = new_runtime_err_denom - new_runtime_err;
         let restricted = restricted.get(title).unwrap();
         let restricted_denom = unusable_denom - unusable;
-        let compatible = compatible.get(title).unwrap();
-        let compatible_denom = restricted_denom - restricted;
         let stars = num_stars_left.get(title).unwrap();
         let stars_denom = num_original_stars.get(title).unwrap();
-        println!("{} & {} / {} & {} / {} & {} / {} &  {} / {} & {} / {} &  {} / {} \\\\ ",
+        println!("{} & {} / {} & {} / {} & {} / {} &  {} / {} & {} / {} \\\\ ",
             title, 
             rejected, rejected_denom, 
             new_runtime_err, new_runtime_err_denom,
             unusable, unusable_denom,
             restricted, restricted_denom,
-            compatible, compatible_denom,
             stars, stars_denom);
 
     }

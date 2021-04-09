@@ -32,11 +32,23 @@ benchmarks:
     results: { } 
   - file: migeed/01_apply_add.gtlc
   - file: migeed/02_add_applied.gtlc
+    context: |
+      (HOLE) (fun y . 1)
   - file: migeed/03_add_two_applies.gtlc
+    context: |
+      (HOLE) (fun y . 1)
   - file: migeed/04_identity_four.gtlc
   - file: migeed/05_succ_id_id.gtlc
   - file: migeed/06_identity.gtlc
+    context: |
+      (HOLE) (fun y . y)
   - file: migeed/07_apply2.gtlc
+    results:
+      MaxMigrate:
+        result:
+          Unusable: ~
+    context: |
+      (HOLE) 1 (fun z . 1)
   - file: migeed/08_indirect_apply_self.gtlc
   - file: migeed/09_the_long_one.gtlc
   - file: migeed/10_apply_self.gtlc
