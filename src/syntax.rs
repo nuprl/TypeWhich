@@ -564,7 +564,10 @@ impl Exp {
     }
 
     pub fn is_coercion(&self) -> bool {
-        matches!(self, Exp::Coerce(..))
+        match self {
+            Exp::Coerce(_, _, e) => e.is_atom(),
+                _ => false
+        }
     }
 
     pub fn is_atom(&self) -> bool {

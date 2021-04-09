@@ -48,7 +48,7 @@ benchmarks:
         result:
           Unusable: ~
     context: |
-      (HOLE) 1 (fun z . 1)
+      (HOLE) 1 (fun z1 . fun z2 . 1)
   - file: migeed/08_indirect_apply_self.gtlc
   - file: migeed/09_the_long_one.gtlc
   - file: migeed/10_apply_self.gtlc
