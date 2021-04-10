@@ -82,7 +82,7 @@ impl Eval {
                 match v {
                     Val::Closure(env, x, body, dom1, rng1) => {
                         // TODO(arjun): Ordering matters
-                        Ok(Val::Closure(env, x, body, dom.seq(&dom1), rng.seq(&rng1)))
+                        Ok(Val::Closure(env, x, body, dom.seq(&dom1), rng1.seq(&rng)))
                     }
                     _ => Err(Error::Coercion(format!("wrap on a non-function"))),
                 }

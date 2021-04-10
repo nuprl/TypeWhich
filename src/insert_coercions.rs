@@ -34,6 +34,9 @@ pub fn coerce(src: &Typ, dst: &Typ) -> Coerce {
         (Typ::Int, Typ::Any) => Coerce::Tag(GroundTyp::Int),
         (Typ::Bool, Typ::Any) => Coerce::Tag(GroundTyp::Bool),
         (Typ::Arr(dom, rng), Typ::Any) => Coerce::Wrap(Box::new(coerce(&Typ::Any, dom)), Box::new(coerce(rng, &Typ::Any))).seq(&Coerce::Tag(GroundTyp::Fun)),
+        (Typ::Arr(dom1, rng1), Typ::Arr(dom2, rng2)) => 
+            Coerce::Wrap(Box::new(coerce(dom2, dom1)),
+                Box::new(coerce(rng1, rng2))),
         (Typ::Any, Typ::Int) => Coerce::Untag(GroundTyp::Int),
         (Typ::Any, Typ::Bool) => Coerce::Untag(GroundTyp::Bool),
         (Typ::Any, Typ::Arr(dom, rng)) => 
