@@ -1,11 +1,9 @@
 
 # Dependencies
 
-```
-sudo apt-get install libz3-dev
-```
+1. Z3 build dependencies: `sudo apt-get install libz3-dev`
 
-1. Zeina Migeed and Jens Palsberg. What is Decidable About Gradual Typing.
+2. Zeina Migeed and Jens Palsberg. What is Decidable About Gradual Typing.
    POPL 2020.
 
    The following repository is a fork of the paper's artifact, to which we've
@@ -17,6 +15,45 @@ sudo apt-get install libz3-dev
    the *MaxMigrate* program to `bin/Migrate`. On Linux, the executable is at:
 
    `migeed-palsberg-popl2020/.stack-work/install/x86_64-linux-tinfo6/lts-13.25/8.6.5/bin/MaxMigrate`
+
+3. Jeremy G. Siek and Manish Vachharajani. Gradual Typing with Unification-based
+   Inference. Dynamic Languages Symposium (DLS) 2008.
+
+   The following repository is a fork of the paper's artifact, to which we've
+   added a parser that is compatible with ours:
+
+   https://github.com/arjunguha/siek-vachharajani-dls2008
+
+   Build the tool as described in the repository, and then copy (or symlink)
+   the *gtlc* program to `bin/gtubi`.
+
+   **Warning**: The tool builds a 32-bit Linux executable. Good luck!
+
+# Experiments
+
+Run this command:
+
+```
+./bin/TypeWhich benchmark benchmarks.yaml > RESULTS.yaml
+```
+
+It prints progress on standard error. The output is a YAML file of results,
+followed by a table summary. 
+
+## Validating Results
+
+1. The benchmarking script does a lot of validation itself.
+
+2. In RESULTS.yaml, look for the string "Disaster". It should not appear!
+
+3. In RESULTS.yaml, look for the string "manually_verify". These are results
+   from experiments where (1) we could not crash the migrated program, and
+   (2) the migrated program has fewer `any`s than the original. So, the
+   table of results counts this migration as one that is 100% compatible with
+   untyped contexts. But, it requires a manual check.
+
+
+
 
 # Testing
 
@@ -76,13 +113,3 @@ nor exported we opted to remove these functions from the benchmark. This is
 discussed in the paper.
 - We have changed where in the program some benchmarks print a terminating
 newline for consistency between the static and dynamic versions.
-
-# TODO
-
-- [x] expose grift on CLI
-- [x] letrec
-- [x] a way to automatically reset annotations (for grift tests)
-- [x] get grift benchmarks running
-  + [x] https://github.com/Gradual-Typing/Grift/blob/master/src/language/forms.rkt for operations
-  + [x] floating point https://github.com/Gradual-Typing/Grift/blob/master/tests/suite/program/n-body.grift
-  + [x] top-level (define, etc.) https://github.com/Gradual-Typing/Grift/blob/master/tests/suite/program/insertion-sort-5.grift

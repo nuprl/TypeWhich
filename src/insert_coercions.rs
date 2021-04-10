@@ -93,6 +93,17 @@ fn ins(mut env: Env, exp: &mut Exp) -> R {
             ins(env.clone(), e)?;
             Ok(t2.clone())
         }
+        Exp::If(e1, e2, e3) => {
+            let t1 = ins(env.clone(), e1)?;
+            let k1 = coerce(&t1, &Typ::Bool);
+            **e1 = Exp::PrimCoerce(k1, Box::new(e1.take()));
+            let t2 = ins(env.clone(), e2)?;
+            let t3 = ins(env.clone(), e3)?;
+            let t_joined = t2.join(&t3);
+            **e2 = e2.take().coerce(coerce(&t2, &t_joined));
+            **e3 = e3.take().coerce(coerce(&t3, &t_joined));
+            Ok(t_joined)
+        }
         _ => unimplemented!("{:?}", exp),
     }
 }

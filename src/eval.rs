@@ -98,8 +98,7 @@ impl Eval {
                 Ok(env.get(x).cloned().expect("unbound identifier"))
             }
             Exp::Fun(x, _, e) => Ok(Val::Closure(env.clone(), x, e, Coerce::Id, Coerce::Id)),
-            Exp::App(e1, e2) => {
-               
+            Exp::App(e1, e2) => {  
                 let v1 = self.eval(env.clone(), e1)?;
                 let v2 = self.eval(env.clone(), e2)?;
                 match v1 {
@@ -128,6 +127,13 @@ impl Eval {
                     (Val::Lit(Lit::Int(m)), Val::Lit(Lit::Int(n))) => Ok(Val::Lit(Lit::Int(m + n))),
                     // Panic because coercion insertion produced an unsafe program!
                     _ => panic!("+ received a non-int argument"),
+                }
+            }
+            Exp::If(e1, e2, e3) => {
+                match self.eval(env.clone(), e1)? {
+                    Val::Lit(Lit::Bool(true)) => self.eval(env, e2),
+                    Val::Lit(Lit::Bool(false)) => self.eval(env, e3),
+                    _ => panic!("condition is not a boolean"),
                 }
             }
             _ => unimplemented!(),

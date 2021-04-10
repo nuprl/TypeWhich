@@ -29,7 +29,8 @@ benchmarks:
   - file: adversarial/08-outflows.gtlc
     results: { } 
   - file: adversarial/09-precision-relation.gtlc
-    results: { } 
+    results: { }
+  - file: adversarial/10-if-tag.gtlc
   - file: migeed/01_apply_add.gtlc
   - file: migeed/02_add_applied.gtlc
     context: |

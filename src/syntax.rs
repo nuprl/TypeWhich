@@ -93,6 +93,19 @@ impl Typ {
     pub fn is_metavar(&self) -> bool {
         matches!(self, Typ::Metavar(..))
     }
+
+    pub fn join(&self, other: &Typ) -> Typ {
+        if self.is_metavar() || other.is_metavar() {
+            panic!(".join on metavars")
+        }
+        else if self != other {
+            Typ::Any
+        }
+        else {
+            self.clone()
+        }
+    }
+
     pub fn is_atom(&self) -> bool {
         match self {
             Typ::Unit
@@ -195,6 +208,13 @@ pub enum Exp {
 impl Exp {
     pub fn take(&mut self) -> Self {
         std::mem::replace(self, Exp::Lit(Lit::Int(0)))
+    }
+
+    pub fn coerce(self, k: Coerce) -> Self {
+        match k {
+            Coerce::Id => self,
+            _ => Exp::PrimCoerce(k, Box::new(self))
+        }
     }
 
     pub fn begin(exps: Vec<Exp>) -> Self {

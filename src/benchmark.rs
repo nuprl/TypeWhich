@@ -1,6 +1,9 @@
 use serde::{Serialize, Deserialize};
 use std::process::{Command, Stdio};
 use std::collections::HashMap;
+use wait_timeout::ChildExt;
+use std::time::Duration;
+use std::io::Read;
 
 /// Several outcomes involve running the program before and after migration.
 /// Those outcomes have a steps field. The program is expected to terminate
@@ -78,6 +81,7 @@ fn count_stars(e: &super::syntax::Exp) -> usize {
         Exp::Lit(..) | Exp::Var(..) => 0,
         Exp::App(e1, e2) | Exp::Add(e1, e2) => count_stars(e1) + count_stars(e2),
         Exp::Fun(_, t, e) => (match t { Typ::Any => 1, _ => 0 }) + count_stars(e),
+        Exp::If(e1, e2, e3) => count_stars(e1) + count_stars(e2) + count_stars(e3),
         _ => panic!("count_stars on {:?}", e)
     }
 }
@@ -107,18 +111,32 @@ fn eval(code: String, num_stars: Option<&mut usize>) -> Option<bool> {
 }
 
 fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
-    let child = Command::new(&tool.command[0])
+    let mut child = Command::new(&tool.command[0])
         .args(&tool.command[1..])
         .arg(&benchmark.file)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn().expect("failed to spawn");
+    let migrate_ok = match child.wait_timeout(Duration::from_secs(30)).unwrap() {
+        None => {
+            child.kill().unwrap();
+            eprintln!("Killed");
+            false
+        },
+        Some(code) => code.success(),
+    };
+    let mut tool_stdout = String::new();
+    child.stdout.unwrap().read_to_string(&mut tool_stdout).unwrap();
+    let mut tool_stderr = String::new();
+    child.stderr.unwrap().read_to_string(&mut tool_stderr).unwrap();
+
+    // let output = child.wait_with_output().expect("failed to wait for output");
+    // let tool_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    // let tool_stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let mut outcome = get_outcome(&tool.title, &mut benchmark.results);
-    let output = child.wait_with_output().expect("failed to wait for output");
-    let tool_stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let tool_stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    if output.status.success() == false {
+
+    if migrate_ok == false {
         outcome.result = Some(Expect::Rejection(Rejection {
             stdout: tool_stdout,
             stderr: tool_stderr
@@ -260,7 +278,7 @@ pub fn benchmark_main(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
     let mut benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
     for mut b in benchmarks.benchmarks.iter_mut() {
         for t in &benchmarks.tools {
-            println!("Running {} on {} ...", t.title, b.file);
+            eprintln!("Running {} on {} ...", t.title, b.file);
             benchmark_one(&t, &mut b);
         }
     }
