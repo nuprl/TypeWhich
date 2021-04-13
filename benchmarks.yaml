@@ -11,17 +11,41 @@ benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
     results: { }
   - file: adversarial/02-rank2-poly-id.gtlc
-    results: { }
+    results:
+      InsAndOuts:
+        expect_compatible: |
+          (fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)
+      TypeWhich:
+        expect_compatible: |
+          (fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)
   - file: adversarial/03-unreachable-error.gtlc
-    results: { }
+    results:
+      TypeWhich:
+        expect_compatible: "(fun b:(any -> any) -> (any -> int) -> any -> int. b (fun c:any.\n  (fun x:any. x x) 5 5) (fun d:any. 0)) (fun t:any -> any.\nfun f:any -> int. f)"
+      InsAndOuts:
+        expect_compatible: "(fun b:(⦉4418⦊ -> ⦉4418⦊) -> (any -> int) -> any -> int. b\n  (fun c . (fun x:int. x x) 5 5) (fun d:any. 0))\n(fun t:⦉4418⦊ -> ⦉4418⦊. fun f:any -> int. f)\n"
   - file: adversarial/04-f-in-f-out.gtlc
-    results: { }
+    results:
+      Gtubi:
+        expect_compatible: "((fun f : (int -> int). ((fun y : int. f) (f 5))) (fun x : int. (10 + x)))"
+      TypeWhich:
+        expect_compatible: "(fun f:int -> int. (fun y:int. f) (f 5)) (fun x:int. 10 + x)\n"
+      InsAndOuts:
+        expect_compatible: "(fun f:any -> int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)\n"
   - file: adversarial/05-order3-fun.gtlc
     context: |
       (HOLE) (fun a . a) (fun b . true)
-    results: { }
+    results:
+      TypeWhich:
+        expect_compatible: "fun f:(any -> any) -> any. fun x:any -> any. x (f x)\n"
+      Gtubi:
+        expect_compatible: "(fun f : ((beta@1 -> beta@2) -> beta@1). (fun x : (beta@1 -> beta@2). (x (f x))))"
   - file: adversarial/06-order3-intfun.gtlc
-    results: { }
+    context: |
+      (HOLE) (fun a . fun b . true) (fun c . 0)
+    resuls:
+        Gtubi:
+          expect_compatible: "(fun f : ((int -> int) -> (int -> beta@5)). (fun g : (int -> int). ((f g) ((g 10) + 1))))"  
   - file: adversarial/07-double-f.gtlc
     context: |
       (HOLE) (fun x . fun y . y)
@@ -29,16 +53,51 @@ benchmarks:
   - file: adversarial/08-outflows.gtlc
     results: { } 
   - file: adversarial/09-precision-relation.gtlc
-    results: { }
+    results:
+      TypeWhich:
+        expect_compatible: |
+          (fun f:any -> int. f true + (fun g:any -> int. g 5) f) (fun x:any. 5)
+      InsAndOuts:
+        expect_compatible: |
+          (fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)
   - file: adversarial/10-if-tag.gtlc
+    context: |
+      (HOLE) true 1
   - file: migeed/01_apply_add.gtlc
   - file: migeed/02_add_applied.gtlc
+    results:
+      TypeWhich:
+        expect_compatible: |
+          fun x:any -> int. x (x true + 1)
+      MaxMigrate:
+        expect_compatible: |
+          fun x : any -> int . x (x true + 1)
     context: |
       (HOLE) (fun y . 1)
   - file: migeed/03_add_two_applies.gtlc
+    results:
+      TypeWhich:
+        expect_compatible: |
+          fun x:any -> int. x 4 + x true
+      MaxMigrate:
+        expect_compatible: |
+          fun x : any -> int . x 4 + x true
     context: |
       (HOLE) (fun y . 1)
   - file: migeed/04_identity_four.gtlc
+    results:
+      TypeWhich:
+        expect_compatible: |
+          (fun x:int. x) 4
+      InsAndOuts:
+        expect_compatible: |
+          (fun x:int. x) 4
+      MaxMigrate:
+        expect_compatible: |
+          (fun x : int . x) 4
+      Gtubi:
+        expect_compatible: |
+          ((fun x:int. x) 4)
   - file: migeed/05_succ_id_id.gtlc
   - file: migeed/06_identity.gtlc
     context: |
@@ -47,10 +106,35 @@ benchmarks:
     results:
       MaxMigrate:
         assert_unusable: true
+      Gtubi:
+        expect_compatible: |
+          (fun x : _t1. (fun y : (_t1 -> (_t1 -> beta@2)). ((y x) x)))
+      TypeWhich:
+        expect_compatible: |
+          fun x:any. fun y:any -> any -> any. y x x
     context: |
       (HOLE) 1 (fun z1 . fun z2 . 1)
   - file: migeed/08_indirect_apply_self.gtlc
+    results:
+      TypeWhich:
+        expect_compatible: |
+          fun x:any -> any. (fun y:any -> any. x) x x
+      MaxMigrate:
+        assert_unusable: true
+    context: |
+      (HOLE) (fun z : any . z)
   - file: migeed/09_the_long_one.gtlc
+    results:
+      InsAndOuts:
+        expect_compatible: |
+          fun x:any. (fun f:any -> int. (fun xx:any -> int. fun y:int. xx) f (f x))\n  (fun z:any. 1)
+      Gtubi:
+        expect_compatible: |
+          (fun x : _t3. ((fun f : (_t3 -> int). (((fun xx : (_t3 -> int). (fun y : int. xx)) f) (f x))) (fun z : _t3. 1)))
   - file: migeed/10_apply_self.gtlc
+    results:
+      TypeWhich:
+        expect_compatible: |
+          fun x:any -> any. x x
   - file: migeed/11_untypable_in_sys_f.gtlc
   - file: migeed/12_self_interpreter.gtlc    

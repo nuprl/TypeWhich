@@ -32,6 +32,14 @@ macro_rules! impl_Display_Pretty {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
+fn skip_coercion(e: &Exp) -> &Exp {
+    match e {
+        Exp::Coerce(_, _, e) => e,
+        _ => e
+    }
+}
+
 fn parens_if<'b, D, A, T>(pp: &'b D, d: &'b T, b: bool) -> pretty::DocBuilder<'b, D, A>
 where
     T: Pretty,
@@ -202,7 +210,7 @@ impl Pretty for Exp {
                 vec![
                     e.pretty(pp),
                     pp.space(),
-                    pp.text("as"),
+                    pp.text(":"),
                     pp.space(),
                     typ.pretty(pp),
                 ],
@@ -239,11 +247,14 @@ impl Pretty for Exp {
                 pp.line(),
                 e.pretty(pp),
             ]),
-            Exp::App(e1, e2) => pp.concat(vec![
-                parens_if(pp, &**e1, e1.is_fun_exp()),
-                pp.softline(),
-                parens_if(pp, &**e2, !(e2.is_atom() || e2.is_coercion())),
-            ]),
+            Exp::App(e1, e2) => {
+                let e2 =  skip_coercion(&**e2);
+                pp.concat(vec![
+                    parens_if(pp, &**e1, e1.is_fun_exp()),
+                    pp.softline(),
+                    parens_if(pp, e2, !(e2.is_atom() || e2.is_coercion())),
+                ])
+            },
             Exp::BinaryOp(op, e1, e2) => pp.concat(vec![
                 // should be pair or looser
                 parens_if(pp, &**e1, e1.is_fun_exp()),

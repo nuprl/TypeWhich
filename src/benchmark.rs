@@ -12,6 +12,8 @@ use wait_timeout::ChildExt;
 struct Outcome {
     #[serde(default, skip_serializing_if = "is_false")]
     assert_unusable: bool,
+    #[serde(default, skip_serializing_if = "is_none")]
+    expect_compatible: Option<String>,
     result: Option<Expect>,
     #[serde(default, skip_serializing_if = "is_none")]
     migration: Option<String>,
@@ -104,6 +106,7 @@ fn get_outcome<'a>(
             tool_name.to_string(),
             Outcome {
                 assert_unusable: false,
+                expect_compatible: None,
                 result: None,
                 migration: None,
             },
@@ -177,6 +180,8 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
     let mut stars_after_migration = 0;
     let migrated_runs_ok = eval(tool_stdout.clone(), Some(&mut stars_after_migration));
 
+    let result_is_known_compatible = outcome.expect_compatible.as_ref().map(|s| s.trim() == tool_stdout.trim()).unwrap_or(false);
+
     match &benchmark.context {
         None => match (original_runs_ok, migrated_runs_ok) {
             (None, _) => outcome.result = Some(Expect::Disaster),
@@ -187,7 +192,7 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
             (Some(true), Some(true)) => {
                 outcome.result = Some(Expect::FullyCompatible {
                     num_stars: stars_after_migration,
-                    manually_verify: benchmark.num_stars != stars_after_migration,
+                    manually_verify: benchmark.num_stars != stars_after_migration && !result_is_known_compatible
                 });
             }
             (Some(false), Some(false)) => {
@@ -223,7 +228,7 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
                 (Some(true), Some(true), Some(true), Some(true)) => {
                     outcome.result = Some(Expect::FullyCompatible {
                         num_stars: stars_after_migration,
-                        manually_verify: benchmark.num_stars != stars_after_migration,
+                        manually_verify: benchmark.num_stars != stars_after_migration && !result_is_known_compatible,
                     });
                 }
                 _ => {
