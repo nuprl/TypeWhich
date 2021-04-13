@@ -221,6 +221,7 @@ pub enum UnOp {
     IntToFloat,
     CharToInt,
     IntToChar,
+    And,
 }
 /// Holds the type for a binary operator. Only IntAdd is guaranteed to hold the
 /// actual operation from the program
@@ -246,6 +247,8 @@ pub enum BinOp {
 
 impl UnOp {
     pub fn typ(&self) -> (Typ, Typ) {
+        #[allow(unused_imports)]
+        use std::boxed::Box;
         use Typ::*;
         match self {
             UnOp::Not => (Bool, Bool),
@@ -266,6 +269,7 @@ impl UnOp {
             UnOp::IntToFloat => (Int, Float),
             UnOp::CharToInt => (Char, Int),
             UnOp::IntToChar => (Int, Char),
+            UnOp::And => (Any, Typ::Arr(Box::new(Any), Box::new(Any))),
         }
     }
 }
