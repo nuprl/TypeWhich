@@ -2,7 +2,7 @@
           : (Dyn (Dyn -> Bool) -> Bool)
           (lambda ([n : Dyn] [k : (Dyn -> Bool)])
             (if (= n 0)
-                (k #true)
+                (k #t)
                 (odd? (- n 1) k)))]
          [odd?
           : (Int (Bool -> Bool) -> Bool)
