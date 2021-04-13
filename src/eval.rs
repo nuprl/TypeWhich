@@ -1,7 +1,7 @@
 //! An evaluator for GTLC + extensions needed for the comparative evaluation.
-use im_rc::HashMap;
+use super::syntax::*;
 use derive_more::Display;
-use super::syntax::{Lit, Exp, Id, Coerce, GroundTyp};
+use im_rc::HashMap;
 
 type Env<'a> = HashMap<&'a Id, Val<'a>>;
 
@@ -14,7 +14,7 @@ enum Val<'a> {
 
 pub enum Answer {
     Lit(Lit),
-    Closure
+    Closure,
 }
 
 #[derive(Display)]
@@ -37,12 +37,12 @@ impl<'a> Val<'a> {
             _ => panic!("unsupported type"),
         }
     }
-    
+
     fn to_answer(self) -> Answer {
         match self {
             Val::Lit(l) => Answer::Lit(l),
             Val::Tagged(_, v) => v.to_answer(),
-            Val::Closure(..) => Answer::Closure
+            Val::Closure(..) => Answer::Closure,
         }
     }
 }
@@ -50,8 +50,7 @@ impl<'a> Val<'a> {
 type EvalResult<'a> = Result<Val<'a>, Error>;
 
 impl Eval {
-
-    fn eval_k<'a>(&'a self, k: &Coerce, v: Val<'a>) -> EvalResult<'a>  {
+    fn eval_k<'a>(&'a self, k: &Coerce, v: Val<'a>) -> EvalResult<'a> {
         match k {
             Coerce::Doomed => Err(Error::Coercion("doomed".to_string())),
             Coerce::Id => Ok(v),
@@ -60,24 +59,20 @@ impl Eval {
                 let g2 = v.ground_typ();
                 if &g2 == g {
                     Ok(Val::Tagged(g2, Box::new(v)))
-                }
-                else {
+                } else {
                     Err(Error::Coercion(format!("tag({:?}) on {:?}", g, v)))
                 }
-            },
-            Coerce::Untag(g) => {
-                match v {
-                    Val::Tagged(g2, v) => {
-                        if g == &g2 {
-                            Ok(*v)
-                        }
-                        else {
-                            Err(Error::Coercion(format!("untag({:?})", g)))
-                        }
-                    }
-                    _ => Err(Error::Coercion(format!("untagged a not-tagged value")))
-                }
             }
+            Coerce::Untag(g) => match v {
+                Val::Tagged(g2, v) => {
+                    if g == &g2 {
+                        Ok(*v)
+                    } else {
+                        Err(Error::Coercion(format!("untag({:?})", g)))
+                    }
+                }
+                _ => Err(Error::Coercion(format!("untagged a not-tagged value"))),
+            },
             Coerce::Wrap(dom, rng) => {
                 match v {
                     Val::Closure(env, x, body, dom1, rng1) => {
@@ -88,9 +83,9 @@ impl Eval {
                 }
             }
         }
-    } 
+    }
 
-    fn eval<'a>(&'a self, env: Env<'a>, exp: &'a Exp) -> EvalResult<'a>  {
+    fn eval<'a>(&'a self, env: Env<'a>, exp: &'a Exp) -> EvalResult<'a> {
         match exp {
             Exp::Lit(l) => Ok(Val::Lit(l.clone())),
             Exp::Var(x) => {
@@ -98,7 +93,7 @@ impl Eval {
                 Ok(env.get(x).cloned().expect("unbound identifier"))
             }
             Exp::Fun(x, _, e) => Ok(Val::Closure(env.clone(), x, e, Coerce::Id, Coerce::Id)),
-            Exp::App(e1, e2) => {  
+            Exp::App(e1, e2) => {
                 let v1 = self.eval(env.clone(), e1)?;
                 let v2 = self.eval(env.clone(), e2)?;
                 match v1 {
@@ -109,7 +104,7 @@ impl Eval {
                         self.eval_k(&rng, r)
                     }
                     // Coercion insertion should ensure this does not occur
-                    _ => panic!("expected closure value in function position (got {:?})", v1)
+                    _ => panic!("expected closure value in function position (got {:?})", v1),
                 }
             }
             Exp::Coerce(t1, t2, e) => {
@@ -117,10 +112,8 @@ impl Eval {
                 let v = self.eval(env, e)?;
                 self.eval_k(&k, v)
             }
-            Exp::PrimCoerce(k, e) => {
-                self.eval_k(k, self.eval(env, e)?)
-            }
-            Exp::Add(e1, e2) => {
+            Exp::PrimCoerce(k, e) => self.eval_k(k, self.eval(env, e)?),
+            Exp::BinaryOp(BinOp::IntAdd, e1, e2) => {
                 let v1 = self.eval(env.clone(), e1)?;
                 let v2 = self.eval(env.clone(), e2)?;
                 match (v1, v2) {
@@ -129,13 +122,11 @@ impl Eval {
                     _ => panic!("+ received a non-int argument"),
                 }
             }
-            Exp::If(e1, e2, e3) => {
-                match self.eval(env.clone(), e1)? {
-                    Val::Lit(Lit::Bool(true)) => self.eval(env, e2),
-                    Val::Lit(Lit::Bool(false)) => self.eval(env, e3),
-                    _ => panic!("condition is not a boolean"),
-                }
-            }
+            Exp::If(e1, e2, e3) => match self.eval(env.clone(), e1)? {
+                Val::Lit(Lit::Bool(true)) => self.eval(env, e2),
+                Val::Lit(Lit::Bool(false)) => self.eval(env, e3),
+                _ => panic!("condition is not a boolean"),
+            },
             _ => unimplemented!(),
         }
     }
@@ -143,8 +134,7 @@ impl Eval {
 
 /// Assumes that the expression has coercions inserted.
 pub fn eval(exp: Exp) -> Result<Answer, Error> {
-    let eval = Eval {  };
+    let eval = Eval {};
     let v = eval.eval(Env::new(), &exp)?;
     return Ok(v.to_answer());
 }
-

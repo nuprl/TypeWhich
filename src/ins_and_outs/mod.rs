@@ -14,9 +14,11 @@ const DEBUG: bool = true;
 type Closure = im_rc::HashSet<(syntax::Typ, syntax::Typ)>;
 
 pub fn typeinf_portable(exp: crate::syntax::Exp) -> crate::syntax::Exp {
-  let internal_e = to_from_portable_ast::from_exp(&exp).expect("unsupported features in input program");
-  let (checked_e, _) = typeinf(internal_e);
-  return to_from_portable_ast::to_exp(checked_e).expect("migrated program has unsupported features");
+    let internal_e =
+        to_from_portable_ast::from_exp(&exp).expect("unsupported features in input program");
+    let (checked_e, _) = typeinf(internal_e);
+    return to_from_portable_ast::to_exp(checked_e)
+        .expect("migrated program has unsupported features");
 }
 
 pub fn typeinf(parsed: syntax::Exp) -> (syntax::Exp, syntax::Typ) {
@@ -52,7 +54,8 @@ mod tests {
     fn parse(s: &str) -> Exp {
         let mut portable_input_e = crate::parser::parse(s).unwrap();
         portable_input_e.fresh_types();
-        return super::to_from_portable_ast::from_exp(&portable_input_e).expect("unsupported features");
+        return super::to_from_portable_ast::from_exp(&portable_input_e)
+            .expect("unsupported features");
     }
 
     pub fn contains_coercions(e: Exp) -> bool {
@@ -142,8 +145,8 @@ mod tests {
                 let index = 0 in
                 let sum = index in
                 // while (index < sum) { <- index |> int, sum |> int aren't used (outflows)
-                       index = index; // was index + 1 which produces index |> int (outflow)
-                       sum = sum; // was sum + index which produces outflows, and int |> sum (already there)
+                       // index = index; // was index + 1 which produces index |> int (outflow)
+                       // sum = sum; // was sum + index which produces outflows, and int |> sum (already there)
                 // }
                 sum",
         );

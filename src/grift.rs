@@ -61,150 +61,8 @@ pub fn parse(input: impl AsRef<str>) -> Exp {
 }
 
 type Env = HashMap<String, Typ>;
-/// Types from [Grift primitives](https://github.com/Gradual-Typing/Grift/blob/master/src/language/primitives.rkt)
 pub fn env() -> Env {
-    let mut env = HashMap::new();
-
-    add_ops(
-        &mut env,
-        &["<", ">", "=", ">=", "<="],
-        &Typ::arrs(vec![Typ::Int, Typ::Int, Typ::Bool]),
-    );
-
-    env.insert(
-        "binary-not".to_string(),
-        Typ::arrs(vec![Typ::Int, Typ::Int]),
-    );
-    add_ops(
-        &mut env,
-        &[
-            "+",
-            "-",
-            "*",
-            "%/",
-            "%>>",
-            "%<<",
-            "%%",
-            "quotient",
-            "binary-and",
-            "binary-or",
-            "binary-xor",
-        ],
-        &Typ::arrs(vec![Typ::Int, Typ::Int, Typ::Int]),
-    );
-
-    add_ops(
-        &mut env,
-        &["and", "or"],
-        &Typ::arrs(vec![Typ::Any, Typ::Any, Typ::Any]),
-    );
-    env.insert("not".to_string(), Typ::arrs(vec![Typ::Bool, Typ::Bool]));
-    add_read_print(&mut env, "int", &Typ::Int);
-    add_read_print(&mut env, "bool", &Typ::Bool);
-
-    add_ops(
-        &mut env,
-        &["fl<", "fl>", "fl=", "fl>=", "fl<="],
-        &Typ::arrs(vec![Typ::Float, Typ::Float, Typ::Bool]),
-    );
-    add_ops(
-        &mut env,
-        &[
-            "fl+",
-            "fl-",
-            "fl*",
-            "fl/",
-            "flmodulo",
-            "flexpt",
-            "flmin",
-            "flmax",
-            "flquotient",
-        ],
-        &Typ::arrs(vec![Typ::Float, Typ::Float, Typ::Float]),
-    );
-    add_ops(
-        &mut env,
-        &[
-            "flabs",
-            "flround",
-            "flfloor",
-            "flceiling",
-            "fltruncate",
-            "flsin",
-            "flcos",
-            "fltan",
-            "flasin",
-            "flacos",
-            "flatan",
-            "fllog",
-            "flep",
-            "flexp",
-            "flsqrt",
-            "flnegate",
-        ],
-        &Typ::arrs(vec![Typ::Float, Typ::Float]),
-    );
-    env.insert(
-        "print-float".to_string(),
-        Typ::arrs(vec![Typ::Float, Typ::Int, Typ::Unit]),
-    );
-    env.insert("read-float".to_string(), Typ::arrs(vec![Typ::Float]));
-    env.insert(
-        "print-int".to_string(),
-        Typ::arrs(vec![Typ::Int, Typ::Unit]),
-    );
-    env.insert("read-int".to_string(), Typ::arrs(vec![Typ::Int]));
-
-    env.insert(
-        "float->int".to_string(),
-        Typ::arrs(vec![Typ::Float, Typ::Int]),
-    );
-    env.insert(
-        "int->float".to_string(),
-        Typ::arrs(vec![Typ::Int, Typ::Float]),
-    );
-    env.insert(
-        "char->int".to_string(),
-        Typ::arrs(vec![Typ::Char, Typ::Int]),
-    );
-    env.insert(
-        "int->char".to_string(),
-        Typ::arrs(vec![Typ::Int, Typ::Char]),
-    );
-    add_read_print(&mut env, "char", &Typ::Char);
-    env.insert(
-        "display-char".to_string(),
-        Typ::arrs(vec![Typ::Char, Typ::Unit]),
-    );
-
-    add_ops(
-        &mut env,
-        &["timer-start", "timer-stop", "timer-report", "time"],
-        &Typ::arrs(vec![Typ::Unit]),
-    );
-
-    env.insert("print".to_string(), Typ::arrs(vec![Typ::Str, Typ::Unit]));
-    env.insert(
-        "printf".to_string(),
-        Typ::arrs(vec![Typ::Str, Typ::List(Box::new(Typ::Any)), Typ::Unit]),
-    );
-    env.insert("exit".to_string(), Typ::arrs(vec![Typ::Int, Typ::Any])); // TODO(mmg): return type should be Bottom
-
-    env
-}
-
-fn add_read_print(env: &mut Env, name: &str, typ: &Typ) {
-    env.insert(format!("read-{}", name), Typ::arrs(vec![typ.clone()]));
-    env.insert(
-        format!("print-{}", name),
-        Typ::arrs(vec![typ.clone(), Typ::Unit]),
-    );
-}
-
-fn add_ops(env: &mut Env, ops: &[&str], typ: &Typ) {
-    for name in ops {
-        env.insert(name.to_string(), typ.clone());
-    }
+    Env::default()
 }
 
 #[cfg(test)]
@@ -214,11 +72,14 @@ mod test {
     use crate::syntax::*;
     use crate::tests_631::contains_coercions;
     use crate::type_check::tcheck;
+    use crate::Options;
 
     fn compile_verbose(orig: Exp) -> (Typ, Exp) {
         let env = super::env();
         println!("\nOriginal program:\n{}", &orig);
-        let e = typeinf_options(orig, &env, Default::default()).unwrap();
+        let mut options = Options::default();
+        options.debug = true;
+        let e = typeinf_options(orig, &env, options).unwrap();
         println!("\nAfter type inference:\n{}", e);
         let t = tcheck(&env, &e).expect("failed to typecheck");
         println!("\nProgram type:\n{}", t);

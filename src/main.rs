@@ -1,17 +1,17 @@
+mod benchmark;
 mod cgen;
+mod eval;
 mod grift;
+mod ins_and_outs;
+mod insert_coercions;
 mod parser;
 mod pretty;
 mod syntax;
 mod type_check;
 mod z3_state;
-mod ins_and_outs;
-mod eval;
-mod insert_coercions;
-mod benchmark;
 
-use std::io::*;
 use clap::Clap;
+use std::io::*;
 
 #[derive(Clap)]
 enum Parser {
@@ -32,7 +32,7 @@ impl std::str::FromStr for Annot {
         match s {
             "ignore" => Ok(Annot::Ignore),
             "hard" => Ok(Annot::Hard),
-            _ => Err("invalid annotation behavior")
+            _ => Err("invalid annotation behavior"),
         }
     }
 }
@@ -44,7 +44,7 @@ impl std::str::FromStr for Parser {
         match s {
             "grift" => Ok(Parser::Grift),
             "empty" => Ok(Parser::Empty),
-            _ => Err("invalid parser")
+            _ => Err("invalid parser"),
         }
     }
 }
@@ -65,14 +65,14 @@ enum SubCommand {
 
 #[derive(Clap)]
 struct EvalOpts {
-  input: String,
-  #[clap(short = 'c', long)]
-  show_inserted_coercions: bool,
+    input: String,
+    #[clap(short = 'c', long)]
+    show_inserted_coercions: bool,
 }
 
 #[derive(Clap)]
 struct BenchmarkOpts {
-  input: String
+    input: String,
 }
 
 #[derive(Clap)]
@@ -83,7 +83,7 @@ pub struct Opts {
     /// Print debugging output
     #[clap(short, long)]
     debug: bool,
-    /// Disable the optimizer, which uses 'assert_soft' to reduce the number of 
+    /// Disable the optimizer, which uses 'assert_soft' to reduce the number of
     /// coercions.
     #[clap(long = "no-optimize")]
     disable_optimizer: bool,
@@ -91,21 +91,30 @@ pub struct Opts {
     #[clap(long = "unsafe")]
     unsafe_mode: bool,
     // Select the parser
-    #[clap(short,long, default_value = "empty")]
+    #[clap(short, long, default_value = "empty")]
     parser: Parser,
     /// Use a predefined environment; when '-p grift' is set, will default to
     /// 'grift', otherwise it will be 'empty'
-    #[clap(short,long, default_value_if("parser", Some("grift"), "grift"), default_value("empty"))]
+    #[clap(
+        short,
+        long,
+        default_value_if("parser", Some("grift"), "grift"),
+        default_value("empty")
+    )]
     env: Parser,
     /// Specifies behavior on type annotations; when '-p grift' is set, will
     /// default to 'ignore'.
-    #[clap(short,long,default_value_if("parser", Some("grift"), "ignore"),
-      default_value("ignore"))]
+    #[clap(
+        short,
+        long,
+        default_value_if("parser", Some("grift"), "ignore"),
+        default_value("ignore")
+    )]
     annot: Annot,
     /// Use ins and outs. Lots of features unsupported in this mode.
     #[clap(long)]
     ins_and_outs: bool,
-    /// Provide a file and we will ROUGHLY compare our migration to the 
+    /// Provide a file and we will ROUGHLY compare our migration to the
     /// provided program's types
     #[clap(long)]
     compare: Option<String>,
@@ -148,13 +157,12 @@ fn eval_main(opts: EvalOpts) -> Result<()> {
     }
     match eval::eval(src_ast) {
         Ok(_) => println!("OK"),
-        Err(s) => println!("{}", s)
+        Err(s) => println!("{}", s),
     };
     Ok(())
 }
 
 fn migrate_main(config: Opts) -> Result<()> {
-
     let options = Options {
         optimizer: !config.disable_optimizer,
         context: !config.unsafe_mode,
@@ -191,8 +199,7 @@ fn migrate_main(config: Opts) -> Result<()> {
     let inferred = if config.ins_and_outs {
         parsed.fresh_types();
         ins_and_outs::typeinf_portable(parsed)
-    }
-    else {
+    } else {
         cgen::typeinf_options(parsed, &env, options).unwrap()
     };
 
@@ -232,10 +239,11 @@ fn migrate_main(config: Opts) -> Result<()> {
 
 #[cfg(test)]
 mod tests_631 {
-    use super::cgen::typeinf;
+    use super::cgen::typeinf_options;
     use super::parser::parse;
-    use super::syntax::{Exp, Typ};
+    use super::syntax::{Coerce, Exp, Typ};
     use super::type_check::type_check;
+    use super::Options;
     trait PairOr {
         fn or(&self, other: Self) -> Self;
     }
@@ -244,10 +252,20 @@ mod tests_631 {
             (self.0 || other.0, self.1 || other.1)
         }
     }
+    fn coerce_contains_coercions(c: Coerce) -> (bool, bool) {
+        match c {
+            Coerce::Doomed => (false, true),
+            Coerce::Id => (false, false),
+            Coerce::Seq(a, b) => coerce_contains_coercions(*a).or(coerce_contains_coercions(*b)),
+            Coerce::Tag(_) => (true, false),
+            Coerce::Untag(_) => (false, true),
+            Coerce::Wrap(..) => panic!("wrap shouldn't happen in TypeWhich"),
+        }
+    }
     // (to_any, from_any)
     pub fn contains_coercions(e: Exp) -> (bool, bool) {
         match e {
-            Exp::PrimCoerce(..) => (false, false),
+            Exp::PrimCoerce(c, e) => contains_coercions(*e).or(coerce_contains_coercions(c)),
             Exp::Coerce(t1, t2, e) => {
                 let cts = contains_coercions(*e);
                 if t1 == t2 {
@@ -268,7 +286,7 @@ mod tests_631 {
             | Exp::Snd(e)
             | Exp::Head(e)
             | Exp::Tail(e)
-            | Exp::Not(e)
+            | Exp::UnaryOp(_, e)
             | Exp::Box(e)
             | Exp::Unbox(e)
             | Exp::IsEmpty(e)
@@ -279,10 +297,8 @@ mod tests_631 {
             | Exp::IsFun(e)
             | Exp::VectorLen(e) => contains_coercions(*e),
             Exp::App(e1, e2)
-            | Exp::Add(e1, e2)
+            | Exp::BinaryOp(_, e1, e2)
             | Exp::AddOverload(e1, e2)
-            | Exp::Mul(e1, e2)
-            | Exp::IntEq(e1, e2)
             | Exp::Cons(e1, e2)
             | Exp::Pair(e1, e2)
             | Exp::BoxSet(e1, e2)
@@ -311,17 +327,19 @@ mod tests_631 {
     pub fn coerces(program: &str) -> Typ {
         exp_coerces(parse(program).unwrap())
     }
-    fn compile_verbose(orig: Exp) -> (Typ, Exp) {
+    fn compile_verbose(mut orig: Exp) -> (Typ, Exp) {
+        orig.fresh_types();
         println!("\nOriginal program:\n{}", &orig);
-        let e = typeinf(orig).unwrap();
+        let mut options = Options::default();
+        options.debug = true;
+        let e = typeinf_options(orig, &Default::default(), options).unwrap();
         println!("\nAfter type inference:\n{}", e);
         let t = type_check(&e).expect("failed to typecheck");
         println!("\nProgram type:\n{}", t);
         (t, e)
     }
     pub fn exp_succeeds(orig: Exp) -> Typ {
-        let (t, mut e) = compile_verbose(orig);
-        e.fresh_types();
+        let (t, e) = compile_verbose(orig);
         let coercions = contains_coercions(e);
         assert!(!coercions.0 && !coercions.1);
         t
@@ -336,10 +354,7 @@ mod tests_631 {
     fn addition() {
         succeeds("200 + 9101");
     }
-    /// this is a case like is_empty 900, there is no possible way for this to
-    /// work, so type inference fails early
     #[test]
-    #[should_panic]
     fn num_plus_bool() {
         coerces("1 + true");
     }
@@ -422,11 +437,7 @@ mod tests_631 {
     fn numeric_const() {
         succeeds("908");
     }
-    /// i believe this test counters the hypothesis: although is_empty 500
-    /// fails in HM, it also fails in our language, because we statically know that
-    /// 500 is not a list, and there is no opportunity for it to become an any
     #[test]
-    #[should_panic]
     fn is_empty_number() {
         coerces("is_empty 500");
     }
@@ -505,8 +516,8 @@ mod tests_migeed_and_parsberg {
         println!("\nOriginal program:\n{}", &orig);
         let e = typeinf(orig).expect("type inference failed on the original program");
         println!("\nAfter type inference:\n{}", e);
-        let correct =
-            typeinf(parse(annotated).unwrap()).expect("type inference failed on the expected program");
+        let correct = typeinf(parse(annotated).unwrap())
+            .expect("type inference failed on the expected program");
         println!(
             "\nProgram type:\n{}",
             type_check(&e).expect("failed to typecheck")

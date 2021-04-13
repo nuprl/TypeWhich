@@ -237,10 +237,17 @@ impl Pretty for Exp {
                 pp.softline(),
                 parens_if(pp, &**e2, !(e2.is_atom() || e2.is_coercion())),
             ]),
-            Exp::Add(e1, e2) => pp.concat(vec![
+            Exp::BinaryOp(op, e1, e2) => pp.concat(vec![
                 // should be pair or looser
                 parens_if(pp, &**e1, e1.is_fun_exp()),
-                pp.text(" + "),
+                pp.space(),
+                match op {
+                    BinOp::IntAdd => pp.text("+"),
+                    BinOp::IntMul => pp.text("*"),
+                    BinOp::IntEq => pp.text("="),
+                    _ => pp.text("[op]"),
+                },
+                pp.space(),
                 parens_if(pp, &**e2, e2.is_add_or_looser()),
             ]),
             Exp::AddOverload(e1, e2) => pp.concat(vec![
@@ -249,19 +256,11 @@ impl Pretty for Exp {
                 pp.text(" +? "),
                 parens_if(pp, &**e2, e2.is_add_or_looser()),
             ]),
-            Exp::Mul(e1, e2) => pp.concat(vec![
-                parens_if(pp, &**e1, e1.is_add_or_looser()),
-                pp.text(" * "),
-                parens_if(pp, &**e2, e2.is_mul_or_looser()),
-            ]),
-            Exp::IntEq(e1, e2) => pp.concat(vec![
-                parens_if(pp, &**e1, e1.is_fun_exp()),
-                pp.text(" = "),
-                // should be is pair or looser
-                parens_if(pp, &**e2, e2.is_fun_exp()),
-            ]),
-            Exp::Not(e1) => pp.concat(vec![
-                pp.text("not "),
+            Exp::UnaryOp(op, e1) => pp.concat(vec![
+                match op {
+                    UnOp::Not => pp.text("not "),
+                    _ => pp.text("[op] "),
+                },
                 parens_if(pp, &**e1, e1.is_mul_or_looser()),
             ]),
             Exp::If(e1, e2, e3) => pp
@@ -359,10 +358,9 @@ impl Pretty for Exp {
                 e.pretty(pp).nest(2),
             ]),
             Exp::Coerce(_, _, e) => e.pretty(pp),
-            Exp::PrimCoerce(k, e) => pp.concat(vec![
-                pp.text(format!("[{:?}]", k)),
-                e.pretty(pp).nest(2),
-            ])
+            Exp::PrimCoerce(k, e) => {
+                pp.concat(vec![pp.text(format!("[{:?}]", k)), e.pretty(pp).nest(2)])
+            }
         }
     }
 }

@@ -63,10 +63,6 @@ exp -> Exp :
 
     | '(' 'begin' exps ')' { Exp::begin($3) }
 
-    | '(' '+' exp exp ')' { Exp::Add(Box::new($3), Box::new($4)) }
-    | '(' '*' exp exp ')' { Exp::Mul(Box::new($3), Box::new($4)) }
-    | '(' '=' exp exp ')' { Exp::IntEq(Box::new($3), Box::new($4)) }
-
     | '(' 'make-tuple' exps ')'    { Exp::pairs($3) }
     | '(' 'tuple-proj' exp pos ')' { let e = $3; e.proj($4) }
 
@@ -97,7 +93,26 @@ exp -> Exp :
     | '(' 'mvectorset' exp exp exp ')' { Exp::VectorSet(Box::new($3), Box::new($4), Box::new($5)) }
     | '(' 'mvectorlen' exp ')'         { Exp::VectorLen(Box::new($3)) }
 
-    | '(' exps ')' { Exp::apps($2) }
+    | '(' exp ')' { if let Some(op) = as_var(&$2).and_then(|x| unitop(x)) {
+                        Exp::UnaryOp(op, Box::new(Exp::Lit(Lit::Unit)))
+                    } else {
+                        Exp::apps(vec![$2])
+                    }
+                  }
+    | '(' exp exp ')' { if let Some(op) = as_var(&$2).and_then(|x| unop(x)) {
+                            Exp::UnaryOp(op, Box::new($3))
+                        } else {
+                            Exp::apps(vec![$2, $3])
+                        }
+                      }
+    | '(' exp exp exp ')' { if let Some(op) = as_var(&$2).and_then(|x| binop(x)) {
+                                Exp::BinaryOp(op, Box::new($3), Box::new($4))
+                            } else {
+                                Exp::apps(vec![$2, $3, $4])
+                            }
+                          }
+    | '(' binop_nonid exp exp ')' { Exp::BinaryOp($2, Box::new($3), Box::new($4)) }
+    | '(' exp exp exp exps ')' { let mut v = vec![$2, $3, $4]; v.append(&mut $5); Exp::apps(v) }
 ;
 
 bindings -> Vec<(String, Option<Typ>, Exp)> :
@@ -235,7 +250,110 @@ id -> String :
     'ID' { $lexer.span_str($1.unwrap().span()).to_string() }
   ;
 
+binop_nonid -> BinOp :
+    '<' { BinOp::IntEq }
+  | '>' { BinOp::IntEq }
+  | '=' { BinOp::IntEq }
+  | '>=' { BinOp::IntEq }
+  | '<=' { BinOp::IntEq }
+  | '+' { BinOp::IntAdd }
+  | '-' { BinOp::IntMul }
+  | '*' { BinOp::IntMul }
+  | '%/' { BinOp::IntMul }
+  | '%>>' { BinOp::IntMul }
+  | '%<<' { BinOp::IntMul }
+  | '%%' { BinOp::IntMul }
+  ;
+
 %%
 
-use crate::syntax::{Toplevel, Exp, Lit, Typ};
+use crate::syntax::*;
 use crate::parser::{next_metavar, parser_warning};
+
+fn as_var(e: &Exp) -> Option<&str> {
+    if let Exp::Var(id) = e {
+        Some(id)
+    } else {
+        None
+    }
+}
+
+fn binop(s: &str) -> Option<BinOp> {
+    use BinOp::*;
+    match &s[..] {
+        "quotient" => Some(IntMul),
+        "binary-and" => Some(IntMul),
+        "binary-or" => Some(IntMul),
+        "binary-xor" => Some(IntMul),
+        "and" => Some(And),
+        "or" => Some(And),
+        "fl<" => Some(FloatEq),
+        "fl>" => Some(FloatEq),
+        "fl=" => Some(FloatEq),
+        "fl>=" => Some(FloatEq),
+        "fl<=" => Some(FloatEq),
+        "fl+" => Some(FloatAdd),
+        "fl-" => Some(FloatAdd),
+        "fl*" => Some(FloatAdd),
+        "fl/" => Some(FloatAdd),
+        "flmodulo" => Some(FloatAdd),
+        "flexpt" => Some(FloatAdd),
+        "flmin" => Some(FloatAdd),
+        "flmax" => Some(FloatAdd),
+        "flquotient" => Some(FloatAdd),
+        "print-float" => Some(PrintFloat),
+        "printf" => Some(Printf),
+        _ => None,
+    }
+}
+
+fn unop(s: &str) -> Option<UnOp> {
+    use UnOp::*;
+    match &s[..] {
+        "not" => Some(Not),
+        "binary-not" => Some(BinaryNot),
+        "print-int" => Some(PrintInt),
+        "print-bool" => Some(PrintBool),
+        "print-char" => Some(PrintChar),
+        "display-char" => Some(PrintChar),
+        "flabs" => Some(FloatAbs),
+        "flround" => Some(FloatAbs),
+        "flfloor" => Some(FloatAbs),
+        "flceiling" => Some(FloatAbs),
+        "fltruncate" => Some(FloatAbs),
+        "flsin" => Some(FloatAbs),
+        "flcos" => Some(FloatAbs),
+        "fltan" => Some(FloatAbs),
+        "flasin" => Some(FloatAbs),
+        "flacos" => Some(FloatAbs),
+        "flatan" => Some(FloatAbs),
+        "fllog" => Some(FloatAbs),
+        "flep" => Some(FloatAbs),
+        "flexp" => Some(FloatAbs),
+        "flsqrt" => Some(FloatAbs),
+        "flnegate" => Some(FloatAbs),
+        "print" => Some(Print),
+        "float->int" => Some(FloatToInt),
+        "int->float" => Some(IntToFloat),
+        "char->int" => Some(CharToInt),
+        "int->char" => Some(IntToChar),
+        "and" => Some(And),
+        _ => unitop(s),
+    }
+}
+
+fn unitop(s: &str) -> Option<UnOp> {
+    use UnOp::*;
+    match &s[..] {
+        "read-int" => Some(ReadInt),
+        "read-bool" => Some(ReadBool),
+        "read-float" => Some(ReadFloat),
+        "read-char" => Some(ReadChar),
+        "timer-start" => Some(TimerStart),
+        "timer-stop" => Some(TimerStart),
+        "timer-report" => Some(TimerStart),
+        "time" => Some(TimerStart),
+        "exit" => Some(Exit),
+        _ => None,
+    }
+}

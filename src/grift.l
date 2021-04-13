@@ -17,9 +17,6 @@ if "if"
 cond "cond"
 let "let"
 letrec "letrec"
-\+ "+"
-\* "*"
-= "="
 tuple "make-tuple"
 tuple-proj "tuple-proj"
 box "box"
@@ -68,4 +65,16 @@ Rec "Rec"
 \#\\newline "CHRnewline"
 \#\\space "CHRspace"
 "[^"]*" "STR"
+< '<'
+> '>'
+= '='
+>= '>='
+<= '<='
+\+ '+'
+- '-'
+\* '*'
+%/ '%/'
+%>> '%>>'
+%<< '%<<'
+[%]% '%%'
 [^\(\)\[\]\{\}",'`;\#\|\\\t\r\n ]+ "ID"

@@ -57,6 +57,24 @@ pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
                 _ => Err("expected arrow in application".to_string()),
             }
         }
+        // Γ ⊢ e : unop.typ().0
+        // ----------------------------------------------
+        // Γ ⊢ unop e : unop.typ().1
+        Exp::UnaryOp(op, e) => {
+            let (arg, ret) = op.typ();
+            should_match(&arg, tcheck(&env, e)?)?;
+            Ok(ret)
+        }
+        // Γ ⊢ e_1 : op.typ().0
+        // Γ ⊢ e_2 : op.typ().1
+        // ----------------------------------------------
+        // Γ ⊢ binop e_1 e_2 : op.typ().2
+        Exp::BinaryOp(op, e1, e2) => {
+            let (t1, t2, res) = op.typ();
+            should_match(&t1, tcheck(&env, e1)?)?;
+            should_match(&t2, tcheck(&env, e2)?)?;
+            Ok(res)
+        }
         // Γ ⊢ e1 : T_1
         // Γ,x:T_1 ⊢ e2 : T_2
         // ---------------------------------------
@@ -86,31 +104,6 @@ pub fn tcheck(env: &Env, exp: &Exp) -> Result<Typ, String> {
         // ---------
         // Γ ⊢ (e : T) : T
         Exp::Ann(e, typ) => should_match(typ, tcheck(env, e)?),
-        // Γ ⊢ e_1 : int
-        // Γ ⊢ e_2 : int
-        // ----------------------------------------------
-        // Γ ⊢ e_1 [+*] e_2 : int
-        Exp::Add(e1, e2) | Exp::Mul(e1, e2) => {
-            should_match(&Typ::Int, tcheck(&env, e1)?)?;
-            should_match(&Typ::Int, tcheck(&env, e2)?)?;
-            Ok(Typ::Int)
-        }
-        // Γ ⊢ e_1 : int
-        // Γ ⊢ e_2 : int
-        // ----------------------------------------------
-        // Γ ⊢ e_1 = e_2 : bool
-        Exp::IntEq(e1, e2) => {
-            should_match(&Typ::Int, tcheck(&env, e1)?)?;
-            should_match(&Typ::Int, tcheck(&env, e2)?)?;
-            Ok(Typ::Bool)
-        }
-        // Γ ⊢ e : bool
-        // ----------------------------------------------
-        // Γ ⊢ not e : bool
-        Exp::Not(e) => {
-            should_match(&Typ::Bool, tcheck(&env, e)?)?;
-            Ok(Typ::Bool)
-        }
         // Γ ⊢ e_1 : T_1 where T_1 ∈ {int, str, any}
         // Γ ⊢ e_2 : T_1
         // ----------------------------------------------
