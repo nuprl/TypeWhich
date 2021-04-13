@@ -1,7 +1,0 @@
-(module even
-  (exports even?)
-
-  (define (even? [n : Int] [k : (Bool -> Bool)]) : Bool
-    (if (= n 0)
-        (k #t)
-        (odd? (- n 1) k))))
