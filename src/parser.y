@@ -68,20 +68,20 @@ funExp -> R<Exp> :
   ;
 
 mul -> R<Exp> :
-    mul '*' funExp { Ok(Exp::Mul(Box::new($1?), Box::new($3?))) }
-  | 'not' funExp   { Ok(Exp::Not(Box::new($2?))) }
+    mul '*' funExp { Ok(Exp::BinaryOp(BinOp::IntMul, Box::new($1?), Box::new($3?))) }
+  | 'not' funExp   { Ok(Exp::UnaryOp(UnOp::Not, Box::new($2?))) }
   | funExp         { $1 }
   ;
 
 add -> R<Exp> :
-    add '+' mul  { Ok(Exp::Add(Box::new($1?), Box::new($3?))) }
+    add '+' mul  { Ok(Exp::BinaryOp(BinOp::IntAdd, Box::new($1?), Box::new($3?))) }
   | add '+?' mul { Ok(Exp::AddOverload(Box::new($1?), Box::new($3?))) }
   | mul          { $1 }
   ;
 
 pair -> R<Exp> :
     pair ',' add { Ok(Exp::Pair(Box::new($1?), Box::new($3?))) }
-  | pair '=' add { Ok(Exp::IntEq(Box::new($1?), Box::new($3?))) }
+  | pair '=' add { Ok(Exp::BinaryOp(BinOp::IntEq, Box::new($1?), Box::new($3?))) }
   | add          { $1 }
   ;
 
@@ -110,7 +110,7 @@ binding -> R<(String, Typ, Exp)> :
 ;
 %%
 
-use crate::syntax::{Exp, Lit, Typ};
+use crate::syntax::{Exp, Lit, Typ, BinOp, UnOp};
 use crate::parser::next_metavar;
 
 type R<T> = Result<T, ()>;

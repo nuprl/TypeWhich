@@ -1,5 +1,5 @@
-use crate::syntax::{Exp as SrcExp, Typ as SrcTyp, Lit as SrcLit};
 use super::syntax::*;
+use crate::syntax::{BinOp, Exp as SrcExp, Lit as SrcLit, Typ as SrcTyp};
 
 type Result<T> = std::result::Result<T, ()>;
 
@@ -34,15 +34,31 @@ pub fn from_exp(e: &SrcExp) -> Result<Exp> {
         // skips assign and seq
         SrcExp::Lit(l) => Ok(Exp::Lit(from_lit(l)?)),
         SrcExp::Var(x) => Ok(Exp::Var(x.clone())),
-        SrcExp::Fun(x, t, e) => Ok(Exp::Fun(x.clone(), from_typ(t)?, Box::new(from_exp(e)?), next_metavar_typ())),
+        SrcExp::Fun(x, t, e) => Ok(Exp::Fun(
+            x.clone(),
+            from_typ(t)?,
+            Box::new(from_exp(e)?),
+            next_metavar_typ(),
+        )),
         SrcExp::App(e1, e2) => Ok(Exp::App(Box::new(from_exp(e1)?), Box::new(from_exp(e2)?))),
-        SrcExp::If(e1, e2, e3) => 
-            Ok(Exp::If(Box::new(from_exp(e1)?), Box::new(from_exp(e2)?), Box::new(from_exp(e3)?))),
-        SrcExp::Add(e1, e2) =>
-            Ok(Exp::Add(Box::new(from_exp(e1)?), Box::new(from_exp(e2)?))),
-        SrcExp::Let(x, e1, e2) =>
-            Ok(Exp::App(Box::new(Exp::Fun(x.to_string(), next_metavar_typ(), Box::new(from_exp(e2)?), next_metavar_typ())), Box::new(from_exp(e1)?))),
-        _ => Err(())
+        SrcExp::If(e1, e2, e3) => Ok(Exp::If(
+            Box::new(from_exp(e1)?),
+            Box::new(from_exp(e2)?),
+            Box::new(from_exp(e3)?),
+        )),
+        SrcExp::BinaryOp(BinOp::IntAdd, e1, e2) => {
+            Ok(Exp::Add(Box::new(from_exp(e1)?), Box::new(from_exp(e2)?)))
+        }
+        SrcExp::Let(x, e1, e2) => Ok(Exp::App(
+            Box::new(Exp::Fun(
+                x.to_string(),
+                next_metavar_typ(),
+                Box::new(from_exp(e2)?),
+                next_metavar_typ(),
+            )),
+            Box::new(from_exp(e1)?),
+        )),
+        _ => Err(()),
     }
 }
 
@@ -63,7 +79,7 @@ fn to_lit(l: Lit) -> SrcLit {
     match l {
         Lit::Null => SrcLit::Unit,
         Lit::Int(n) => SrcLit::Int(n),
-        Lit::Bool(b) => SrcLit::Bool(b)
+        Lit::Bool(b) => SrcLit::Bool(b),
     }
 }
 
@@ -74,10 +90,21 @@ pub fn to_exp(e: Exp) -> Result<SrcExp> {
         Exp::Assign(_, _) => Err(()),
         Exp::Fun(x, t, e, _) => Ok(SrcExp::Fun(x, to_typ(t)?, Box::new(to_exp(*e)?))),
         Exp::App(e1, e2) => Ok(SrcExp::App(Box::new(to_exp(*e1)?), Box::new(to_exp(*e2)?))),
-        Exp::Coerce(t1, t2, e) => Ok(SrcExp::Coerce(to_typ(t1)?, to_typ(t2)?, Box::new(to_exp(*e)?))),
-        Exp::If(e1, e2, e3) => Ok(SrcExp::If(Box::new(to_exp(*e1)?), Box::new(to_exp(*e2)?), Box::new(to_exp(*e3)?))),
-        Exp::Add(e1, e2) => Ok(SrcExp::Add(Box::new(to_exp(*e1)?), Box::new(to_exp(*e2)?))),
-        Exp::Seq(_, _) => Err(()),    
+        Exp::Coerce(t1, t2, e) => Ok(SrcExp::Coerce(
+            to_typ(t1)?,
+            to_typ(t2)?,
+            Box::new(to_exp(*e)?),
+        )),
+        Exp::If(e1, e2, e3) => Ok(SrcExp::If(
+            Box::new(to_exp(*e1)?),
+            Box::new(to_exp(*e2)?),
+            Box::new(to_exp(*e3)?),
+        )),
+        Exp::Add(e1, e2) => Ok(SrcExp::BinaryOp(
+            BinOp::IntAdd,
+            Box::new(to_exp(*e1)?),
+            Box::new(to_exp(*e2)?),
+        )),
+        Exp::Seq(_, _) => Err(()),
     }
 }
-

@@ -141,37 +141,25 @@ impl<'a> State<'a> {
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 [+*] e_2 => coerce(int, α) coerce(T_1, int) e_1 [+*] coerce(T_2, int) e_2, α,
-            //                     φ_1 && φ_2 && strengthen(T_1, int) && strengthen(T_2, int)
-            //                     && weaken(int, α)
-            Exp::Add(e1, e2) | Exp::Mul(e1, e2) => {
+            // Γ ⊢ e_1 bop e_2 => coerce(bop.res, α) coerce(T_1, bop.t1) e_1 [+*] coerce(T_2, bop.t2) e_2, α,
+            //                     φ_1 && φ_2 && strengthen(T_1, bop.t1) && strengthen(T_2, bop.t2)
+            //                     && weaken(bop.res, α)
+            Exp::BinaryOp(op, e1, e2) => {
+                let (op1, op2, res) = op.typ();
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                let phi3 = self.strengthen(t1, Typ::Int, &mut *e1)
-                    & self.strengthen(t2, Typ::Int, &mut *e2);
-                self.weaken(Typ::Int, exp, phi1 & phi2 & phi3)
-            }
-            // Γ ⊢ e_1 => T_1, φ_1
-            // Γ ⊢ e_2 => T_2, φ_2
-            // ----------------------------------------------
-            // Γ ⊢ e_1 = e_2 => coerce(bool, α) coerce(T_1, int) e_1 = coerce(T_2, int) e_2, α,
-            //                  φ_1 && φ_2 && strengthen(T_1, int) && strengthen(T_2, int)
-            //                  && weaken(bool, α)
-            Exp::IntEq(e1, e2) => {
-                let (t1, phi1) = self.cgen(&env, e1);
-                let (t2, phi2) = self.cgen(&env, e2);
-                let s1 = self.strengthen(t1, Typ::Int, e1);
-                let s2 = self.strengthen(t2, Typ::Int, e2);
-                self.weaken(Typ::Bool, exp, phi1 & phi2 & s1 & s2)
+                let phi3 = self.strengthen(t1, op1, &mut *e1) & self.strengthen(t2, op2, &mut *e2);
+                self.weaken(res, exp, phi1 & phi2 & phi3)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ not e => coerce(bool, α) coerce(T, bool, e), α, φ
-            //              && strengthen(T, bool) && weaken(bool, α)
-            Exp::Not(e) => {
+            // Γ ⊢ uop e => coerce(uop.res, α) coerce(T, uop.t, e), α, φ
+            //              && strengthen(T, uop.t) && weaken(uop.res, α)
+            Exp::UnaryOp(op, e) => {
+                let (op_t, res) = op.typ();
                 let (t, phi1) = self.cgen(&env, e);
-                let phi2 = self.strengthen(t, Typ::Bool, e);
-                self.weaken(Typ::Bool, exp, phi1 & phi2)
+                let phi2 = self.strengthen(t, op_t, e);
+                self.weaken(res, exp, phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
@@ -583,7 +571,7 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
         }
         Exp::Head(e)
         | Exp::Tail(e)
-        | Exp::Not(e)
+        | Exp::UnaryOp(_, e)
         | Exp::Box(e)
         | Exp::Unbox(e)
         | Exp::Fst(e)
@@ -598,12 +586,10 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
             annotate(env, e);
         }
         Exp::App(e1, e2)
-        | Exp::Add(e1, e2)
+        | Exp::BinaryOp(_, e1, e2)
         | Exp::AddOverload(e1, e2)
-        | Exp::IntEq(e1, e2)
         | Exp::Cons(e1, e2)
         | Exp::Pair(e1, e2)
-        | Exp::Mul(e1, e2)
         | Exp::BoxSet(e1, e2)
         | Exp::Let(_, e1, e2)
         | Exp::Vector(e1, e2)

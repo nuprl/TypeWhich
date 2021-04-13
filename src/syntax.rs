@@ -6,7 +6,7 @@ use crate::parser::next_metavar;
 pub enum GroundTyp {
     Int,
     Bool,
-    Fun
+    Fun,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -20,12 +20,11 @@ pub enum Coerce {
 }
 
 impl Coerce {
-
     pub fn seq(&self, other: &Coerce) -> Coerce {
         match (self, other) {
             (Coerce::Id, _) => other.clone(),
             (_, Coerce::Id) => self.clone(),
-            _ => Coerce::Seq(Box::new(self.clone()), Box::new(other.clone()))
+            _ => Coerce::Seq(Box::new(self.clone()), Box::new(other.clone())),
         }
     }
 }
@@ -97,11 +96,9 @@ impl Typ {
     pub fn join(&self, other: &Typ) -> Typ {
         if self.is_metavar() || other.is_metavar() {
             panic!(".join on metavars")
-        }
-        else if self != other {
+        } else if self != other {
             Typ::Any
-        }
-        else {
+        } else {
             self.clone()
         }
     }
@@ -159,14 +156,12 @@ pub enum Exp {
     Fun(Id, Typ, Box<Exp>),
     Fix(Id, Typ, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
+    UnaryOp(UnOp, Box<Exp>),
+    BinaryOp(BinOp, Box<Exp>, Box<Exp>),
     Let(Id, Box<Exp>, Box<Exp>),
     LetRec(Vec<(Id, Typ, Exp)>, Box<Exp>),
     Ann(Box<Exp>, Typ),
     AddOverload(Box<Exp>, Box<Exp>),
-    Add(Box<Exp>, Box<Exp>),
-    Mul(Box<Exp>, Box<Exp>),
-    IntEq(Box<Exp>, Box<Exp>),
-    Not(Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     // pairs
     Pair(Box<Exp>, Box<Exp>),
@@ -205,6 +200,70 @@ pub enum Exp {
     PrimCoerce(Coerce, Box<Exp>),
 }
 
+/// Holds the type for a unary operator. Not guaranteed to hold the actual
+/// operation from the program
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum UnOp {
+    Not,
+    BinaryNot,
+    FloatAbs,
+    TimerStart,
+    Print,
+    Exit,
+}
+/// Holds the type for a binary operator. Only IntAdd is guaranteed to hold the
+/// actual operation from the program
+/// TODO(luna): after writing all that documentation, i'm realizing it's easier
+/// to just parse them correctly
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BinOp {
+    IntEq,
+    /// Most other binops also stand in for a number of different operators of
+    /// a different type, which is obviously wrong. Our interpreter mostly doesn't
+    /// support them so it's not a problem, but it supports this one. (int -> int)
+    /// -> int operators that are not supported by the interpreter go in IntMul
+    IntAdd,
+    /// May not actually be IntMul. Don't parse an (int -> int) -> int operation
+    /// besides + as IntAdd, parse it as IntMul
+    IntMul,
+    FloatAdd,
+    FloatEq,
+    /// grift's `and`. i'm not sure what this is mostly because i'm not sure why
+    /// it's any -> any -> any in the original env. Same type as `or` (omitted)
+    And,
+    Printf,
+}
+
+impl UnOp {
+    pub fn typ(&self) -> (Typ, Typ) {
+        use Typ::*;
+        match self {
+            UnOp::Not => (Bool, Bool),
+            UnOp::BinaryNot => (Int, Int),
+            UnOp::FloatAbs => (Float, Float),
+            UnOp::TimerStart => (Unit, Unit),
+            UnOp::Print => (Str, Unit),
+            UnOp::Exit => (Int, Any),
+        }
+    }
+}
+impl BinOp {
+    pub fn typ(&self) -> (Typ, Typ, Typ) {
+        #[allow(unused_imports)]
+        use std::boxed::Box;
+        use Typ::*;
+        match self {
+            BinOp::IntEq => (Int, Int, Bool),
+            BinOp::IntAdd | BinOp::IntMul => (Int, Int, Int),
+            BinOp::FloatAdd => (Float, Float, Float),
+            BinOp::FloatEq => (Float, Float, Bool),
+            // see doc
+            BinOp::And => (Any, Any, Any),
+            BinOp::Printf => (Str, List(Box::new(Any)), Unit),
+        }
+    }
+}
+
 impl Exp {
     pub fn take(&mut self) -> Self {
         std::mem::replace(self, Exp::Lit(Lit::Int(0)))
@@ -213,7 +272,7 @@ impl Exp {
     pub fn coerce(self, k: Coerce) -> Self {
         match k {
             Coerce::Id => self,
-            _ => Exp::PrimCoerce(k, Box::new(self))
+            _ => Exp::PrimCoerce(k, Box::new(self)),
         }
     }
 
@@ -327,14 +386,19 @@ impl Exp {
         assert!(ints.len() >= 1);
 
         let mut ints = ints.into_iter();
-        let mut e = Exp::IntEq(
+        let mut e = Exp::BinaryOp(
+            BinOp::IntEq,
             Box::new(val.clone()),
             Box::new(Exp::Lit(Lit::Int(ints.next().unwrap()))),
         );
         for i in ints {
             e = Exp::or(
                 e,
-                Exp::IntEq(Box::new(val.clone()), Box::new(Exp::Lit(Lit::Int(i)))),
+                Exp::BinaryOp(
+                    BinOp::IntEq,
+                    Box::new(val.clone()),
+                    Box::new(Exp::Lit(Lit::Int(i))),
+                ),
             );
         }
 
@@ -373,7 +437,8 @@ impl Exp {
         let index = Box::new(Exp::Var(var.clone()));
 
         let loop_body = Exp::If(
-            Box::new(Exp::IntEq(
+            Box::new(Exp::BinaryOp(
+                BinOp::IntEq,
                 index.clone(),
                 Box::new(Exp::Var(loop_hi.clone())),
             )),
@@ -382,7 +447,11 @@ impl Exp {
             // body
             Box::new(Exp::apps(vec![
                 Exp::Var(loop_fun.clone()),
-                Exp::Add(index.clone(), Box::new(Exp::Lit(Lit::Int(1)))),
+                Exp::BinaryOp(
+                    BinOp::IntAdd,
+                    index.clone(),
+                    Box::new(Exp::Lit(Lit::Int(1))),
+                ),
                 body.clone(),
             ])),
         );
@@ -422,7 +491,7 @@ impl Exp {
                 }
                 e.fresh_types();
             }
-            Exp::Not(e)
+            Exp::UnaryOp(_, e)
             | Exp::Fst(e)
             | Exp::Snd(e)
             | Exp::IsEmpty(e)
@@ -439,9 +508,7 @@ impl Exp {
             Exp::App(e1, e2)
             | Exp::Let(_, e1, e2)
             | Exp::AddOverload(e1, e2)
-            | Exp::Add(e1, e2)
-            | Exp::Mul(e1, e2)
-            | Exp::IntEq(e1, e2)
+            | Exp::BinaryOp(_, e1, e2)
             | Exp::Pair(e1, e2)
             | Exp::Cons(e1, e2)
             | Exp::BoxSet(e1, e2)
@@ -454,7 +521,7 @@ impl Exp {
                 e1.fresh_types();
                 e2.fresh_types();
                 e3.fresh_types();
-            },
+            }
             Exp::PrimCoerce(..) => panic!("PrimCoerce should not appear in source"),
         };
     }
@@ -512,8 +579,7 @@ impl Exp {
                 )?;
                 e1.matches_roughly(e2)
             }
-            (Exp::Not(e1), Exp::Not(e2))
-            | (Exp::Fst(e1), Exp::Fst(e2))
+            (Exp::Fst(e1), Exp::Fst(e2))
             | (Exp::Snd(e1), Exp::Snd(e2))
             | (Exp::IsEmpty(e1), Exp::IsEmpty(e2))
             | (Exp::Head(e1), Exp::Head(e2))
@@ -525,13 +591,16 @@ impl Exp {
             | (Exp::IsString(e1), Exp::IsString(e2))
             | (Exp::IsList(e1), Exp::IsList(e2))
             | (Exp::IsFun(e1), Exp::IsFun(e2))
+            // this needs to check whether the operators match but meh
+            | (Exp::UnaryOp(_, e1), Exp::UnaryOp(_, e2))
             | (Exp::VectorLen(e1), Exp::VectorLen(e2)) => e1.matches_roughly(e2),
             (Exp::App(e11, e12), Exp::App(e21, e22))
             | (Exp::Let(_, e11, e12), Exp::Let(_, e21, e22))
             | (Exp::AddOverload(e11, e12), Exp::AddOverload(e21, e22))
-            | (Exp::Add(e11, e12), Exp::Add(e21, e22))
-            | (Exp::Mul(e11, e12), Exp::Mul(e21, e22))
-            | (Exp::IntEq(e11, e12), Exp::IntEq(e21, e22))
+            // this needs to check whether the binary operators match
+            // but... if a program differs only by what kind of operator is there
+            // something has gone HORRIBLY wrong and we deserve to get nonsense results
+            | (Exp::BinaryOp(_, e11, e12), Exp::BinaryOp(_, e21, e22))
             | (Exp::Pair(e11, e12), Exp::Pair(e21, e22))
             | (Exp::Cons(e11, e12), Exp::Cons(e21, e22))
             | (Exp::BoxSet(e11, e12), Exp::BoxSet(e21, e22))
@@ -572,13 +641,15 @@ impl Exp {
     }
     pub fn is_add_or_looser(&self) -> bool {
         match self {
-            Exp::Add(..) => true,
+            // could match on op and parethesize less
+            Exp::BinaryOp(..) => true,
             _ => self.is_fun_exp(),
         }
     }
     pub fn is_mul_or_looser(&self) -> bool {
         match self {
-            Exp::Mul(..) => true,
+            // could match on op and parethesize less
+            Exp::BinaryOp(..) => true,
             _ => self.is_add_or_looser(),
         }
     }
@@ -586,7 +657,7 @@ impl Exp {
     pub fn is_coercion(&self) -> bool {
         match self {
             Exp::Coerce(_, _, e) => e.is_atom(),
-                _ => false
+            _ => false,
         }
     }
 

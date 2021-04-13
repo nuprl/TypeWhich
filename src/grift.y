@@ -21,6 +21,12 @@ exps -> Vec<Exp> :
     | exp      { let mut v = Vec::new(); v.push($1); v }
 ;
 
+binop -> BinOp :
+      '+' { BinOp::IntAdd }
+    | '*' { BinOp::IntMul }
+    | '=' { BinOp::IntEq }
+;
+
 exp -> Exp :
       lit { Exp::Lit($1) }
     | id  { Exp::Var($1) }
@@ -63,9 +69,7 @@ exp -> Exp :
 
     | '(' 'begin' exps ')' { Exp::begin($3) }
 
-    | '(' '+' exp exp ')' { Exp::Add(Box::new($3), Box::new($4)) }
-    | '(' '*' exp exp ')' { Exp::Mul(Box::new($3), Box::new($4)) }
-    | '(' '=' exp exp ')' { Exp::IntEq(Box::new($3), Box::new($4)) }
+    | '(' binop exp exp ')' { Exp::BinaryOp($2, Box::new($3), Box::new($4)) }
 
     | '(' 'make-tuple' exps ')'    { Exp::pairs($3) }
     | '(' 'tuple-proj' exp pos ')' { let e = $3; e.proj($4) }
@@ -237,5 +241,5 @@ id -> String :
 
 %%
 
-use crate::syntax::{Toplevel, Exp, Lit, Typ};
+use crate::syntax::*;
 use crate::parser::{next_metavar, parser_warning};
