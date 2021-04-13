@@ -234,7 +234,6 @@ impl Pretty for DisplayClosure<'_> {
     }
 }
 
-
 impl_Display_Pretty2!(Typ);
 impl_Display_Pretty2!(Exp);
 impl_Display_Pretty2!(DisplayClosure<'_>);

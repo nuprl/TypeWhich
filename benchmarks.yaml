@@ -46,8 +46,7 @@ benchmarks:
   - file: migeed/07_apply2.gtlc
     results:
       MaxMigrate:
-        result:
-          Unusable: ~
+        assert_unusable: true
     context: |
       (HOLE) 1 (fun z1 . fun z2 . 1)
   - file: migeed/08_indirect_apply_self.gtlc

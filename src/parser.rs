@@ -52,8 +52,13 @@ pub fn parse(input: impl AsRef<str>) -> Result<Exp, String> {
     }
 
     match res {
-        Some(Ok(exp)) => if did_err == false { Ok(exp) } else { Err(errors) },
-        Some(Err(_)) | None => Err(errors)
+        Some(Ok(exp)) => {
+            if did_err == false {
+                Ok(exp)
+            } else {
+                Err(errors)
+            }
+        }
+        Some(Err(_)) | None => Err(errors),
     }
 }
-

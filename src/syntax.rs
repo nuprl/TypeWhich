@@ -47,6 +47,10 @@ pub enum Typ {
 }
 
 impl Typ {
+    pub fn take(&mut self) -> Typ {
+        std::mem::replace(self, Typ::Unit)
+    }
+
     /// Generates a right-associated function type
     ///
     /// `typs` must not be empty

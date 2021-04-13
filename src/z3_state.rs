@@ -110,7 +110,7 @@ impl<'a> Z3State<'a> {
         } else if self.is_any(model, &e) {
             Typ::Any
         } else if self.is_unit(model, &e) {
-            Typ::Unit  
+            Typ::Unit
         } else if self.is_vect(model, &e) {
             let t = self.vect_typ(&e);
             let t = self.z3_to_typ(model, t);

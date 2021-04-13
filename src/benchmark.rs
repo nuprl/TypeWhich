@@ -81,7 +81,10 @@ fn count_stars(e: &super::syntax::Exp) -> usize {
     match e {
         Exp::Lit(..) | Exp::Var(..) => 0,
         Exp::App(e1, e2) | Exp::BinaryOp(_, e1, e2) => count_stars(e1) + count_stars(e2),
-        Exp::Fun(_, t, e) => {
+        // If we introduce an annotation, we get an extra star! This can produce surprising results
+        // For example, the original program `1 + true` has zero stars, but after migration, we get
+        // `1 + true as any`, which has 1 star.
+        Exp::Ann(e, t) | Exp::Fun(_, t, e) => {
             (match t {
                 Typ::Any => 1,
                 _ => 0,

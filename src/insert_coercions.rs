@@ -108,6 +108,13 @@ fn ins(mut env: Env, exp: &mut Exp) -> R {
             **e3 = e3.take().coerce(coerce(&t3, &t_joined));
             Ok(t_joined)
         }
+        Exp::Ann(e1, t1) => {
+            let t2 = ins(env.clone(), e1)?;
+            let k = coerce(&t2, &t1);
+            let t_result = t1.take();
+            *exp = Exp::PrimCoerce(k, Box::new(e1.take()));
+            Ok(t_result)
+        }
         _ => unimplemented!("{:?}", exp),
     }
 }

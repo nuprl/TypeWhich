@@ -36,6 +36,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     LexerBuilder::new()
         .rule_ids_map(lex_rule_ids_map)
         .process_file_in_src("grift.l")?;
-        
+
     Ok(())
 }
