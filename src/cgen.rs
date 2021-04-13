@@ -50,46 +50,49 @@ impl<'a> State<'a> {
         }
     }
 
-    fn cgen(&self, env: &Env, exp: &mut Exp) -> (Typ, Bool<'_>) {
+    fn cgen(&self, env: &Env, exp: &mut Exp) -> (Typ, Bool<'a>) {
         match exp {
             Exp::PrimCoerce(..) => panic!("PrimCoerce should not appear in source"),
             // ---------------------------
-            // Γ ⊢ lit => lit.typ(), true
-            Exp::Lit(lit) => (lit.typ(), self.z3.true_z3()),
+            // Γ ⊢ lit => coerce(lit.typ(), α, lit), α, weaken(lit.typ(), α)
+            Exp::Lit(lit) => self.weaken(lit.typ(), exp, self.z3.true_z3()),
             // ---------------------------
-            // Γ ⊢ x => Γ(x), true
-            Exp::Var(x) => (
-                env.get(x)
+            // Γ ⊢ x => coerce(Γ(x), α, x), α, weaken(Γ(x), α)
+            Exp::Var(x) => {
+                let gamma = env
+                    .get(x)
                     .unwrap_or_else(|| panic!("unbound identifier {}", x))
-                    .clone(),
-                self.z3.true_z3(),
-            ),
-            // Γ,x:T_1 ⊢ e => T_2, φ
-            // ---------------------------------------
-            // Γ ⊢ fun x : T_1 . e => T_1 -> α, φ && weaken(T_2, α)
-            Exp::Fun(x, t, body) => {
-                let mut env = env.clone();
-                env.insert(x.clone(), t.clone());
-                let (t_body, phi) = self.cgen(&env, body);
-                let alpha = next_metavar();
-                let phi2 = self.weaken(t_body, alpha.clone(), body);
-                (Typ::Arr(Box::new(t.clone()), Box::new(alpha)), phi & phi2)
+                    .clone();
+                self.weaken(gamma, exp, self.z3.true_z3())
             }
             // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
-            // Γ ⊢ fix x : T_1 . e => T_1, φ && T_1 = T_2
+            // Γ ⊢ fun x : T_1 . e => coerce(T1 -> T2, α) fun x : T_1 . e, α,
+            //                        φ && weaken(T1 -> T2, α)
+            Exp::Fun(x, t1, body) => {
+                let mut env = env.clone();
+                env.insert(x.clone(), t1.clone());
+                let (t2, phi) = self.cgen(&env, body);
+                let arrow = Typ::Arr(Box::new(t1.clone()), Box::new(t2));
+                self.weaken(arrow, exp, phi)
+            }
+            // Γ,x:T_1 ⊢ e => T_2, φ
+            // ---------------------------------------
+            // Γ ⊢ fix x : T_1 . e => coerce(T_1, α) fix x : T_1 . e, α,
+            //                        φ && T_1 = T_2 && weaken(T_1, α)
             Exp::Fix(x, t1, body) => {
                 let mut env = env.clone();
                 env.insert(x.clone(), t1.clone());
                 let (t2, phi1) = self.cgen(&env, body);
                 let phi2 = self.t2z3(t1)._eq(&self.t2z3(&t2));
-                (t1.clone(), phi1 & phi2)
+                self.weaken(t1.clone(), exp, phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 e_2 => coerce(T_1, α -> β) e_1 coerce(T_2, α) e_2, β,
-            //                φ_1 && φ_2 && strengthen(T_1, α -> β) && weaken(T_2, α)
+            // Γ ⊢ e_1 e_2 => coerce(β, γ) (coerce(T_1, α -> β) e_1 e_2), γ,
+            //                φ_1 && φ_2 && strengthen(T_1, α -> β) && weaken(β, γ)
+            //                && T_2 = α
             Exp::App(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
@@ -97,34 +100,8 @@ impl<'a> State<'a> {
                 let beta = next_metavar();
                 let arr = Typ::Arr(Box::new(alpha.clone()), Box::new(beta.clone()));
                 let phi3 = self.strengthen(t1.clone(), arr, e1);
-                // If the thing was annotated by the user, we allow strengthening
-                let (phi3, phi4) = match t1 {
-                    Typ::Metavar(..) => (phi3, self.weaken(t2, alpha, e2)),
-                    // dynamic consistency
-                    Typ::Arr(arg_box, _) => match *arg_box {
-                        Typ::Metavar(..) => (phi3, self.weaken(t2, alpha, e2)),
-                        arg => {
-                            // rather than say strengthen(t2, arg), we say, if
-                            // it's annotated, it's on the user to make sure that
-                            // annotation is correct. That is, we will either infer
-                            // the annotation (covered by weaken) or we will infer
-                            // any, and the annotation needs to be right
-                            // Generates a constraint that t1 is dynamic consistent with t2, as well
-                            // as that t1 is a reasonable migration *assuming t2 is correct*. This
-                            // means that if t1 weakens to t2, weak_negative_any is true, but if t1
-                            // strengthens to t2, all bets are off
-                            (
-                                phi3,
-                                self.t2z3(&t2)._eq(&self.z3.any_z3) | self.weaken(t2, arg, e2),
-                            )
-                        }
-                    },
-                    _ => {
-                        eprintln!("applied non-arrow. will create failing coercion.");
-                        (self.z3.true_z3(), self.weaken(t2, alpha, e2))
-                    }
-                };
-                (beta, phi1 & phi2 & phi3 & phi4)
+                let phi4 = self.t2z3(&t2)._eq(&self.t2z3(&alpha));
+                self.weaken(beta, exp, phi1 & phi2 & phi3 & phi4)
             }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ,x:T_1 ⊢ e2 => T_2, φ_2
@@ -155,254 +132,248 @@ impl<'a> State<'a> {
             }
             // Γ ⊢ e1 => T_1, φ_1
             // -------------------
-            // Γ ⊢ e1 : T => coerce(T_1, T, e), T, φ_1 && (T_1 = any || weaken(T_1, T))
+            // Γ ⊢ e1 : T => coerce(T_1, T) e, T, φ_1 && ground(T_1) && ground(T)
             Exp::Ann(e, typ) => {
                 let (t1, phi1) = self.cgen(env, e);
-                // Generates a constraint that t1 is dynamic consistent with t2, as well
-                // as that t1 is a reasonable migration *assuming t2 is correct*. This
-                // means that if t1 weakens to t2, weak_negative_any is true, but if t1
-                // strengthens to t2, all bets are off
-                let phi2 = self.t2z3(&t1)._eq(&self.z3.any_z3) | self.weaken(t1, typ.clone(), e);
+                let phi2 = self.ground(&t1) & self.ground(&typ);
                 (typ.clone(), phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 [+*] e_2 => coerce(T_1, int) e_1 [+*] coerce(T_2, int) e_2, int,
+            // Γ ⊢ e_1 [+*] e_2 => coerce(int, α) coerce(T_1, int) e_1 [+*] coerce(T_2, int) e_2, α,
             //                     φ_1 && φ_2 && strengthen(T_1, int) && strengthen(T_2, int)
+            //                     && weaken(int, α)
             Exp::Add(e1, e2) | Exp::Mul(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let phi3 = self.strengthen(t1, Typ::Int, &mut *e1)
                     & self.strengthen(t2, Typ::Int, &mut *e2);
-                (Typ::Int, phi1 & phi2 & phi3)
+                self.weaken(Typ::Int, exp, phi1 & phi2 & phi3)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 = e_2 => coerce(T_1, int) e_1 = coerce(T_2, int) e_2, bool,
+            // Γ ⊢ e_1 = e_2 => coerce(bool, α) coerce(T_1, int) e_1 = coerce(T_2, int) e_2, α,
             //                  φ_1 && φ_2 && strengthen(T_1, int) && strengthen(T_2, int)
+            //                  && weaken(bool, α)
             Exp::IntEq(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let s1 = self.strengthen(t1, Typ::Int, e1);
                 let s2 = self.strengthen(t2, Typ::Int, e2);
-                (Typ::Bool, phi1 & phi2 & s1 & s2)
+                self.weaken(Typ::Bool, exp, phi1 & phi2 & s1 & s2)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ not e => coerce(T, bool) e, bool, φ && weaken(T, bool)
+            // Γ ⊢ not e => coerce(bool, α) coerce(T, bool, e), α, φ
+            //              && strengthen(T, bool) && weaken(bool, α)
             Exp::Not(e) => {
                 let (t, phi1) = self.cgen(&env, e);
                 let phi2 = self.strengthen(t, Typ::Bool, e);
-                (Typ::Bool, phi1 & phi2)
+                self.weaken(Typ::Bool, exp, phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 +? e_2 => coerce(T_1, α) e_1 +? coerce(T_2, α) e_2, α,
-            //                   φ_1 && φ_2 && (α = int ||
-            //                                  α = str ||
-            //                                  α = any) &&
-            //                                  weaken(T_1, α) && weaken(T_2, α)
+            // Γ ⊢ e_1 +? e_2 => coerce(α, β) e_1 +? e_2, β,
+            //                   φ_1 && φ_2 && T_1 = T_2 && (T_1 = int ||
+            //                                               T_1 = str ||
+            //                                               T_1 = any)
+            //                   && weaken(α, β)
             Exp::AddOverload(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                let alpha = next_metavar();
-                let a_z3 = self.t2z3(&alpha);
-                let weakens =
-                    self.weaken(t1, alpha.clone(), e1) & self.weaken(t2, alpha.clone(), e2);
-                let valid_type = a_z3._eq(&self.z3.int_z3)
-                    | a_z3._eq(&self.z3.str_z3)
-                    | a_z3._eq(&self.z3.any_z3);
-                (alpha, phi1 & phi2 & valid_type & weakens)
+                let t1_z3 = self.t2z3(&t1);
+                let eq = t1_z3._eq(&self.t2z3(&t2));
+                let valid_type = t1_z3._eq(&self.z3.int_z3)
+                    | t1_z3._eq(&self.z3.str_z3)
+                    | t1_z3._eq(&self.z3.any_z3);
+                self.weaken(t1, exp, phi1 & phi2 & eq & valid_type)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // Γ ⊢ e_3 => T_3, φ_3
             // ----------------------------------------------
-            // Γ ⊢ if e_1 then e_2 else e_3 =>
-            //         if coerce(T_1, bool) e_1 then coerce(T_2, α) else coerce(T_3, α), α,
-            //                                 φ_1 && φ_2 && φ_3 && strengthen(T_1, bool) &&
-            //                                 weaken(T_2, α) && weaken(T_3, α)
+            // Γ ⊢ if e_1 then e_2 else e_3 => if coerce(T_1, bool, e_1) then e_2 else e_3, T_2,
+            //                                 φ_1 && φ_2 && φ_3 &&
+            //                                 strengthen(T_1, bool) && T_2 = T_3
             Exp::If(e1, e2, e3) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
                 let (t3, phi3) = self.cgen(&env, e3);
-                let alpha = next_metavar();
-                let phi4 = self.strengthen(t1, Typ::Bool, e1)
-                    & self.weaken(t2, alpha.clone(), e2)
-                    & self.weaken(t3, alpha.clone(), e3);
-                (alpha, phi1 & phi2 & phi3 & phi4)
+                let phi4 = self.strengthen(t1, Typ::Bool, e1) & self.t2z3(&t2)._eq(&self.t2z3(&t3));
+                (t2, phi1 & phi2 & phi3 & phi4)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1, e_2 => e_1, e_2, (T_1, T_2), φ_1 && φ_2
+            // Γ ⊢ e_1, e_2 => coerce((T_1, T_2), α, (e_1, e_2)), α,
+            //                 φ_1 && φ_2 && weaken((T_1, T_2), α)
             Exp::Pair(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                (Typ::Pair(Box::new(t1), Box::new(t2)), phi1 & phi2)
+                self.weaken(Typ::Pair(Box::new(t1), Box::new(t2)), exp, phi1 & phi2)
             }
             // Γ ⊢ e => e, T_1, φ_1
             // ----------------------------------------------
-            // Γ ⊢ fst e => fst coerce(T_1, Pair(α,β), e), α, φ_1 && strengthen(T_1, Pair(α,β))
+            // Γ ⊢ fst e => coerce(α, γ) fst coerce(T_1, Pair(α,β), e), γ,
+            //              φ_1 && strengthen(T_1, Pair(α,β)) && weaken(α, γ)
             Exp::Fst(e) => {
                 let (t1, phi1) = self.cgen(&env, e);
                 let alpha = next_metavar();
                 let beta = next_metavar();
                 let phi2 =
                     self.strengthen(t1, Typ::Pair(Box::new(alpha.clone()), Box::new(beta)), e);
-                (alpha, phi1 & phi2)
+                self.weaken(alpha, exp, phi1 & phi2)
             }
             // Γ ⊢ e => e, T_1, φ_1
             // ----------------------------------------------
-            // Γ ⊢ snd e => snd coerce(T_1, Pair(α,β), e), β, φ_1 && strengthen(T_1, Pair(α,β))
+            // Γ ⊢ snd e => coerce(β, γ) snd coerce(T_1, Pair(α,β), e), γ,
+            //              φ_1 && strengthen(T_1, Pair(α,β)) && weaken(β, γ)
             Exp::Snd(e) => {
                 let (t1, phi1) = self.cgen(&env, e);
                 let alpha = next_metavar();
                 let beta = next_metavar();
                 let phi2 =
                     self.strengthen(t1, Typ::Pair(Box::new(alpha), Box::new(beta.clone())), e);
-                (beta, phi1 & phi2)
+                self.weaken(beta, exp, phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ e_1 :: e_2 => coerce(T_1, α) e_1 :: coerce(T_2, List(α)) e_2, List(α),
-            //                   φ_1 && φ_2 && weaken(T_1, α) && strengthen(T_2, List(α))
+            // Γ ⊢ e_1 :: e_2 => coerce(List(T_1), α, e_1 :: coerce(T_2, List(T_1), e_2)), α,
+            //                   φ_1 && φ_2 && strengthen(T_2, List(T_1)) && weaken(List(T_1), α)
             Exp::Cons(e1, e2) => {
                 let (t1, phi1) = self.cgen(&env, e1);
                 let (t2, phi2) = self.cgen(&env, e2);
-                let item_typ = next_metavar();
-                let phi3 = self.strengthen(t2.clone(), Typ::List(Box::new(item_typ.clone())), e2)
-                    & self.weaken(t1, item_typ, e1);
-                (t2, phi1 & phi2 & phi3)
+                let list_typ = Typ::List(Box::new(t1.clone()));
+                let phi3 = self.strengthen(t2.clone(), list_typ.clone(), e2);
+                self.weaken(list_typ, exp, phi1 & phi2 & phi3)
             }
             // ----------------------------------------------
-            // Γ ⊢ empty α => List(α), true
-            Exp::Empty(alpha) => (Typ::List(Box::new(alpha.clone())), self.z3.true_z3()),
+            // Γ ⊢ empty α => coerce(List(α), β, empty α), β, weaken(List(α), β)
+            Exp::Empty(alpha) => {
+                self.weaken(Typ::List(Box::new(alpha.clone())), exp, self.z3.true_z3())
+            }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ head e => head coerce(T, List(α)) e, α,
-            //               φ && strengthen(T, List(α))
+            // Γ ⊢ head e => coerce(α, β) head coerce(T, List(α), e), β,
+            //               φ && strengthen(T, List(α)) && weaken(α, β)
             Exp::Head(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar();
                 let phi2 = self.strengthen(t, Typ::List(Box::new(alpha.clone())), e);
-                (alpha, phi1 & phi2)
+                self.weaken(alpha, exp, phi1 & phi2)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ tail e => tail coerce(T, List(α)) e, List(α),
-            //               φ && strengthen(T, List(α))
+            // Γ ⊢ tail e => coerce(List(α), β, tail coerce(T, List(α), e)), β,
+            //               φ && strengthen(T, List(α)) && weaken(List(α), β)
             Exp::Tail(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar();
                 let list_alpha = Typ::List(Box::new(alpha));
                 let phi2 = self.strengthen(t, list_alpha.clone(), e);
-                (list_alpha, phi1 & phi2)
+                self.weaken(list_alpha, exp, phi1 & phi2)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ is_empty e => is_empty coerce(T, List(α)) e, bool,
-            //                   φ && strengthen(T, List(α))
+            // Γ ⊢ is_empty e => coerce(bool, β) is_empty coerce(T, List(α), e), β,
+            //                   φ && strengthen(T, List(α)) && weaken(bool, β)
             Exp::IsEmpty(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar();
                 let list_alpha = Typ::List(Box::new(alpha));
                 let phi2 = self.strengthen(t, list_alpha, e);
-                (Typ::Bool, phi1 & phi2)
+                self.weaken(Typ::Bool, exp, phi1 & phi2)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ box e => box coerce(T, α) e, Box(α), φ && weaken(T, α)
+            // Γ ⊢ box e => coerce(Box(α), β) box e, β, φ && weaken(Box(α), β)
             Exp::Box(e) => {
                 let (t, phi1) = self.cgen(env, e);
-                let alpha = next_metavar();
-                let phi2 = self.weaken(t, alpha.clone(), e);
-                (Typ::Box(Box::new(alpha)), phi1 & phi2)
+                self.weaken(Typ::Box(Box::new(t)), exp, phi1)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ unbox e => coerce(T, Box(α)) e, α, φ && strengthen(T, Box(α))
+            // Γ ⊢ unbox e => coerce(α, β, coerce(T, Box(α))) e, β, φ
+            //                && strengthen(T, Box(α)) && weaken(α, β)
             Exp::Unbox(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar();
                 let phi2 = self.strengthen(t, Typ::Box(Box::new(alpha.clone())), e);
-                (alpha, phi1 & phi2)
+                self.weaken(alpha, exp, phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ boxset! e_1 e_2 => boxset! coerce(T_1, Box(α)) e_1 coerce(T_2, α) e_2, Unit,
-            //                        strengthen(T_1, Box(α)) && weaken(T_2, α)
+            // Γ ⊢ boxset! e_1 e_2 => coerce(Unit, α) boxset! coerce(T_1, Box(T_2)) e_1 e_2, α,
+            //                        strengthen(T_1, Box(T_2)) && weaken(Unit, α)
             Exp::BoxSet(e1, e2) => {
                 let (t1, phi1) = self.cgen(env, e1);
                 let (t2, phi2) = self.cgen(env, e2);
-                let alpha = next_metavar();
-                let phi3 = self.strengthen(t1, Typ::Box(Box::new(alpha.clone())), e1);
-                let phi4 = self.weaken(t2, alpha.clone(), e2);
-                (Typ::Unit, phi1 & phi2 & phi3 & phi4)
+                let phi3 = self.strengthen(t1, Typ::Box(Box::new(t2)), e1);
+                self.weaken(Typ::Unit, exp, phi1 & phi2 & phi3)
             }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ ⊢ e2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ vector e1 e2 => vector (coerce (T_1, int) e1) (coerce(T_2, α) e), Vect(α),
-            //                          φ_1 && φ_2 && && strengthen(T_1, int) && weaken(T, α)
+            // Γ ⊢ vector e1 e2 => coerce(Vect(T_2), α) vector (coerce(T_1, int) e1) e, α,
+            //                          φ_1 && φ_2 && && strengthen(T_1, int) && weaken(vect(T_2), α)
             Exp::Vector(e1, e2) => {
                 let (t1, phi1) = self.cgen(env, e1);
                 let (t2, phi2) = self.cgen(env, e2);
                 let phi3 = self.strengthen(t1, Typ::Int, e1);
-                let alpha = next_metavar();
-                let phi4 = self.weaken(t2, alpha.clone(), e2);
-                (Typ::Vect(Box::new(alpha)), phi1 & phi2 & phi3 & phi4)
+                self.weaken(Typ::Vect(Box::new(t2)), exp, phi1 & phi2 & phi3)
             }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ ⊢ e2 => T_2, φ_2
             // ----------------------------------------------
-            // Γ ⊢ vector-ref e1 e2 => vector-ref (coerce(T_1, Vect(α)) e1) (coerce(T_2, Int) e2), α,
-            //                              φ && strengthen(T_1, Vect(α)) && strengthen(T_2, Int)
+            // Γ ⊢ vector-ref e1 e2 =>
+            //     coerce(α, β) vector-ref (coerce(T_1, Vect(α)) e1) (coerce(T_2, Int) e2), β,
+            //                         φ && strengthen(T_1, Vect(α)) && strengthen(T_2, Int)
+            //                         && weaken(α, β)
             Exp::VectorRef(e1, e2) => {
                 let (t1, phi1) = self.cgen(env, e1);
                 let (t2, phi2) = self.cgen(env, e2);
                 let alpha = next_metavar();
                 let phi3 = self.strengthen(t1, Typ::Vect(Box::new(alpha.clone())), e1);
                 let phi4 = self.strengthen(t2, Typ::Int, e2);
-                (alpha, phi1 & phi2 & phi3 & phi4)
+                self.weaken(alpha, exp, phi1 & phi2 & phi3 & phi4)
             }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ ⊢ e2 => T_2, φ_2
             // Γ ⊢ e3 => T_3, φ_3
             // ----------------------------------------------
-            // Γ ⊢ vector-set! e1 e2 e3 => vector-set! coerce(T_1, Vect(α)) e_1 coerce(T_2, Int) e_2 coerce(T_3, α) e_3, Unit,
-            //                        strengthen(T_1, Box(α)) && weaken(T_2, α)
+            // Γ ⊢ vector-set! e1 e2 e3 =>
+            //     coerce(Unit, α) vector-set! coerce(T_1, Vect(T_3)) e_1 coerce(T_2, Int) e_2 e_3, α,
+            //                             strengthen(T_1, Vect(T_3)) && weaken(Unit, α)
             Exp::VectorSet(e1, e2, e3) => {
                 let (t1, phi1) = self.cgen(env, e1);
                 let (t2, phi2) = self.cgen(env, e2);
                 let (t3, phi3) = self.cgen(env, e3);
-                let alpha = next_metavar();
-                let phi4 = self.strengthen(t1, Typ::Vect(Box::new(alpha.clone())), e1);
+                let phi4 = self.strengthen(t1, Typ::Vect(Box::new(t3)), e1);
                 let phi5 = self.strengthen(t2, Typ::Int, e2);
-                let phi6 = self.weaken(t3, alpha.clone(), e3);
-                (Typ::Unit, phi1 & phi2 & phi3 & phi4 & phi5 & phi6)
+                self.weaken(Typ::Unit, exp, phi1 & phi2 & phi3 & phi4 & phi5)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ vector-length e => vector-length coerce(e, Vect(α)), int, φ && strengthen(T, Vect(α))
+            // Γ ⊢ vector-length e => coerce(int, β) vector-length coerce(e, Vect(α)), β,
+            //                        φ && strengthen(T, Vect(α)) && weaken(int, β)
             Exp::VectorLen(e) => {
                 let (t, phi1) = self.cgen(env, e);
                 let alpha = next_metavar();
                 let phi2 = self.strengthen(t, Typ::Vect(Box::new(alpha)), e);
-                (Typ::Int, phi1 & phi2)
+                self.weaken(Typ::Int, exp, phi1 & phi2)
             }
             // Γ ⊢ e => T, φ
             // ----------------------------------------------
-            // Γ ⊢ is_GROUND e => coerce(e, any), bool, φ && weaken(T, any)
+            // Γ ⊢ is_GROUND e => coerce(bool, α) is_GROUND e, α, φ && T = any && weaken(bool, α)
             Exp::IsBool(e) | Exp::IsInt(e) | Exp::IsString(e) | Exp::IsList(e) | Exp::IsFun(e) => {
                 let (t, phi1) = self.cgen(env, e);
-                let phi2 = self.weaken(t, Typ::Any, e);
-                (Typ::Bool, phi1 & phi2)
+                let phi2 = self.t2z3(&t)._eq(&self.z3.any_z3);
+                self.weaken(Typ::Bool, exp, phi1 & phi2)
             }
             // Γ ⊢ e => T_3, φ
             // ----------------------------------------------
@@ -486,16 +457,18 @@ impl<'a> State<'a> {
     /// Because this can cause dynamic errors, **this should only be used
     /// at elimination forms** in order to be safe!
     ///
-    /// T_1 = T_2 || (T_1 = any && weak_negative_any(t2))
+    /// T_1 = T_2 || (T_1 = any && ground(t2))
     #[must_use]
-    fn strengthen(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
-        let coerce_case = self.t2z3(&t1)._eq(&self.z3.any_z3) & self.weak_negative_any(&t2);
+    fn strengthen(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'a> {
+        let coerce_case = self.t2z3(&t1)._eq(&self.z3.any_z3) & self.ground(&t2);
         // we don't care about putting an ID coercion, that's fine
         let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&t2));
         self.coerce(t1, t2, exp);
         coerce_case | dont_coerce_case
     }
 
+    /// (α, weaken'(t1, α, exp) & phi1) where weaken'(t1, t2, exp) =
+    ///
     /// Modifies `exp` in place to corce from t1 to t2. Generates a constraint
     /// that they are already equal, or t2 is any and t1 is
     /// negative-any. Caller's responsibility to ensure typ(exp) = t1
@@ -504,15 +477,23 @@ impl<'a> State<'a> {
     /// consistent, the type doesn't strengthen, and the coercion does not lose
     /// track of important type information.
     ///
-    /// This is always safe
+    /// This is always safe, so it happens on all expressions.
     ///
-    /// T_1 = T_2 || (T_2 = any && weak_negative_any(T_1))
-    #[must_use]
-    fn weaken(&self, t1: Typ, t2: Typ, exp: &mut Exp) -> Bool<'_> {
-        let coerce_case = self.t2z3(&t2)._eq(&self.z3.any_z3) & self.weak_negative_any(&t1);
-        let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&t2));
-        self.coerce(t1, t2, exp);
-        coerce_case | dont_coerce_case
+    /// The peculiarities of this signature are because weaken should occur
+    /// on every expression that may have a different type than any of its
+    /// sub-expressions and NEVER otherwise. Therefore it is easy to call
+    /// self.weaken(true_typ, whole_exp, other_constraints) at the end of a match
+    /// arm in cgen
+    ///
+    /// ----------------------------------------------
+    /// Γ ⊢ e: T => coerce(T, α, e), α, φ
+    ///             && T = α || (α = any && ground(T))      |> weaken'
+    fn weaken(&self, t1: Typ, exp: &mut Exp, phi1: Bool<'a>) -> (Typ, Bool<'a>) {
+        let alpha = next_metavar();
+        let coerce_case = self.t2z3(&alpha)._eq(&self.z3.any_z3) & self.ground(&t1);
+        let dont_coerce_case = self.t2z3(&t1)._eq(&self.t2z3(&alpha));
+        self.coerce(t1, alpha.clone(), exp);
+        (alpha, phi1 & (coerce_case | dont_coerce_case))
     }
 
     /// Provided a type, generate constraints that the type has any in all of
@@ -522,7 +503,7 @@ impl<'a> State<'a> {
     /// For example, if t has type * -> int, that type is safe to
     /// coerce to any (with wrapping). However, because z3 cannot produce
     /// recursive constraints, and the type * -> (int -> int) is forbidden,
-    /// weak_negative_any is forced to produce the constraint that t has type *
+    /// ground is forced to produce the constraint that t has type *
     /// -> *.
     ///
     /// Note that anything that can be mutated is negative.
@@ -531,15 +512,15 @@ impl<'a> State<'a> {
     /// immutable they have no negative positions. However, imagine a function that
     /// is stored in a list. It is inferred to be int -> int, however after being
     /// pulled out of the list it is called with a bool. This is incorrect. We
-    /// might say, lists simple must hold weak_negative_any types, rather than
+    /// might say, lists must hold ground types, rather than
     /// any! And you would be right, but notice that we have now produced a
     /// recursive constraint which z3 does not support.
     ///
-    /// weak_negative_any t = is_arr(t) => t = any -> any
+    /// ground t = is_arr(t) => t = any -> any
     ///                    && is_list(t) => t = list any
     ///                    && is_box(t) => t = box any
     ///                    && is_vect(t) => t = vect any
-    fn weak_negative_any(&self, t: &Typ) -> Bool<'_> {
+    fn ground(&self, t: &Typ) -> Bool<'a> {
         let any_to_any = Typ::Arr(Box::new(Typ::Any), Box::new(Typ::Any));
         self.z3
             .z3_is_arr(self.t2z3(t))
@@ -612,7 +593,7 @@ fn annotate(env: &HashMap<u32, Typ>, exp: &mut Exp) {
         | Exp::IsInt(e)
         | Exp::IsString(e)
         | Exp::IsList(e)
-        | Exp::IsFun(e) 
+        | Exp::IsFun(e)
         | Exp::VectorLen(e) => {
             annotate(env, e);
         }
@@ -661,6 +642,10 @@ pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp,
     };
     let (t, phi) = s.cgen(env, &mut exp);
     s.solver.assert(&phi);
+    if options.debug {
+        eprintln!("Simplified constraints:");
+        eprintln!("{}", phi.simplify());
+    }
     if s.options.context {
         s.solver.push();
         if options.debug {
@@ -682,7 +667,7 @@ pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp,
         eprintln!("{}", s.solver);
     }
     match s.solver.check(&[]) {
-        SatResult::Unsat => return Err("unsat".to_string()),
+        SatResult::Unsat => return Err("unsat (context)".to_string()),
         SatResult::Unknown => panic!("unknown from Z3 -- very bad"),
         SatResult::Sat => (),
     }
@@ -774,14 +759,10 @@ mod test {
 
     #[test]
     fn cond_int_bool() {
-        println!(
-            "{}",
-            typeinf(parse(
-                "let f = fun b.fun x. if b then x + 1 else not x in
-                 let y = f true 5 in
-                 f false false"
-            ).unwrap())
-            .unwrap()
+        coerces(
+            "let f = fun b.fun x. if b then x + 1 else not x in
+             let y = f true 5 in
+             f false false",
         );
     }
 
