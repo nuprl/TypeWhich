@@ -203,11 +203,6 @@ fn migrate_main(config: Opts) -> Result<()> {
         cgen::typeinf_options(parsed, &env, options).unwrap()
     };
 
-    if options.debug {
-        eprintln!("Annotated program:");
-        eprintln!("{}", inferred);
-    }
-
     let typ = type_check::tcheck(&env, &inferred)
         .map_err(|e| Error::new(ErrorKind::Other, format!("{}", e)))?;
     if options.debug {
