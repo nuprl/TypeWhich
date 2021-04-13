@@ -348,6 +348,8 @@ impl Pretty for Exp {
             }
             Exp::IsList(e) => pp.concat(vec![pp.text("is_list"), pp.space(), e.pretty(pp).nest(2)]),
             Exp::IsFun(e) => pp.concat(vec![pp.text("is_fun"), pp.space(), e.pretty(pp).nest(2)]),
+            Exp::Coerce(_, Typ::Any, e) if e.is_atom() => pp.concat(vec![
+                pp.text("("), e.pretty(pp), pp.text(" as any)")]),
             Exp::Coerce(from, to, e) if PRINT_COERCIONS => pp.concat(vec![
                 pp.text("coerce("),
                 from.pretty(pp),
