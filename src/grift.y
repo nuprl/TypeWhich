@@ -21,12 +21,6 @@ exps -> Vec<Exp> :
     | exp      { let mut v = Vec::new(); v.push($1); v }
 ;
 
-binop -> BinOp :
-      '+' { BinOp::IntAdd }
-    | '*' { BinOp::IntMul }
-    | '=' { BinOp::IntEq }
-;
-
 exp -> Exp :
       lit { Exp::Lit($1) }
     | id  { Exp::Var($1) }
@@ -69,6 +63,8 @@ exp -> Exp :
 
     | '(' 'begin' exps ')' { Exp::begin($3) }
 
+    | '(' unitop ')' { Exp::UnaryOp($2, Box::new(Exp::Lit(Lit::Unit))) }
+    | '(' unop exp ')' { Exp::UnaryOp($2, Box::new($3)) }
     | '(' binop exp exp ')' { Exp::BinaryOp($2, Box::new($3), Box::new($4)) }
 
     | '(' 'make-tuple' exps ')'    { Exp::pairs($3) }
@@ -238,6 +234,86 @@ str -> String :
 id -> String :
     'ID' { $lexer.span_str($1.unwrap().span()).to_string() }
   ;
+
+binop -> BinOp :
+      '<' { BinOp::IntEq }
+    | '>' { BinOp::IntEq }
+    | '=' { BinOp::IntEq }
+    | '>=' { BinOp::IntEq }
+    | '<=' { BinOp::IntEq }
+    | '+' { BinOp::IntAdd }
+    | '-' { BinOp::IntMul }
+    | '*' { BinOp::IntMul }
+    | '%/' { BinOp::IntMul }
+    | '%>>' { BinOp::IntMul }
+    | '%<<' { BinOp::IntMul }
+    | '%%' { BinOp::IntMul }
+    | 'quotient' { BinOp::IntMul }
+    | 'binary-and' { BinOp::IntMul }
+    | 'binary-or' { BinOp::IntMul }
+    | 'binary-xor' { BinOp::IntMul }
+    | 'and' { BinOp::And }
+    | 'or' { BinOp::And }
+    | 'fl<' { BinOp::FloatEq }
+    | 'fl>' { BinOp::FloatEq }
+    | 'fl=' { BinOp::FloatEq }
+    | 'fl>=' { BinOp::FloatEq }
+    | 'fl<=' { BinOp::FloatEq }
+    | 'fl+' { BinOp::FloatAdd }
+    | 'fl-' { BinOp::FloatAdd }
+    | 'fl*' { BinOp::FloatAdd }
+    | 'fl/' { BinOp::FloatAdd }
+    | 'flmodulo' { BinOp::FloatAdd }
+    | 'flexpt' { BinOp::FloatAdd }
+    | 'flmin' { BinOp::FloatAdd }
+    | 'flmax' { BinOp::FloatAdd }
+    | 'flquotient' { BinOp::FloatAdd }
+    | 'print-float' { BinOp::PrintFloat }
+    | 'printf' { BinOp::Printf }
+;
+
+unop -> UnOp :
+      'not' { UnOp::Not }
+    | 'binary-not' { UnOp::BinaryNot }
+    | 'print-int' { UnOp::PrintInt }
+    | 'print-bool' { UnOp::PrintBool }
+    | 'print-char' { UnOp::PrintChar }
+    | 'display-char' { UnOp::PrintChar }
+    | 'flabs' { UnOp::FloatAbs }
+    | 'flround' { UnOp::FloatAbs }
+    | 'flfloor' { UnOp::FloatAbs }
+    | 'flceiling' { UnOp::FloatAbs }
+    | 'fltruncate' { UnOp::FloatAbs }
+    | 'flsin' { UnOp::FloatAbs }
+    | 'flcos' { UnOp::FloatAbs }
+    | 'fltan' { UnOp::FloatAbs }
+    | 'flasin' { UnOp::FloatAbs }
+    | 'flacos' { UnOp::FloatAbs }
+    | 'flatan' { UnOp::FloatAbs }
+    | 'fllog' { UnOp::FloatAbs }
+    | 'flep' { UnOp::FloatAbs }
+    | 'flexp' { UnOp::FloatAbs }
+    | 'flsqrt' { UnOp::FloatAbs }
+    | 'flnegate' { UnOp::FloatAbs }
+    | 'print' { UnOp::Print }
+    | 'float->int' { UnOp::FloatToInt }
+    | 'int->float' { UnOp::IntToFloat }
+    | 'char->int' { UnOp::CharToInt }
+    | 'int->char' { UnOp::IntToChar }
+    | unitop { $1 }
+;
+
+unitop -> UnOp :
+      'read-int' { UnOp::ReadInt }
+    | 'read-bool' { UnOp::ReadBool }
+    | 'read-float' { UnOp::ReadFloat }
+    | 'read-char' { UnOp::ReadChar }
+    | 'timer-start' { UnOp::TimerStart }
+    | 'timer-stop' { UnOp::TimerStart }
+    | 'timer-report' { UnOp::TimerStart }
+    | 'time' { UnOp::TimerStart }
+    | 'exit' { UnOp::Exit }
+;
 
 %%
 

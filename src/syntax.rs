@@ -210,11 +210,20 @@ pub enum UnOp {
     TimerStart,
     Print,
     Exit,
+    ReadInt,
+    PrintInt,
+    ReadBool,
+    PrintBool,
+    ReadFloat,
+    ReadChar,
+    PrintChar,
+    FloatToInt,
+    IntToFloat,
+    CharToInt,
+    IntToChar,
 }
 /// Holds the type for a binary operator. Only IntAdd is guaranteed to hold the
 /// actual operation from the program
-/// TODO(luna): after writing all that documentation, i'm realizing it's easier
-/// to just parse them correctly
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BinOp {
     IntEq,
@@ -232,6 +241,7 @@ pub enum BinOp {
     /// it's any -> any -> any in the original env. Same type as `or` (omitted)
     And,
     Printf,
+    PrintFloat,
 }
 
 impl UnOp {
@@ -244,6 +254,18 @@ impl UnOp {
             UnOp::TimerStart => (Unit, Unit),
             UnOp::Print => (Str, Unit),
             UnOp::Exit => (Int, Any),
+            UnOp::ReadInt => (Unit, Int),
+            UnOp::PrintInt => (Int, Unit),
+            UnOp::ReadBool => (Unit, Bool),
+            UnOp::PrintBool => (Bool, Unit),
+            UnOp::ReadFloat => (Unit, Float),
+            // PrintFloat is weird
+            UnOp::ReadChar => (Unit, Char),
+            UnOp::PrintChar => (Char, Unit),
+            UnOp::FloatToInt => (Float, Int),
+            UnOp::IntToFloat => (Int, Float),
+            UnOp::CharToInt => (Char, Int),
+            UnOp::IntToChar => (Int, Char),
         }
     }
 }
@@ -260,6 +282,7 @@ impl BinOp {
             // see doc
             BinOp::And => (Any, Any, Any),
             BinOp::Printf => (Str, List(Box::new(Any)), Unit),
+            BinOp::PrintFloat => (Float, Int, Unit),
         }
     }
 }

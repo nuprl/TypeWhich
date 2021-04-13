@@ -103,6 +103,29 @@ impl<'a> State<'a> {
                 let phi4 = self.t2z3(&t2)._eq(&self.t2z3(&alpha));
                 self.weaken(beta, exp, phi1 & phi2 & phi3 & phi4)
             }
+            // Γ ⊢ e => T, φ
+            // ----------------------------------------------
+            // Γ ⊢ uop e => coerce(uop.res, α) coerce(T, uop.t, e), α, φ
+            //              && strengthen(T, uop.t) && weaken(uop.res, α)
+            Exp::UnaryOp(op, e) => {
+                let (op_t, res) = op.typ();
+                let (t, phi1) = self.cgen(&env, e);
+                let phi2 = self.strengthen(t, op_t, e);
+                self.weaken(res, exp, phi1 & phi2)
+            }
+            // Γ ⊢ e_1 => T_1, φ_1
+            // Γ ⊢ e_2 => T_2, φ_2
+            // ----------------------------------------------
+            // Γ ⊢ e_1 bop e_2 => coerce(bop.res, α) coerce(T_1, bop.t1) e_1 [+*] coerce(T_2, bop.t2) e_2, α,
+            //                     φ_1 && φ_2 && strengthen(T_1, bop.t1) && strengthen(T_2, bop.t2)
+            //                     && weaken(bop.res, α)
+            Exp::BinaryOp(op, e1, e2) => {
+                let (op1, op2, res) = op.typ();
+                let (t1, phi1) = self.cgen(&env, e1);
+                let (t2, phi2) = self.cgen(&env, e2);
+                let phi3 = self.strengthen(t1, op1, &mut *e1) & self.strengthen(t2, op2, &mut *e2);
+                self.weaken(res, exp, phi1 & phi2 & phi3)
+            }
             // Γ ⊢ e1 => T_1, φ_1
             // Γ,x:T_1 ⊢ e2 => T_2, φ_2
             // ---------------------------------------
@@ -137,29 +160,6 @@ impl<'a> State<'a> {
                 let (t1, phi1) = self.cgen(env, e);
                 let phi2 = self.ground(&t1) & self.ground(&typ);
                 (typ.clone(), phi1 & phi2)
-            }
-            // Γ ⊢ e_1 => T_1, φ_1
-            // Γ ⊢ e_2 => T_2, φ_2
-            // ----------------------------------------------
-            // Γ ⊢ e_1 bop e_2 => coerce(bop.res, α) coerce(T_1, bop.t1) e_1 [+*] coerce(T_2, bop.t2) e_2, α,
-            //                     φ_1 && φ_2 && strengthen(T_1, bop.t1) && strengthen(T_2, bop.t2)
-            //                     && weaken(bop.res, α)
-            Exp::BinaryOp(op, e1, e2) => {
-                let (op1, op2, res) = op.typ();
-                let (t1, phi1) = self.cgen(&env, e1);
-                let (t2, phi2) = self.cgen(&env, e2);
-                let phi3 = self.strengthen(t1, op1, &mut *e1) & self.strengthen(t2, op2, &mut *e2);
-                self.weaken(res, exp, phi1 & phi2 & phi3)
-            }
-            // Γ ⊢ e => T, φ
-            // ----------------------------------------------
-            // Γ ⊢ uop e => coerce(uop.res, α) coerce(T, uop.t, e), α, φ
-            //              && strengthen(T, uop.t) && weaken(uop.res, α)
-            Exp::UnaryOp(op, e) => {
-                let (op_t, res) = op.typ();
-                let (t, phi1) = self.cgen(&env, e);
-                let phi2 = self.strengthen(t, op_t, e);
-                self.weaken(res, exp, phi1 & phi2)
             }
             // Γ ⊢ e_1 => T_1, φ_1
             // Γ ⊢ e_2 => T_2, φ_2
@@ -647,6 +647,12 @@ pub fn typeinf_options(mut exp: Exp, env: &Env, options: Options) -> Result<Exp,
         s.solver.pop();
         let negative_any = s.negative_any(&model, &s.t2z3(&t));
         s.solver.assert(&negative_any);
+        if options.debug {
+            let mut exp_precise = exp.clone();
+            let result = s.solve_model(model);
+            annotate(&result, &mut exp_precise);
+            println!("precise annotation: {}", exp_precise);
+        }
     }
     if options.debug {
         eprintln!("Solver state for final type:");

@@ -245,7 +245,7 @@ impl Pretty for Exp {
                     BinOp::IntAdd => pp.text("+"),
                     BinOp::IntMul => pp.text("*"),
                     BinOp::IntEq => pp.text("="),
-                    _ => todo!(),
+                    _ => pp.text("[op]"),
                 },
                 pp.space(),
                 parens_if(pp, &**e2, e2.is_add_or_looser()),
@@ -259,7 +259,7 @@ impl Pretty for Exp {
             Exp::UnaryOp(op, e1) => pp.concat(vec![
                 match op {
                     UnOp::Not => pp.text("not "),
-                    _ => todo!(),
+                    _ => pp.text("[op] "),
                 },
                 parens_if(pp, &**e1, e1.is_mul_or_looser()),
             ]),
