@@ -777,8 +777,9 @@ dependencies = [
 
 [[package]]
 name = "z3"
-version = "0.9.0"
-source = "git+https://github.com/prove-rs/z3.rs#0aa7a93f8ee0ec3516e438770b53bb0f5945c8db"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05b1c80cd890d936ecafd439e757113a397f5797b12232b29c443256dd02c07b"
 dependencies = [
  "lazy_static",
  "log",
@@ -788,4 +789,5 @@ dependencies = [
 [[package]]
 name = "z3-sys"
 version = "0.6.3"
-source = "git+https://github.com/prove-rs/z3.rs#0aa7a93f8ee0ec3516e438770b53bb0f5945c8db"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afa18ba5fbd4933e41ffb440c3fd91f91fe9cdb7310cce3ddfb6648563811de0"
