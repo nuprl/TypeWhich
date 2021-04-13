@@ -65,12 +65,6 @@ jobs:
       run: |
         echo Build step ran but the results weren't in cache. What's up?
         exit 1
-    - name: Compile and test (ins-and-outs)
-      if: ${{ matrix.tool }} == 'ins-and-outs'
-      working-directory: ins-and-outs
-      run: |
-        cargo build
-        cargo test -- --nocapture
     - name: ${{ matrix.tool }} on ${{ matrix.suite }}
       run: ./test-runner.sh ${{ matrix.tool }} ${{ matrix.suite }}
       continue-on-error: ${{ matrix.ignore }}
