@@ -61,6 +61,7 @@ enum SubCommand {
     Migrate(Opts),
     Eval(EvalOpts),
     Benchmark(BenchmarkOpts),
+    LatexBenchmarks(BenchmarkOpts),
 }
 
 #[derive(Clap)]
@@ -150,6 +151,7 @@ fn main() -> Result<()> {
         SubCommand::Migrate(opts) => migrate_main(opts),
         SubCommand::Eval(opts) => eval_main(opts),
         SubCommand::Benchmark(opts) => benchmark::benchmark_main(&opts.input),
+        SubCommand::LatexBenchmarks(opts) => benchmark::details_latex(&opts.input),
     }
 }
 
