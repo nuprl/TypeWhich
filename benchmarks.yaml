@@ -1,6 +1,8 @@
 tools:
   - title: TypeWhich
     command: [ "./bin/TypeWhich", "migrate", "--unsafe" ]
+  - title: TypeWhich2
+    command: [ "./bin/TypeWhich", "migrate" ]
   - title: InsAndOuts
     command: [ "./bin/TypeWhich", "migrate", "--ins-and-outs" ]
   - title: Gtubi
