@@ -9,6 +9,8 @@ tools:
     command: [ "./bin/gtubi" ]
   - title: MaxMigrate
     command: [ "./bin/MaxMigrate" ]
+  - title: MGT
+    command: [ "./bin/mgt" ]
 benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
     results: { }
