@@ -126,7 +126,7 @@ fn eval(code: String, num_stars: Option<&mut usize>) -> Option<bool> {
             super::insert_coercions::insert_coercions(&mut ast).expect("coercion insertion failed");
             Some(super::eval::eval(ast).is_ok())
         }
-        Err(messages) => None,
+        Err(_messages) => None,
     }
 }
 

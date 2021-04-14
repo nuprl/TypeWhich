@@ -90,6 +90,9 @@ pub struct Opts {
     /// Produce an exact type that may not be safe in all contexts
     #[clap(long = "unsafe")]
     unsafe_mode: bool,
+    /// All uses of a variable have the same type (by default, variables can be weakened)
+    #[clap(long = "rigid-vars")]
+    rigid_variables: bool,
     // Select the parser
     #[clap(short, long, default_value = "empty")]
     parser: Parser,
@@ -125,6 +128,7 @@ pub struct Options {
     optimizer: bool,
     context: bool,
     debug: bool,
+    rigid_vars: bool,
     annot: Annot,
 }
 
@@ -134,6 +138,7 @@ impl Default for Options {
             optimizer: true,
             context: true,
             debug: false,
+            rigid_vars: false,
             annot: Annot::Hard,
         }
     }
@@ -167,6 +172,7 @@ fn migrate_main(config: Opts) -> Result<()> {
         optimizer: !config.disable_optimizer,
         context: !config.unsafe_mode,
         debug: config.debug,
+        rigid_vars: config.rigid_variables,
         annot: config.annot,
     };
 

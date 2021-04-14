@@ -1,0 +1,8 @@
+let b = false in
+let fbool = fun x. if x then 1 else 0 in
+let fint  = fun x. x + 1 in
+let _ = fint 0 + fint 1 + fbool true + fbool false in
+let foo = fun f. if b then f true else f 0 in
+if b
+then foo fbool
+else foo fint

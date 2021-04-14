@@ -17,6 +17,7 @@ impl Typ {
     pub fn is_arr(&self) -> bool {
         matches!(self, Typ::Arr(..))
     }
+    #[allow(dead_code)]
     pub fn is_atom(&self) -> bool {
         !self.is_arr()
     }
@@ -135,12 +136,14 @@ impl Lit {
 pub enum Exp {
     Lit(Lit),
     Var(Id),
+    #[allow(dead_code)]
     Assign(Id, Box<Exp>),
     Fun(Id, Typ, Box<Exp>, Typ),
     App(Box<Exp>, Box<Exp>),
     Coerce(Typ, Typ, Box<Exp>),
     If(Box<Exp>, Box<Exp>, Box<Exp>),
     Add(Box<Exp>, Box<Exp>),
+    #[allow(dead_code)]
     Seq(Box<Exp>, Box<Exp>),
     // TODO(luna): objects
 }

@@ -63,7 +63,12 @@ impl<'a> State<'a> {
                     .get(x)
                     .unwrap_or_else(|| panic!("unbound identifier {}", x))
                     .clone();
-                (typ, self.z3.true_z3())
+
+                if self.options.rigid_vars {
+                    (typ, self.z3.true_z3())
+                } else {
+                    self.weaken(typ, exp, self.z3.true_z3())
+                }
             }
             // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
