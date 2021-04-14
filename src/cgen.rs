@@ -57,13 +57,13 @@ impl<'a> State<'a> {
             // Γ ⊢ lit => coerce(lit.typ(), α, lit), α, weaken(lit.typ(), α)
             Exp::Lit(lit) => self.weaken(lit.typ(), exp, self.z3.true_z3()),
             // ---------------------------
-            // Γ ⊢ x => coerce(Γ(x), α, x), α, weaken(Γ(x), α)
+            // Γ ⊢ x => x, Γ(x), true
             Exp::Var(x) => {
-                let gamma = env
+                let typ = env
                     .get(x)
                     .unwrap_or_else(|| panic!("unbound identifier {}", x))
                     .clone();
-                self.weaken(gamma, exp, self.z3.true_z3())
+                (typ, self.z3.true_z3())
             }
             // Γ,x:T_1 ⊢ e => T_2, φ
             // ---------------------------------------
