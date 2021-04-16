@@ -1,16 +1,19 @@
 tools:
-  - title: TypeWhich
-    command: [ "./bin/TypeWhich", "migrate", "--unsafe" ]
-  - title: TypeWhich2
-    command: [ "./bin/TypeWhich", "migrate" ]
-  - title: InsAndOuts
-    command: [ "./bin/TypeWhich", "migrate", "--ins-and-outs" ]
+  # The order in which tools appear affects the order in which we generate
+  # LaTeX summary tables.
   - title: Gtubi
     command: [ "./bin/gtubi" ]
-  - title: MaxMigrate
-    command: [ "./bin/MaxMigrate" ]
+  - title: InsAndOuts
+    command: [ "./bin/TypeWhich", "migrate", "--ins-and-outs", "--skip-type-check" ]
   - title: MGT
     command: [ "./bin/mgt" ]
+  - title: MaxMigrate
+    command: [ "./bin/MaxMigrate" ]
+  - title: TypeWhich2
+    command: [ "./bin/TypeWhich", "migrate" ]
+  - title: TypeWhich
+    command: [ "./bin/TypeWhich", "migrate", "--unsafe" ]
+
 benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
     results: { }
@@ -44,6 +47,8 @@ benchmarks:
         expect_compatible: "fun f:(any -> any) -> any. fun x:any -> any. x (f x)\n"
       Gtubi:
         expect_compatible: "(fun f : ((beta@1 -> beta@2) -> beta@1). (fun x : (beta@1 -> beta@2). (x (f x))))"
+      MaxMigrate:
+        assert_unusable: true
   - file: adversarial/06-order3-intfun.gtlc
     context: |
       (HOLE) (fun a . fun b . true) (fun c . 0)
