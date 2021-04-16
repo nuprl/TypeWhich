@@ -1,0 +1,39 @@
+*Adversarial> go a01_farg_mismatch 
+(fromList [(Tv0,AAA<Tv0,Bool->Int>),(Tv1,AAA<Tv1,Bool>),(Tv2,AAA<Tv2,Int>),(Tv3,BAA<Tv3,Int>)],AAA<?,Int>,AAA<T,BAA<T,L>>)
+
+AAA R, BAA L
+
+(fun f:Bool->Int. f true) (fun x:bool. x + 100)
+
+*Adversarial> go a02_rank2_poly_id 
+(fromList [(Tv0,AAA<Tv0,Bool->DAA<Tv3,Bool>>),(Tv1,BAA<Tv1,AAA<Tv1,DAA<Tv3,Bool>>>),(Tv2,AAA<Tv2,Bool>),(Tv3,AAA<Tv3,DAA<Tv3,Bool>>),(Tv4,AAA<Tv4,DAA<Tv4,Bool>>)],AAA<?,DAA<Tv3,Bool>>,AAA<T,L>)
+
+
+
+*Adversarial> go a03_unreachable_error 
+(fromList [(Tv0,AAA<Tv0,(BAA<DAA<Tv9->Tv10,Tv11->Tv8>,DAA<Tv3->Tv14,Tv3->Tv8>>)->(EAA<Tv18->Int,Tv17->Int>)->EAA<GAA<Tv16,Tv18->Int>,GAA<Tv16,Tv17->Int>>>),(Tv1,AAA<Tv1,BAA<DAA<Tv9->Tv10,Tv11->Tv8>,DAA<Tv3->Tv14,Tv3->Tv8>>>),(Tv2,AAA<Tv2,(EAA<Tv18->Int,Tv17->Int>)->EAA<GAA<Tv16,Tv18->Int>,GAA<Tv16,Tv17->Int>>>),(Tv4,DAA<Tv4,Tv5->Int->Tv8>),(Tv6,DAA<Tv6,Int->Tv8>),(Tv7,DAA<Tv7,Int>),(Tv12,AAA<Tv12,BAA<DAA<Tv12,Tv8>,Tv12>>),(Tv13,AAA<Tv13,BAA<Tv13,DAA<Tv3,Tv13>>>),(Tv15,AAA<Tv15,EAA<Tv18->Int,Tv17->Int>>),(Tv16,AAA<Tv16,EAA<GAA<Tv16,Tv18->Int>,GAA<Tv16,Tv17->Int>>>),(Tv19,AAA<Tv19,EAA<Int,Tv19>>),(Tv20,AAA<Tv20,BAA<DAA<FAA<Tv20,Tv9->Tv10>,FAA<Tv20,Tv11->Tv8>>,DAA<FAA<Tv20,Tv3->Tv14>,FAA<Tv20,Tv3->Tv8>>>>),(Tv21,AAA<Tv21,EAA<GAA<Tv21,Tv18->Int>,GAA<Tv21,Tv17->Int>>>)],AAA<?,EAA<GAA<Tv16,Tv18->Int>,GAA<Tv16,Tv17->Int>>>,DAA<T,L>)
+
+*Adversarial> go a04_fin_fout 
+(fromList [(Tv0,AAA<Tv0,Int->Int>),(Tv1,BAA<Tv1,AAA<Tv1,Int>>),(Tv2,AAA<Tv2,Int>),(Tv3,AAA<Tv3,Int>),(Tv4,DAA<Tv4,Int>)],AAA<?,Int->Int>,T)
+
+*Adversarial> go a05_order3_fun 
+(fromList [(Tv0,AAA<Tv0,(BAA<Tv4,Tv5->Tv3>)->Tv5>),(Tv1,BAA<Tv1,(AAA<Tv2,Tv5>)->Tv3>),(Tv2,BAA<Tv2,AAA<Tv2,Tv5>>),(Tv4,AAA<Tv4,BAA<Tv4,Tv5->Tv3>>)],(AAA<?,(BAA<Tv4,Tv5->Tv3>)->Tv5>)->(BAA<?,(AAA<Tv2,Tv5>)->Tv3>)->BAA<?,Tv3>,T)
+
+*Adversarial> go a06_order3_intfun 
+(fromList [(Tv0,AAA<Tv0,(BAA<Tv2,Int->Int>)->Int->Tv5>),(Tv1,BAA<Tv1,Int->Int>),(Tv2,AAA<Tv2,BAA<Tv2,Int->Int>>),(Tv3,AAA<Tv3,Int->Tv5>),(Tv4,AAA<Tv4,Int>),(Tv6,BAA<Tv6,Int>),(Tv7,BAA<Tv7,Int>)],(AAA<?,(BAA<Tv2,Int->Int>)->Int->Tv5>)->(BAA<?,Int->Int>)->AAA<?,Tv5>,T)
+
+*Adversarial> go a07_double_f 
+(fromList [(Tv0,AAA<Tv0,Bool->Bool>),(Tv1,AAA<Tv1,Bool>),(Tv2,AAA<Tv2,Bool>)],(AAA<?,Bool->Bool>)->AAA<?,Bool>,T)
+
+*Adversarial> go a08_outflows 
+(fromList [(Tv0,AAA<Tv0,Int->Int>),(Tv1,AAA<Tv1,Int>),(Tv2,AAA<Tv2,Int>)],Int,AAA<T,L>)
+
+*Adversarial> go a09_precision_relation 
+(fromList [(Tv0,AAA<Tv0,Bool->Int>),(Tv1,AAA<Tv1,Bool>),(Tv2,AAA<Tv2,Int>),(Tv3,BAA<Tv3,Int->Int>),(Tv4,BAA<Tv4,Int>),(Tv5,BAA<Tv5,Int>),(Tv6,AAA<Tv6,DAA<Tv6,Bool>>)],Int,BAA<T,AAA<T,L>>)
+
+BAA L, AAA free
+AAA L, BAA R
+
+
+*Adversarial> go a10_if_tag 
+(fromList [(Tv0,AAA<Tv0,Bool>),(Tv1,BAA<Tv1,Int>)],(AAA<?,Bool>)->(BAA<?,Int>)->Int,BAA<T,L>)
