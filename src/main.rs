@@ -94,6 +94,9 @@ pub struct Opts {
     /// All uses of a variable have the same type (by default, variables can be weakened)
     #[clap(long = "rigid-vars")]
     rigid_variables: bool,
+    /// Do not type-check the final result of migration
+    #[clap(long)]
+    skip_type_check: bool,
     // Select the parser
     #[clap(short, long, default_value = "empty")]
     parser: Parser,
@@ -211,11 +214,13 @@ fn migrate_main(config: Opts) -> Result<()> {
         cgen::typeinf_options(parsed, &env, options).unwrap()
     };
 
-    let typ = type_check::tcheck(&env, &inferred)
-        .map_err(|e| Error::new(ErrorKind::Other, format!("{}", e)))?;
-    if options.debug {
-        eprintln!("Inferred type:");
-        eprintln!("{}", typ);
+    if !config.skip_type_check {
+        let typ = type_check::tcheck(&env, &inferred)
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{}", e)))?;
+        if options.debug {
+            eprintln!("Inferred type:");
+            eprintln!("{}", typ);
+        }
     }
 
     match config.compare {
