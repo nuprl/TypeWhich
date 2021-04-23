@@ -180,7 +180,11 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
     let mut stars_after_migration = 0;
     let migrated_runs_ok = eval(tool_stdout.clone(), Some(&mut stars_after_migration));
 
-    let result_is_known_compatible = outcome.expect_compatible.as_ref().map(|s| s.trim() == tool_stdout.trim()).unwrap_or(false);
+    let result_is_known_compatible = outcome
+        .expect_compatible
+        .as_ref()
+        .map(|s| s.trim() == tool_stdout.trim())
+        .unwrap_or(false);
 
     match &benchmark.context {
         None => match (original_runs_ok, migrated_runs_ok) {
@@ -192,7 +196,8 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
             (Some(true), Some(true)) => {
                 outcome.result = Some(Expect::FullyCompatible {
                     num_stars: stars_after_migration,
-                    manually_verify: benchmark.num_stars != stars_after_migration && !result_is_known_compatible
+                    manually_verify: benchmark.num_stars != stars_after_migration
+                        && !result_is_known_compatible,
                 });
             }
             (Some(false), Some(false)) => {
@@ -228,7 +233,8 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
                 (Some(true), Some(true), Some(true), Some(true)) => {
                     outcome.result = Some(Expect::FullyCompatible {
                         num_stars: stars_after_migration,
-                        manually_verify: benchmark.num_stars != stars_after_migration && !result_is_known_compatible,
+                        manually_verify: benchmark.num_stars != stars_after_migration
+                            && !result_is_known_compatible,
                     });
                 }
                 _ => {
@@ -334,27 +340,29 @@ pub fn benchmark_main(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
     return Ok(());
 }
 
-pub fn details_latex(src_file: impl AsRef<str>)-> Result<(), std::io::Error> {
+pub fn details_latex(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
     let src_text = std::fs::read_to_string(src_file.as_ref())?;
     let benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
     for b in benchmarks.benchmarks {
         println!("\\subsection*{{{}}}\n", &b.file.replace("_", "-"));
         for t in &benchmarks.tools {
-            
-
             let result = b.results.get(&t.title).unwrap();
-            let migration = result.migration.as_ref().map(|s| s.replace("⦉", "t").replace("⦊", "").clone()).unwrap_or("".to_string());
+            let migration = result
+                .migration
+                .as_ref()
+                .map(|s| s.replace("⦉", "t").replace("⦊", "").clone())
+                .unwrap_or("".to_string());
             let outcome_str = match result.result.as_ref().unwrap() {
                 Expect::Disaster => "\\textbf{DISASTER}",
-                Expect::FullyCompatible {..}=> "Compatible",
+                Expect::FullyCompatible { .. } => "Compatible",
                 Expect::NewRuntimeError => "Runtime Error",
-                Expect::Rejection{..} => "Rejected",
+                Expect::Rejection { .. } => "Rejected",
                 Expect::Unusable => "Unusable",
-                Expect::Restricted {..} => "Restricted",
+                Expect::Restricted { .. } => "Restricted",
             };
             println!("\\paragraph{{{}}}: {}", &t.title, outcome_str);
             println!("\\begin{{lstlisting}}");
-            println!("{}",migration);
+            println!("{}", migration);
             println!("\\end{{lstlisting}}\n");
         }
     }
