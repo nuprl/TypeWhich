@@ -62,6 +62,7 @@ enum SubCommand {
     Eval(EvalOpts),
     Benchmark(BenchmarkOpts),
     LatexBenchmarks(BenchmarkOpts),
+    LatexBenchmarkSummary(BenchmarkOpts),
 }
 
 #[derive(Clap)]
@@ -158,6 +159,7 @@ fn main() -> Result<()> {
         SubCommand::Eval(opts) => eval_main(opts),
         SubCommand::Benchmark(opts) => benchmark::benchmark_main(&opts.input, opts.ignore.as_slice()),
         SubCommand::LatexBenchmarks(opts) => benchmark::details_latex(&opts.input),
+        SubCommand::LatexBenchmarkSummary(opts) => benchmark::summarize_latex(&opts.input),
     }
 }
 
