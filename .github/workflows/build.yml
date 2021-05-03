@@ -32,24 +32,6 @@ jobs:
   test:
     needs: build
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - tool: grift
-            suite: grift
-            ignore: false
-          - tool: ins-and-outs
-            suite: migeed
-            ignore: true
-          - tool: no-context
-            suite: migeed
-            ignore: false
-          - tool: smt
-            suite: migeed
-            ignore: false
-      
     steps:
     - uses: actions/checkout@v2
     - id: cache-cargo
@@ -65,7 +47,10 @@ jobs:
       run: |
         echo Build step ran but the results weren't in cache. What's up?
         exit 1
-    - name: ${{ matrix.tool }} on ${{ matrix.suite }}
-      run: ./test-runner.sh ${{ matrix.tool }} ${{ matrix.suite }}
-      continue-on-error: ${{ matrix.ignore }}
+    - name: TypeWhich and InsAndOuts benchmarks
+      run: |
+        cargo run -- benchmark benchmarks.yaml --ignore Gtubi MGT MaxMigrate > test.results.yaml
+        diff test.expected.yaml test.results.yaml
+    - name: Grift frontend
+      run: ./test-runner.sh grift grift
 

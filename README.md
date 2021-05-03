@@ -65,10 +65,9 @@ testing. The gist of it is:
 ```
 cargo build
 cargo test -- --nocapture
+cargo run -- benchmark benchmarks.yaml --ignore Gtubi MGT MaxMigrate > test.results.yaml
+diff test.expeceted.yaml test.results.yaml
 ./test-runner.sh grift grift
-./test-runner.sh ins-and-outs migeed
-./test-runner.sh no-context migeed
-./test-runner.sh smt migeed
 ```
 
 # Rastogi et al
