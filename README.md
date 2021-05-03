@@ -1,9 +1,16 @@
 
 # Dependencies
 
-1. Z3 build dependencies: `sudo apt-get install libz3-dev`
+1. The Rust toolchain: https://rustup.rs/
 
-2. Zeina Migeed and Jens Palsberg. What is Decidable About Gradual Typing.
+2. Z3 build dependencies: `sudo apt-get install libz3-dev`
+
+2. Python 3 and PyYAML to run unit tests.
+
+   These are installed by default on most platforms. If you can run 
+   `python3 -c "import yaml"`, then you have this already.
+
+3. Zeina Migeed and Jens Palsberg. What is Decidable About Gradual Typing.
    POPL 2020.
 
    The following repository is a fork of the paper's artifact, to which we've
@@ -16,7 +23,7 @@
 
    `migeed-palsberg-popl2020/.stack-work/install/x86_64-linux-tinfo6/lts-13.25/8.6.5/bin/MaxMigrate`
 
-3. Jeremy G. Siek and Manish Vachharajani. Gradual Typing with Unification-based
+4. Jeremy G. Siek and Manish Vachharajani. Gradual Typing with Unification-based
    Inference. Dynamic Languages Symposium (DLS) 2008.
 
    The following repository is a fork of the paper's artifact, to which we've
@@ -29,7 +36,7 @@
 
    **Warning**: The tool builds a 32-bit Linux executable. Good luck!
 
-4. MGT -- TODO instructions
+5. MGT -- TODO instructions
 
 # Experiments
 
@@ -66,7 +73,7 @@ testing. The gist of it is:
 cargo build
 cargo test -- --nocapture
 cargo run -- benchmark benchmarks.yaml --ignore Gtubi MGT MaxMigrate > test.results.yaml
-diff test.expeceted.yaml test.results.yaml
+./bin/yamldiff test.expeceted.yaml test.results.yaml
 ./test-runner.sh grift grift
 ```
 
