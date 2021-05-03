@@ -245,7 +245,10 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
     }
 }
 
-fn summarize(benchmarks: &Benchmarks) {
+pub fn summarize_latex(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
+    let src_text = std::fs::read_to_string(src_file.as_ref())?;
+    let benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
+
     let mut rejected = HashMap::<String, i32>::new();
     let mut new_runtime_err = HashMap::<String, i32>::new();
     let mut unusable = HashMap::<String, i32>::new();
@@ -322,12 +325,17 @@ fn summarize(benchmarks: &Benchmarks) {
             stars_denom
         );
     }
+
+    Ok(())
 }
 
-pub fn benchmark_main(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
+pub fn benchmark_main(src_file: impl AsRef<str>, ignore: &[String]) -> Result<(), std::io::Error> {
     let src_text = std::fs::read_to_string(src_file.as_ref())?;
     let mut benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
+    benchmarks.tools.retain(|tool| false == ignore.contains(&tool.title));
     for mut b in benchmarks.benchmarks.iter_mut() {
+        // Remove the expected outcomes for ignored tools, or we panic later.
+        b.results.retain(|tool_title, _| false == ignore.contains(tool_title));
         for t in &benchmarks.tools {
             eprintln!("Running {} on {} ...", t.title, b.file);
             benchmark_one(&t, &mut b);
@@ -335,8 +343,6 @@ pub fn benchmark_main(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
     }
 
     println!("{}", serde_yaml::to_string(&benchmarks).unwrap());
-
-    summarize(&benchmarks);
     return Ok(());
 }
 
