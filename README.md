@@ -1,17 +1,47 @@
+# TypeWhich
 
-# Dependencies
+TypeWhich is a type migration tool for the gradually-typed lambda calculus and
+the Grift programming language. Its principle features are that:
 
-1. The Rust toolchain: https://rustup.rs/
+1. TypeWhich formulates type migration as a MaxSMT problem.
 
-2. Z3 build dependencies: `sudo apt-get install libz3-dev`
+2. TypeWhich always produces a migration, as long as the input program is
+   well-scoped.
 
-2. Python 3 and PyYAML to run unit tests.
+3. TypeWhich can optimize for different properties: it can produce the most
+   informative types, or types that ensure compatibility with unmigrated code.
 
-   These are installed by default on most platforms. If you can run 
-   `python3 -c "import yaml"`, then you have this already.
+For more information, see our draft paper:
 
-3. Zeina Migeed and Jens Palsberg. What is Decidable About Gradual Typing.
-   POPL 2020.
+Luna Phipps-Costin, Carolyn Jane Anderson, Michael Greenberg, and Arjun Guha.
+[Solver-based Gradual Type Migration](https://khoury.northeastern.edu/~arjunguha/main/papers/2021-typewhich.html) 
+*In submission*.
+
+
+## Dependencies
+
+TypeWhich requires:
+
+1. The [Rust toolchain](https://rustup.rs/)
+
+2. The Z3 build dependencies. On Ubuntu Linux, you can run
+   `sudo apt-get install libz3-dev`.
+
+2. Python 3 and PyYAML to run the integration tests. These are installed by
+   default on most platforms. If you can run `python3 -c "import yaml"`, then
+   you have this already.
+
+The TypeWhich benchmarking suite is setup to compare TypeWhich to several
+other type migration tools:
+
+1. Aseem Rastogi, Avik Chaudhuri, and Basil Hosmer.
+   The Ins and Outs of Gradual Type Inference. In *POPL* 2012.
+
+   The TypeWhich codebase includes an implementation of this algorithm.
+
+
+3. Zeina Migeed and Jens Palsberg. What is Decidable About Gradual Typing?
+   In *POPL* 2020.
 
    The following repository is a fork of the paper's artifact, to which we've
    added a parser that is compatible with ours:
@@ -24,7 +54,7 @@
    `migeed-palsberg-popl2020/.stack-work/install/x86_64-linux-tinfo6/lts-13.25/8.6.5/bin/MaxMigrate`
 
 4. Jeremy G. Siek and Manish Vachharajani. Gradual Typing with Unification-based
-   Inference. Dynamic Languages Symposium (DLS) 2008.
+   Inference. In *DLS* 2008.
 
    The following repository is a fork of the paper's artifact, to which we've
    added a parser that is compatible with ours:
@@ -36,9 +66,11 @@
 
    **Warning**: The tool builds a 32-bit Linux executable. Good luck!
 
-5. MGT -- TODO instructions
+5. **TODO Instructions missing.** Migrating Gradual Types:
+   
+   https://github.com/arjunguha/mgt
 
-# Experiments
+## Experiments
 
 Run this command:
 
@@ -49,7 +81,7 @@ Run this command:
 It prints progress on standard error. The output is a YAML file of results,
 followed by a table summary. 
 
-## Validating Results
+### Validating Results
 
 1. The benchmarking script does a lot of validation itself.
 
@@ -61,10 +93,7 @@ followed by a table summary.
    table of results counts this migration as one that is 100% compatible with
    untyped contexts. But, it requires a manual check.
 
-
-
-
-# Testing
+## Testing
 
 Take a look in `.github/workflows/build.yml` to see our CI
 testing. The gist of it is:
@@ -83,9 +112,9 @@ In the directory [ins-and-outs](ins-and-outs/) is an implementation of Rastogi
 et al's paper, The Ins and Outs of Gradual Type Inference. The implementation
 has a number of problems, such as not dealing with context appropriately.
 
-# Benchmarks and test suites
+## Benchmarks and test suites
 
-## [migeed](migeed)
+### [migeed](migeed)
 
 These benchmarks were included in Migeed et al's paper and have been written in
 the concrete syntax used by our tool, the Rastogi et al implementation, and our
@@ -95,7 +124,7 @@ These examples are duplicated in our distribution of [Siek and Vachharajani's
 tool](https://github.com/arjunguha/siek-vachharajani-dls2008) with their
 concrete syntax and needed environments.
 
-## [adversarial](adversarial)
+### [adversarial](adversarial)
 
 These benchmarks are presented in the paper as the "Challenge set." They are in
 the concrete syntax used by our tool, the Rastogi et al implementation, and our
@@ -103,7 +132,7 @@ parser for Migeed et al's tool.
 
 These examples are also duplicated in our Siek and Vachharajani distribution.
 
-## [grift-suite](grift-suite)
+### [grift-suite](grift-suite)
 
 This is a clone of [the test suite from
 Grift](https://github.com/Gradual-Typing/Grift/tree/master/tests/suite). The
