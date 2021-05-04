@@ -9,6 +9,7 @@ mod pretty;
 mod syntax;
 mod type_check;
 mod z3_state;
+mod precision;
 
 use clap::Clap;
 use std::io::*;

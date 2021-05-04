@@ -12,8 +12,6 @@ use wait_timeout::ChildExt;
 struct Outcome {
     #[serde(default, skip_serializing_if = "is_false")]
     assert_unusable: bool,
-    #[serde(default, skip_serializing_if = "is_none")]
-    expect_compatible: Option<String>,
     result: Option<Expect>,
     #[serde(default, skip_serializing_if = "is_none")]
     migration: Option<String>,
@@ -57,6 +55,8 @@ struct Benchmark {
     results: std::collections::HashMap<String, Outcome>,
     #[serde(default)] // default is zero
     num_stars: usize,
+    #[serde(skip_serializing_if = "is_none")]
+    assert_compatible: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -106,7 +106,6 @@ fn get_outcome<'a>(
             tool_name.to_string(),
             Outcome {
                 assert_unusable: false,
-                expect_compatible: None,
                 result: None,
                 migration: None,
             },
@@ -127,6 +126,18 @@ fn eval(code: String, num_stars: Option<&mut usize>) -> Option<bool> {
             Some(super::eval::eval(ast).is_ok())
         }
         Err(_messages) => None,
+    }
+}
+
+
+fn check_if_compatible(migrated: &str, expected: &Option<String>) -> bool {
+    match expected {
+        None => false,
+        Some(expected) => {
+            let expected_ast = super::parser::parse(expected).expect("could not parse expected compatible");
+            let migrated_ast = super::parser::parse(migrated).expect("coud not parse migrated compatible");
+            super::precision::exp_lt(&expected_ast, &migrated_ast)
+        }
     }
 }
 
@@ -180,11 +191,7 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
     let mut stars_after_migration = 0;
     let migrated_runs_ok = eval(tool_stdout.clone(), Some(&mut stars_after_migration));
 
-    let result_is_known_compatible = outcome
-        .expect_compatible
-        .as_ref()
-        .map(|s| s.trim() == tool_stdout.trim())
-        .unwrap_or(false);
+    let result_is_known_compatible = check_if_compatible(&tool_stdout, &benchmark.assert_compatible);
 
     match &benchmark.context {
         None => match (original_runs_ok, migrated_runs_ok) {

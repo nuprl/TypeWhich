@@ -284,7 +284,8 @@ third-party type migration tools.}
 \system includes a framework for evaluating type migration algorithms, which is
 driven by a \textsc{yaml} that specifies a list of type migration tools to
 evaluate, and benchmark programs for the evaluation. The framework runs every
-tool on every benchmark and then validates the result as follows:
+tool on every benchmark and then validates the result as follows
+(all implemented in \texttt{src/benchmark.rs}):
 \begin{enumerate}
 
 \item It checks that the tool produces valid program, to verify that the tool
@@ -314,8 +315,7 @@ expected outputs to suppress these warnings when desired.
 
 The file \texttt{./benchmarks.yaml} drives the evaluation framework to
 compare \system and several other type migration algorithms on a suite of
-benchmarks. We recommend reading that file to understand benchmarking in
-more depth.
+benchmarks.
 
 To run the experiments, use the following command:
 \begin{verbatim}
@@ -327,16 +327,36 @@ It prints progress on standard error. The output is a YAML file of results.
 
 \begin{enumerate}
 
-\item The benchmarking script does a lot of validation itself.
-
 \item In \texttt{RESULTS.yaml}, look for the string ``Disaster''. It should not
-appear!
+      appear!
+     
+\item Look at \texttt{./benchmarks.yaml} and validate the following:
+\begin{enumerate}
+  
+  \item Ensure that all the migration tools are called correctly in the
+  \texttt{tools} section at the top of the file.
+  
+  \item Examine every \verb|assert_compatible| in the file: each one is
+  is a type-annotated version of a benchmark program that we assume is
+  compatible with the original benchmark (where all annotations are assumed
+  to be \texttt{any}). There is no way to validate this automatically 
+  in general (the problem is undecidable.) Instead, you need to examine
+  type-annotated version by hand.
+  
+  If a migrating tool produces output that is identicaly or less precise
+  than this version, then we label that migration as fully compatible.  
+
+\end{enumerate}
 
 \item In \texttt{RESULTS.yaml}, look for the string \verb|manually_verify|.
 These are results from experiments where (1) we could not crash the migrated
-program, and (2) the migrated program has fewer `any`s than the original. So,
-the table of results counts this migration as one that is 100\% compatible with
-untyped contexts. But, it requires a manual check.
+program, (2) the migrated program has fewer ``any''s than the original, and
+(3)~the migrated program is not less precise than the program in the
+\verb|assert_compatible| field.
+
+\item In \texttt{RESULTS.yaml}, look for \verb|assert_unusable|: this
+is a human-written assertion that the migrated program is a function that
+will crash on all inputs due to a dynamic type inconsistency.
 
 \item Finally, you can compare \texttt{RESULTS.yaml} with a known good output
 from benchmarking:
