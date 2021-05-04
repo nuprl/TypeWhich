@@ -49,7 +49,7 @@ other type migration tools:
    https://github.com/arjunguha/migeed-palsberg-popl2020
 
    Build the tool as described in the repository, and then copy (or symlink)
-   the *MaxMigrate* program to `bin/Migrate`. On Linux, the executable is at:
+   the *MaxMigrate* program to `bin/MaxMigrate`. On Linux, the executable is at:
 
    `migeed-palsberg-popl2020/.stack-work/install/x86_64-linux-tinfo6/lts-13.25/8.6.5/bin/MaxMigrate`
 
@@ -69,6 +69,13 @@ other type migration tools:
 5. **TODO Instructions missing.** Migrating Gradual Types:
    
    https://github.com/arjunguha/mgt
+
+## Building
+
+```
+cargo build
+ln -s $PWD/target/debug/typeinf-playground bin/TypeWhich
+```
 
 ## Experiments
 
@@ -106,19 +113,19 @@ cargo run -- benchmark benchmarks.yaml --ignore Gtubi MGT MaxMigrate > test.resu
 ./test-runner.sh grift grift
 ```
 
-# Rastogi et al
+## Rastogi et al
 
 In the directory [ins-and-outs](ins-and-outs/) is an implementation of Rastogi
 et al's paper, The Ins and Outs of Gradual Type Inference. The implementation
-has a number of problems, such as not dealing with context appropriately.
+has a problem with not terminating on recursive programs that may not originate
+in the paper.
 
 ## Benchmarks and test suites
 
 ### [migeed](migeed)
 
 These benchmarks were included in Migeed et al's paper and have been written in
-the concrete syntax used by our tool, the Rastogi et al implementation, and our
-parser for Migeed et al's tool.
+our concrete syntax.
 
 These examples are duplicated in our distribution of [Siek and Vachharajani's
 tool](https://github.com/arjunguha/siek-vachharajani-dls2008) with their
@@ -127,10 +134,7 @@ concrete syntax and needed environments.
 ### [adversarial](adversarial)
 
 These benchmarks are presented in the paper as the "Challenge set." They are in
-the concrete syntax used by our tool, the Rastogi et al implementation, and our
-parser for Migeed et al's tool.
-
-These examples are also duplicated in our Siek and Vachharajani distribution.
+our concrete syntax.
 
 ### [grift-suite](grift-suite)
 
@@ -150,3 +154,4 @@ nor exported we opted to remove these functions from the benchmark. This is
 discussed in the paper.
 - We have changed where in the program some benchmarks print a terminating
 newline for consistency between the static and dynamic versions.
+- Benchmarks that rely on modules are removed

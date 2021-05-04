@@ -537,13 +537,13 @@ fn annotate_typ(env: &HashMap<u32, Typ>, t: &mut Typ) {
     // if type already exists, nothing to do
     match t {
         Typ::Metavar(i) => {
-            *t = match env.get(i) {
-                Some(t) => t.clone(),
+            match env.get(i) {
+                Some(s) => *t = s.clone(),
                 // there is no constraint whatsoever on what this type
                 // can be. Migeed and Parsberg seem to choose Int in this
                 // case, though i haven't read enough to know if they
                 // explicitly mention that
-                None => Typ::Int,
+                None => (),
             }
         }
         Typ::Arr(t1, t2) | Typ::Pair(t1, t2) => {
