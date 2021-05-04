@@ -93,7 +93,7 @@ pub struct Opts {
     #[clap(long = "no-optimize")]
     disable_optimizer: bool,
     /// Produce an exact type that may not be safe in all contexts
-    #[clap(long = "unsafe")]
+    #[clap(long = "precise")]
     unsafe_mode: bool,
     /// All uses of a variable have the same type (by default, variables can be weakened)
     #[clap(long = "rigid-vars")]

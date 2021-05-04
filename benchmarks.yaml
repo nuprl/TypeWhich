@@ -16,43 +16,66 @@ tools:
 
 benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
-    results: { }
   - file: adversarial/02-rank2-poly-id.gtlc
     results:
       InsAndOuts:
+        # Improved i:any to i:any -> any. But, i is always applied, so this is
+        # compatible.
         expect_compatible: |
           (fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)
       TypeWhich:
+        # Same as InsAndOuts
+        expect_compatible: |
+          (fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)
+      TypeWhich2:
+        # Same as InsAndOuts
         expect_compatible: |
           (fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)
   - file: adversarial/03-unreachable-error.gtlc
     results:
+      # All these types are improved, but the program always crashes.
       TypeWhich:
         expect_compatible: "(fun b:(any -> any) -> (any -> int) -> any -> int. b (fun c:any.\n  (fun x:any. x x) 5 5) (fun d:any. 0)) (fun t:any -> any.\nfun f:any -> int. f)"
+      TypeWhich2:
+        expect_compatible: "(fun b:(any -> any) -> (any -> int) -> any -> int. b (fun c:any.\n  (fun x:any. x x) 5 5) (fun d:any. 0)) (fun t:any -> any.\nfun f:any -> int. f)\n"
       InsAndOuts:
         expect_compatible: "(fun b:(⦉4418⦊ -> ⦉4418⦊) -> (any -> int) -> any -> int. b\n  (fun c . (fun x:int. x x) 5 5) (fun d:any. 0))\n(fun t:⦉4418⦊ -> ⦉4418⦊. fun f:any -> int. f)\n"
   - file: adversarial/04-f-in-f-out.gtlc
     results:
+      # Gtubi is obviously compatible -- just look at it.
       Gtubi:
         expect_compatible: "((fun f : (int -> int). ((fun y : int. f) (f 5))) (fun x : int. (10 + x)))"
+      # Same as Gtubi
       TypeWhich:
         expect_compatible: "(fun f:int -> int. (fun y:int. f) (f 5)) (fun x:int. 10 + x)\n"
+      # Same as Gtubi
+      TypeWhich2:
+        expect_compatible: "(fun f:int -> int. (fun y:int. f) (f 5)) (fun x:int. 10 + x)\n"
+      # Less precise than Gtubi, thus also compatible
       InsAndOuts:
         expect_compatible: "(fun f:any -> int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)\n"
+      # Same as Gtubi
+      MGT:
+        expect_compatible: "(fun f : int -> int. (fun y : int. f) (f 5)) (fun x : int. 10 + x)\n"
   - file: adversarial/05-order3-fun.gtlc
     context: |
       (HOLE) (fun a . a) (fun b . true)
     results:
+      # Improves f and x, but they are clearly functions
       TypeWhich:
         expect_compatible: "fun f:(any -> any) -> any. fun x:any -> any. x (f x)\n"
+      # Its basically the principal type!
       Gtubi:
         expect_compatible: "(fun f : ((beta@1 -> beta@2) -> beta@1). (fun x : (beta@1 -> beta@2). (x (f x))))"
+      # Same as TypeWhich
+      MGT:
+        expect_compatible: "fun f : (any -> any) -> any. fun x : any -> any. x (f x)\n" 
       MaxMigrate:
         assert_unusable: true
   - file: adversarial/06-order3-intfun.gtlc
     context: |
       (HOLE) (fun a . fun b . true) (fun c . 0)
-    resuls:
+    results:
         Gtubi:
           expect_compatible: "(fun f : ((int -> int) -> (int -> beta@5)). (fun g : (int -> int). ((f g) ((g 10) + 1))))"  
   - file: adversarial/07-double-f.gtlc
@@ -114,7 +137,9 @@ benchmarks:
   - file: migeed/07_apply2.gtlc
     results:
       MaxMigrate:
+        # The migration produced is "unusable" -- no way to apply it.
         assert_unusable: true
+        migration: "fun x : any . fun y : int -> bool -> int . y x x\n"
       Gtubi:
         expect_compatible: |
           (fun x : _t1. (fun y : (_t1 -> (_t1 -> beta@2)). ((y x) x)))

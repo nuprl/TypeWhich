@@ -24,8 +24,8 @@
 
 \section{Introduction}
 
-\system is a type migration tool for the gradually-typed lambda calculus and
-the Grift programming language. Its distinguishing characteristics are the following:
+\system is a type migration tool for the gradually-typed lambda calculus with
+several extensions. Its distinguishing characteristics are the following:
 
 \begin{enumerate}
 
@@ -41,9 +41,54 @@ informative types, or types that ensure compatibility with un-migrated code.
 
 For more information on \system, see \citet{typewhich}.
 
+This repository contains the source code for \system. In addition to the
+core type migration algorithm, the \system executable has several auxiliary
+features:
+
+\begin{enumerate}
+
+  \item It has a parser for the Grift programming language, which we use to
+  infer types for the Grift benchmarks from \citet{kuhlenschmidt:grift};
+
+  \item It has an interpreter for the GTLC, which we use in validation;
+  
+  \item It has an implementation of the gradual type inference algorithm
+  from \citet{rastogi:gti}; and
+
+  \item It includes a framework for evaluating type migration algorithms,
+  which we use to compare \system to several algorithms from the
+  literature~\cite{rastogi:gti,campora:migrating,migeed:decidable,siek:gti}.
+
+\end{enumerate}
+%
+Finally, this repository contains several gradual typing benchmarks:
+%
+\begin{enumerate}
+
+     \item The ``challenge set'' from \citet{typewhich};
+     
+     \item The benchmarks from \citet{migeed:decidable}; and
+     
+     \item The benchmarks from \citet{kuhlenschmidt:grift}.
+
+\end{enumerate}
+
+This document will guide you though building \system, using it on example
+programs, and using the evaluation framework to reproduce our experimental
+results.
+
 \section{Building and Testing \system}
 
-\subsection{Dependencies}
+\system is built in Rust and uses Z3 under the hood. In principle, it should
+work on macOS, Linux or Windows, though we have only tried it on macOS and
+Linux. \emph{However}, our evaluation uses the implementation from
+\citet{siek:gti}, which is an old piece of software that is difficult to build
+on a modern platform. We have managed to compile it a Docker container and
+produce a 32-bit Linux binary. It should be possible to build it for other
+platforms, but it will require additional effort. Therefore, \textbf{we strongly
+recommend using Linux to evaluate \system}.
+
+\paragraph{Installing \system Dependencies}
 
 To build \system from source, you will need:
 
@@ -51,33 +96,28 @@ To build \system from source, you will need:
 
 \item The \href{https://rustup.rs/}{Rust language toolchain}.
 
-\item The Z3 build dependencies. On Ubuntu Linux, you can run the following
+\item The Z3 build dependencies and the ``usual'' build toolchain. On Ubuntu Linux, you can run the following
 command to get them:
 
 \begin{verbatim}
-sudo apt-get install libz3-dev
+sudo apt-get install libz3-dev build-essential
 \end{verbatim}
 
 \item Python 3 and PyYAML to run the integration tests. These are installed by
-   default on most platforms. If you can run the following command, then you
-   already have them installed:
+default on most platforms. If you can run the following command successfully
+then you already have them installed:
 \begin{verbatim}
 python3 -c "import yaml"
 \end{verbatim}
 
 \end{enumerate}
 
-\subsection{Other Type Migration Tools}
+\paragraph{Installing Other Type Migration Tools}
 
-The \system benchmarking suite is setup to compare \system to several other
-type migration tools, some of these tools are in other repositories. You do not
-need these other tools to use \system, but you do need them to reproduce the
-evaluation from \citet{typewhich}.
+\system does not require these dependencies, but they are necessary to reproduce
+our evaluation.
 
 \begin{enumerate}
-
-\item \citet{rastogi:gti}: the \system code includes an implementation of this
-algorithm, and it has no external dependencies.
 
 \item \citet{migeed:decidable} is implemented in Haskell. We have written a
 parser and printer for their tool that is compatible with \system. This
@@ -86,8 +126,8 @@ modified implementation is available at the following URL:
 \url{https://github.com/arjunguha/migeed-palsberg-popl2020}
 
 Build the tool as described in the repository, and then copy (or symlink) the
-\texttt{MaxMigrate} program to \texttt{bin/MaxMigrate} in the \system directory..
-On Linux, the executable is at:
+\texttt{MaxMigrate} program to \texttt{bin/MaxMigrate} in the \system
+directory. On Linux, the executable is at:
 
 \begin{verbatim}
 migeed-palsberg-popl2020/.stack-work/install/x86_64-linux-tinfo6/
@@ -103,8 +143,9 @@ parser and printer that is compatible with \system:
 Build the tool as described in the repository, and then copy (or symlink)
 the \texttt{gtlc} program to \texttt{bin/gtubi} in the \system directory.
 
-\textbf{Warning:} It is quite hard to build OCaml 3.12 on a modern Linux
-system. The repository is configured to build a 32-bit Linux executable.
+\textbf{Warning:} The repository builds a 32-bit Linux executable. You will
+need to ensure that your Linux system has the libraries needed to run 32-bit
+code.
 
 \item \citet{campora:migrating} [FILL]
    
@@ -112,34 +153,38 @@ system. The repository is configured to build a 32-bit Linux executable.
 
 \end{enumerate}
 
-\subsection{Building and Testing}
+\paragraph{Building and Testing}
 
-To build \system (and our implementation of \citet{rastogi:gti}), run the
-following command:
+Use \texttt{cargo} to build \system:
 
 \begin{verbatim}
 cargo build
 \end{verbatim}
 
 Run the unit tests:
-
 \begin{verbatim}
 cargo test
 \end{verbatim}
+You may see a few ignored tests, but \emph{no tests should fail}.
 
 Test \system using the Grift benchmarks:
-
 \begin{verbatim}
 ./test-runner.sh grift grift
 \end{verbatim}
+\emph{No tests should fail.}
 
 Finally, run the GTLC benchmarks without any third-party tools:
-
 \begin{verbatim}
 cargo run -- benchmark benchmarks.yaml \
   --ignore Gtubi MGT MaxMigrate > test.results.yaml
+\end{verbatim}
+You will see debugging output (on standard error), but the results will
+be saved to the YAML file. Compare these results to known good results:
+\begin{verbatim}
 ./bin/yamldiff test.expected.yaml test.results.yaml
 \end{verbatim}
+\emph{You should see no output, which indicates that there are no
+differences.}
 
 \section{Running \system}
 
@@ -175,7 +220,7 @@ $ ./bin/TypeWhich migrate input.gtlc
 can, though that may come at the expense of compatibility:
 
 \begin{verbatim}
-$ ./bin/TypeWhich migrate --unsafe inpuy.gtlc
+$ ./bin/TypeWhich migrate --precise inpuy.gtlc
 (fun f:int -> int. (fun y:int. f) (f 5)) (fun x:int. 10 + x)
 \end{verbatim}
      
@@ -231,17 +276,51 @@ slightly better formatting.}
 
 \end{tabular}
 
-\section{Experiments}
+\section{Evaluation Framework}
 
 \emph{To run the full suite of experiments, you will need to install the
 third-party type migration tools.}
 
-To run the experiments, use the following command:
+\system includes a framework for evaluating type migration algorithms, which is
+driven by a \textsc{yaml} that specifies a list of type migration tools to
+evaluate, and benchmark programs for the evaluation. The framework runs every
+tool on every benchmark and then validates the result as follows:
+\begin{enumerate}
 
+\item It checks that the tool produces valid program, to verify that the tool
+did not reject the program.
+
+\item It runs the original program and the output of the tool and checks that
+they produce the same result, to verify that the tool did not introduce a
+runtime error.
+
+\item In a gradually typed language, increasing type precision can make a
+program incompatible with certain contexts. To check if this is the case, every
+benchmark in the \textsc{yaml} file may be accompanied by a context that
+witnesses the incompatibility: the framework runs the original and migrated
+program in the context, to check if they produce different results.
+
+\item The framework counts the number of \texttt{any}s that are eliminated
+by the migration tool. Every eliminated \texttt{any} improves precision, 
+\emph{may or may not} introduce an incompatibility, but this requires human
+judgement. For example, in the
+program \verb|fun x . x + 1|, annotating ``x'' with \texttt{int} does not
+introduce an incompatibility. However, in \verb|fun x . x|, annotating ``x''
+with \texttt{int} is an incompatibility. The framework flags these results
+for manual verification. However, it allows the input \textsc{yaml} to specify
+expected outputs to suppress these warnings when desired.
+
+\end{enumerate}
+
+The file \texttt{./benchmarks.yaml} drives the evaluation framework to
+compare \system and several other type migration algorithms on a suite of
+benchmarks. We recommend reading that file to understand benchmarking in
+more depth.
+
+To run the experiments, use the following command:
 \begin{verbatim}
 ./bin/TypeWhich benchmark benchmarks.yaml > RESULTS.yaml
 \end{verbatim}
-
 It prints progress on standard error. The output is a YAML file of results.
 
 \subsection{Validation}
