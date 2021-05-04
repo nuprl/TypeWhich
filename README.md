@@ -147,6 +147,9 @@ complete documentation.
 
 # Input Language
 
+**[./doc/doc.pdf](./doc/doc.pdf) has the same content as this file, but
+with slightly better formatting.**
+
 <span class="smallcaps">TypeWhich</span> supports a superset of the
 GTLC, written in the following syntax:
 
