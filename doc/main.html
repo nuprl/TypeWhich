@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Luna Phipps-Costin, Carolyn Jane Anderson, Michael Greenberg, and Arjun Guha" />
+  <title>TypeWhich Guide</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title"><span class="smallcaps">TypeWhich</span> Guide</h1>
+<p class="author">Luna Phipps-Costin, Carolyn Jane Anderson, Michael Greenberg, and Arjun Guha</p>
+</header>
+<h1 id="introduction">Introduction</h1>
+<p><span class="smallcaps">TypeWhich</span> is a type migration tool for the gradually-typed lambda calculus and the Grift programming language. Its distinguishing characteristics are the following:</p>
+<ol>
+<li><p><span class="smallcaps">TypeWhich</span> formulates type migration as a MaxSMT problem.</p></li>
+<li><p><span class="smallcaps">TypeWhich</span> always produces a migration, as long as the input program is well-scoped.</p></li>
+<li><p><span class="smallcaps">TypeWhich</span> can optimize for different properties: it can produce the most informative types, or types that ensure compatibility with un-migrated code.</p></li>
+</ol>
+<p>For more information on <span class="smallcaps">TypeWhich</span>, see <span class="citation" data-cites="typewhich">Phipps-Costin et al. (2021)</span>.</p>
+<h1 id="building-and-testing-typewhich">Building and Testing <span class="smallcaps">TypeWhich</span></h1>
+<h2 id="dependencies">Dependencies</h2>
+<p>To build <span class="smallcaps">TypeWhich</span> from source, you will need:</p>
+<ol>
+<li><p>The <a href="https://rustup.rs/">Rust language toolchain</a>.</p></li>
+<li><p>The Z3 build dependencies. On Ubuntu Linux, you can run the following command to get them:</p>
+<pre><code>sudo apt-get install libz3-dev</code></pre></li>
+<li><p>Python 3 and PyYAML to run the integration tests. These are installed by default on most platforms. If you can run the following command, then you already have them installed:</p>
+<pre><code>python3 -c &quot;import yaml&quot;</code></pre></li>
+</ol>
+<h2 id="other-type-migration-tools">Other Type Migration Tools</h2>
+<p>The <span class="smallcaps">TypeWhich</span> benchmarking suite is setup to compare <span class="smallcaps">TypeWhich</span> to several other type migration tools, some of these tools are in other repositories. You do not need these other tools to use <span class="smallcaps">TypeWhich</span>, but you do need them to reproduce the evaluation from <span class="citation" data-cites="typewhich">Phipps-Costin et al. (2021)</span>.</p>
+<ol>
+<li><p><span class="citation" data-cites="rastogi:gti">Rastogi, Chaudhuri, and Hosmer (2012)</span>: the <span class="smallcaps">TypeWhich</span> code includes an implementation of this algorithm, and it has no external dependencies.</p></li>
+<li><p><span class="citation" data-cites="migeed:decidable">Migeed and Palsberg (2020)</span> is implemented in Haskell. We have written a parser and printer for their tool that is compatible with <span class="smallcaps">TypeWhich</span>. This modified implementation is available at the following URL:</p>
+<p><a href="https://github.com/arjunguha/migeed-palsberg-popl2020">https://github.com/arjunguha/migeed-palsberg-popl2020</a></p>
+<p>Build the tool as described in the repository, and then copy (or symlink) the <code>MaxMigrate</code> program to <code>bin/Migrate</code> in the <span class="smallcaps">TypeWhich</span> directory.. On Linux, the executable is at:</p>
+<pre><code>migeed-palsberg-popl2020/.stack-work/install/x86_64-linux-tinfo6/
+lts-13.25/8.6.5/bin/MaxMigrate</code></pre></li>
+<li><p><span class="citation" data-cites="siek:gti">Siek and Vachharajani (2008)</span> is implemented in OCaml 3.12 (which is quite old). The following repository has an implementation of the tool, with a modified parser and printer that is compatible with <span class="smallcaps">TypeWhich</span>:</p>
+<p><a href="https://github.com/arjunguha/siek-vachharajani-dls2008">https://github.com/arjunguha/siek-vachharajani-dls2008</a></p>
+<p>Build the tool as described in the repository, and then copy (or symlink) the <code>gtlc</code> program to <code>bin/gtubi</code> in the <span class="smallcaps">TypeWhich</span> directory.</p>
+<p><strong>Warning:</strong> It is quite hard to build OCaml 3.12 on a modern Linux system. The repository is configured to build a 32-bit Linux executable.</p></li>
+<li><p><span class="citation" data-cites="campora:migrating">Campora et al. (2018)</span> [FILL]</p>
+<p><a href="https://github.com/arjunguha/mgt">https://github.com/arjunguha/mgt</a></p></li>
+</ol>
+<h2 id="building-and-testing">Building and Testing</h2>
+<p>To build <span class="smallcaps">TypeWhich</span>(and our implementation of <span class="citation" data-cites="rastogi:gti">Rastogi, Chaudhuri, and Hosmer (2012)</span>), run the following command:</p>
+<pre><code>cargo build</code></pre>
+<p>Run the unit tests:</p>
+<pre><code>cargo test</code></pre>
+<p>Test <span class="smallcaps">TypeWhich</span> using the Grift benchmarks:</p>
+<pre><code>./test-runner.sh grift grift</code></pre>
+<p>Finally, run the GTLC benchmarks without any third-party tools:</p>
+<pre><code>cargo run -- benchmark benchmarks.yaml \
+  --ignore Gtubi MGT MaxMigrate &gt; test.results.yaml
+./bin/yamldiff test.expected.yaml test.results.yaml</code></pre>
+<h1 id="running-typewhich">Running <span class="smallcaps">TypeWhich</span></h1>
+<p>The <span class="smallcaps">TypeWhich</span> executable is symlinked to <code>bin/TypeWhich</code>. <span class="smallcaps">TypeWhich</span> expects its input program to be in a single file, and written in either Grift (extension <code>.grift</code>) or in a superset of the gradually typed lambda calculus (extension <code>.gtlc</code>), shown in Section <a href="#input-lang-gtlc" data-reference-type="ref" data-reference="input-lang-gtlc">4</a>.</p>
+<h4 id="example">Example</h4>
+<p>Create a file called <code>input.gtlc</code> with the following contents:</p>
+<pre><code>(fun f. (fun y. f) (f 5)) (fun x. 10 + x)</code></pre>
+<p>This program omits all type annotations: <span class="smallcaps">TypeWhich</span> assumes that omitted annotations are all <strong><code>any</code></strong>.</p>
+<p>We can migrate the the program using <span class="smallcaps">TypeWhich</span> in two modes:</p>
+<ol>
+<li><p>In <em>compatibility mode</em>, <span class="smallcaps">TypeWhich</span> infers types but maintains compatibility with un-migrated code:</p>
+<pre><code>$ ./bin/TypeWhich migrate input.gtlc
+(fun f:any -&gt; int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)</code></pre></li>
+<li><p>In <em>precise mode</em>, <span class="smallcaps">TypeWhich</span> infers the most precise type that it can, though that may come at the expense of compatibility:</p>
+<pre><code>$ ./bin/TypeWhich migrate --unsafe inpuy.gtlc
+(fun f:int -&gt; int. (fun y:int. f) (f 5)) (fun x:int. 10 + x)</code></pre></li>
+</ol>
+<p>The <span class="smallcaps">TypeWhich</span> executable supports several other sub-commands and flags. Run <code>./bin/TypeWhich –help</code> for more complete documentation.</p>
+<h1 id="input-lang-gtlc">Input Language</h1>
+<p><span class="smallcaps">TypeWhich</span> supports a superset of the GTLC, written in the following syntax:</p>
+<p>[FILL] A few cases missing</p>
+<table>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;"><em>b</em></td>
+<td style="text-align: center;">:=</td>
+<td style="text-align: left;"><strong><code>true</code></strong> | <strong><code>false</code></strong></td>
+<td style="text-align: left;">Boolean literal</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"><em>n</em></td>
+<td style="text-align: center;">:=</td>
+<td style="text-align: left;">... | <span class="math inline"> − 1</span> | 0 | 1 | ...</td>
+<td style="text-align: left;">Integer literals</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"><em>s</em></td>
+<td style="text-align: center;">:=</td>
+<td style="text-align: left;"><code>"..."</code></td>
+<td style="text-align: left;">String literals</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"><em>c</em></td>
+<td style="text-align: center;">:=</td>
+<td style="text-align: left;">b | n | s</td>
+<td style="text-align: left;">Literals</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"><em>T</em></td>
+<td style="text-align: center;">:=</td>
+<td style="text-align: left;"><strong><code>any</code></strong></td>
+<td style="text-align: left;">The unknown type</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>int</code></strong></td>
+<td style="text-align: left;">Integer type</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>bool</code></strong></td>
+<td style="text-align: left;">Boolean type</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><em>T</em><sub>1</sub> <strong><code>-&gt;</code></strong> <em>T</em><sub>2</sub></td>
+<td style="text-align: left;">Function type</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>(</code></strong> <em>T</em> <strong><code>)</code></strong></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"><em>e</em></td>
+<td style="text-align: center;">:=</td>
+<td style="text-align: left;"><em>x</em></td>
+<td style="text-align: left;">Bound identifier</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><em>c</em></td>
+<td style="text-align: left;">Literal</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;">e <strong><code>:</code></strong> T</td>
+<td style="text-align: left;">Type ascription</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>(</code></strong> <em>e</em> <strong><code>)</code></strong></td>
+<td style="text-align: left;">Parenthesis</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>fun</code></strong> <em>x</em> <strong><code>.</code></strong> <em>e</em></td>
+<td style="text-align: left;">Function</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><em>e</em><sub>1</sub> <em>e</em><sub>2</sub></td>
+<td style="text-align: left;">Application</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><em>e</em><sub>1</sub> <strong><code>+</code></strong> <em>e</em><sub>2</sub></td>
+<td style="text-align: left;">Addition</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><em>e</em><sub>1</sub> <strong><code>*</code></strong> <em>e</em><sub>2</sub></td>
+<td style="text-align: left;">Multiplication</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><em>e</em><sub>1</sub> <strong><code>=</code></strong> <em>e</em><sub>2</sub></td>
+<td style="text-align: left;">Integer equality</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><em>e</em><sub>1</sub> <strong><code>+?</code></strong> <em>e</em><sub>2</sub></td>
+<td style="text-align: left;">Addition or string concatenation (overloaded)</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>(</code></strong><em>e</em><sub>1</sub><strong><code>,</code></strong><em>e</em><sub>2</sub><strong><code>)</code></strong></td>
+<td style="text-align: left;">Pair</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>fix</code></strong> <em>f</em> <strong><code>.</code></strong><em>e</em></td>
+<td style="text-align: left;">Fixpoint</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>if</code></strong> <em>e</em><sub>1</sub> <strong><code>then</code></strong> <em>e</em><sub>2</sub> <strong><code>else</code></strong> <em>e</em><sub>3</sub></td>
+<td style="text-align: left;">Conditional</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>let</code></strong> <em>x</em> <strong><code>=</code></strong> <em>e</em><sub>1</sub> <strong><code>in</code></strong> <em>e</em><sub>2</sub></td>
+<td style="text-align: left;">Let binding</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"></td>
+<td style="text-align: center;">|</td>
+<td style="text-align: left;"><strong><code>let rec</code></strong> <em>x</em> <strong><code>=</code></strong> <em>e</em><sub>1</sub> <strong><code>in</code></strong> <em>e</em><sub>2</sub></td>
+<td style="text-align: left;">Recursive let binding</td>
+</tr>
+</tbody>
+</table>
+<h1 id="running-experiments">Running Experiments</h1>
+<p>Run this command:</p>
+<pre><code>./bin/TypeWhich benchmark benchmarks.yaml &gt; RESULTS.yaml</code></pre>
+<p>It prints progress on standard error. The output is a YAML file of results, followed by a table summary.</p>
+<h1 id="validation">Validation</h1>
+<ol>
+<li><p>The benchmarking script does a lot of validation itself.</p></li>
+<li><p>In RESULTS.yaml, look for the string "Disaster". It should not appear!</p></li>
+<li><p>In RESULTS.yaml, look for the string <code>manually_verify</code>. These are results from experiments where (1) we could not crash the migrated program, and (2) the migrated program has fewer ‘any‘s than the original. So, the table of results counts this migration as one that is 100% compatible with untyped contexts. But, it requires a manual check.</p></li>
+</ol>
+<h1 id="benchmarks">Benchmarks</h1>
+<p>The <span class="smallcaps">TypeWhich</span> repository has several benchmarks:</p>
+<ol>
+<li><p>The <code>migeed</code> directory contains the benchmarks from Migeed et al., written in the concrete syntax of <span class="smallcaps">TypeWhich</span>.</p></li>
+<li><p>The <code>adversarial</code> directory contains the “challenge set” from the <span class="smallcaps">TypeWhich</span> paper.</p></li>
+<li><p>The <code>grift-suite</code> directory contains tests from <a href="https://github.com/Gradual-Typing/Grift/tree/master/tests/suite">Grift</a>. The <code>mu/</code> directory has been modified to use Dyn where it originally used recursive types.</p></li>
+<li><p>The <code>grift-suite/benchmarks</code> contains benchmarks from <a href="https://github.com/Gradual-Typing/benchmarks">https://github.com/Gradual-Typing/benchmarks</a> with the following adjustments:</p>
+<ol>
+<li><p>The getters and setters in n-body have been removed. They were neither used nor exported we opted to remove these functions from the benchmark. This is discussed in the paper.</p></li>
+<li><p>We have changed where in the program some benchmarks print a terminating newline for consistency between the static and dynamic versions.</p></li>
+</ol></li>
+</ol>
+<div id="refs" class="references">
+<div id="ref-campora:migrating">
+<p>Campora, John Peter, Sheng Chen, Martin Erwig, and Eric Walkingshaw. 2018. “Migrating Gradual Types.” <em>Proceedings of the ACM on Programming Languages (PACMPL)</em> 2 (POPL).</p>
+</div>
+<div id="ref-migeed:decidable">
+<p>Migeed, Zeina, and Jens Palsberg. 2020. “What Is Decidable About Gradual Types?” <em>Proceedings of the ACM on Programming Languages (PACMPL)</em> 4 (POPL).</p>
+</div>
+<div id="ref-typewhich">
+<p>Phipps-Costin, Luna, Carolyn Jane Anderson, Michael Greenberg, and Arjun Guha. 2021. “Solver-Based Gradual Type Migration.” <a href="https://khoury.northeastern.edu/~arjunguha/main/papers/2021-typewhich.html">https://khoury.northeastern.edu/~arjunguha/main/papers/2021-typewhich.html</a>.</p>
+</div>
+<div id="ref-rastogi:gti">
+<p>Rastogi, Aseem, Avik Chaudhuri, and Basil Hosmer. 2012. “The Ins and Outs of Gradual Type Inference.” In <em>ACM Sigplan-Sigact Symposium on Principles of Programming Languages (Popl)</em>.</p>
+</div>
+<div id="ref-siek:gti">
+<p>Siek, Jeremy G., and Manish Vachharajani. 2008. “Gradual Typing with Unification-Based Inference.” In <em>Dynamic Languages Symposium (Dls)</em>.</p>
+</div>
+</div>
+</body>
+</html>
