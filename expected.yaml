@@ -23,7 +23,7 @@ tools:
     command:
       - "./bin/TypeWhich"
       - migrate
-      - "--unsafe"
+      - "--precise"
 benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
     results:

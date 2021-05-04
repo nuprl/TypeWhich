@@ -12,7 +12,7 @@ tools:
   - title: TypeWhich2
     command: [ "./bin/TypeWhich", "migrate" ]
   - title: TypeWhich
-    command: [ "./bin/TypeWhich", "migrate", "--unsafe" ]
+    command: [ "./bin/TypeWhich", "migrate", "--precise" ]
 
 benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
