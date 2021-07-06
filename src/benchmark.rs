@@ -116,6 +116,7 @@ fn get_outcome<'a>(
 
 // Run the program after coercion insertion. True means it ran successfully.
 // False means a coercion error occurred. Anything else causes a panic.
+// Store the number of stores in num_stars, if provided.
 fn eval(code: String, num_stars: Option<&mut usize>) -> Option<bool> {
     match super::parser::parse(code) {
         Ok(mut ast) => {
@@ -141,7 +142,9 @@ fn check_if_compatible(migrated: &str, expected: &Option<String>) -> bool {
     }
 }
 
+// Run one benchmark program using one migration tool.
 fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
+    // Run the program with a 30 second timeout.
     let mut child = Command::new(&tool.command[0])
         .args(&tool.command[1..])
         .arg(&benchmark.file)
@@ -158,12 +161,14 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
         }
         Some(code) => code.success(),
     };
+    // Save standard out.
     let mut tool_stdout = String::new();
     child
         .stdout
         .unwrap()
         .read_to_string(&mut tool_stdout)
         .unwrap();
+    // Save standard err.
     let mut tool_stderr = String::new();
     child
         .stderr
@@ -171,11 +176,10 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
         .read_to_string(&mut tool_stderr)
         .unwrap();
 
-    // let output = child.wait_with_output().expect("failed to wait for output");
-    // let tool_stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    // let tool_stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    // Get a pointer to the outcome where we will store the result.
     let mut outcome = get_outcome(&tool.title, &mut benchmark.results);
 
+    // Timeout or error from the migration tool.
     if migrate_ok == false {
         outcome.result = Some(Expect::Rejection(Rejection {
             stdout: tool_stdout,
@@ -187,10 +191,26 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
     // For us to manually check the result of migration
     outcome.migration = Some(tool_stdout.clone());
     let original_program = std::fs::read_to_string(&benchmark.file).expect("reading benchmark");
+
+    // If benchmark.assert_compatible is present, it a program that is more type-precise
+    // than the original program. Verify that this is true and blow up if it is not the case.
+    if check_if_compatible(&original_program, &benchmark.assert_compatible) == false &&
+       benchmark.assert_compatible.is_some() {
+           outcome.result = Some(Expect::Disaster);
+           println!("assert_compatible is not more precise than the original program");
+           return;
+    }
+
+    // Flag that determines if the original program runs without error. Also, store the number of
+    // stars in the original program in benchmark.num_stars.
     let original_runs_ok = eval(original_program.clone(), Some(&mut benchmark.num_stars));
+    // Flag that determines if the result of migration runs without error. Also, store the number of
+    // stars in the result of migration in outcome.stars_after_migration.
     let mut stars_after_migration = 0;
     let migrated_runs_ok = eval(tool_stdout.clone(), Some(&mut stars_after_migration));
 
+    // Check if the result of migration is less precise than what is known to be a maximally precise
+    // version of the original program.
     let result_is_known_compatible = check_if_compatible(&tool_stdout, &benchmark.assert_compatible);
 
     match &benchmark.context {
@@ -201,6 +221,8 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
                 outcome.result = Some(Expect::NewRuntimeError);
             }
             (Some(true), Some(true)) => {
+                // No context, so we assume it is fully compatible. *But*, we set manually_verify
+                // if the result is not less precise than the known most precise version.
                 outcome.result = Some(Expect::FullyCompatible {
                     num_stars: stars_after_migration,
                     manually_verify: benchmark.num_stars != stars_after_migration
@@ -208,6 +230,8 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
                 });
             }
             (Some(false), Some(false)) => {
+                // Program crashes before and after migration in the empty context. All crashes
+                // are compatible.
                 outcome.result = Some(Expect::FullyCompatible {
                     num_stars: stars_after_migration,
                     manually_verify: false,
@@ -230,6 +254,7 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
             ) {
                 (Some(true), Some(true), Some(true), Some(false)) => {
                     if outcome.assert_unusable {
+                        // Requires manual inspection
                         outcome.result = Some(Expect::Unusable);
                     } else {
                         outcome.result = Some(Expect::Restricted {
@@ -339,6 +364,7 @@ pub fn summarize_latex(src_file: impl AsRef<str>) -> Result<(), std::io::Error> 
 pub fn benchmark_main(src_file: impl AsRef<str>, ignore: &[String]) -> Result<(), std::io::Error> {
     let src_text = std::fs::read_to_string(src_file.as_ref())?;
     let mut benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
+    // Filter out tools that are in the ignore list.
     benchmarks.tools.retain(|tool| false == ignore.contains(&tool.title));
     for mut b in benchmarks.benchmarks.iter_mut() {
         // Remove the expected outcomes for ignored tools, or we panic later.

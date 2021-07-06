@@ -1,4 +1,4 @@
-\documentclass{article}
+\documentclass{book}
 \usepackage[T1]{fontenc}
 \usepackage{fullpage}
 \usepackage{palatino}
@@ -22,7 +22,7 @@
 
 \tableofcontents
 
-\section{Introduction}
+\chapter{Introduction}
 
 \system is a type migration tool for the gradually-typed lambda calculus with
 several extensions. Its distinguishing characteristics are the following:
@@ -39,7 +39,8 @@ informative types, or types that ensure compatibility with un-migrated code.
 
 \end{enumerate}
 
-For more information on \system, see \citet{typewhich}.
+Before you read the read of this guide or try to use \system, we strongly recommend
+reading \citet{typewhich}, which describes \system depth.
 
 This repository contains the source code for \system. In addition to the
 core type migration algorithm, the \system executable has several auxiliary
@@ -79,6 +80,11 @@ results.
 
 \section{Building and Testing \system}
 
+\noindent
+\textbf{For artifact evaluation, we strongly recommend using the \system
+Virtual Machine and skipping this section.}
+
+\paragraph{}
 \system is built in Rust and uses Z3 under the hood. In principle, it should
 work on macOS, Linux or Windows, though we have only tried it on macOS and
 Linux. \emph{However}, our evaluation uses the implementation from
@@ -147,9 +153,18 @@ the \texttt{gtlc} program to \texttt{bin/gtubi} in the \system directory.
 need to ensure that your Linux system has the libraries needed to run 32-bit
 code.
 
-\item \citet{campora:migrating} [FILL]
+\item \citet{campora:migrating} The following repository has our implementation
+of the algorithm from \citet{campora:migrating}:
    
-   \url{https://github.com/arjunguha/mgt}
+\url{https://github.com/arjunguha/mgt}
+
+Build the tool as described in the repository and then copy (or symlink) the
+the \texttt{mgt} program to \texttt{bin/mgt} in the \system directory.
+
+\textbf{Note:} The original implementation by the authors of \citet{campora:migrating}
+does not produce an ordinary migrated program as output. Instead, it produces a
+BDD that can be interpreted as a family of programs. Our implementation of
+their algorithm produces programs as output.
 
 \end{enumerate}
 
@@ -186,13 +201,224 @@ be saved to the YAML file. Compare these results to known good results:
 \emph{You should see no output, which indicates that there are no
 differences.}
 
-\section{Running \system}
+\chapter{Artifact Evaluation: Getting Started}
+\label{getting-started} 
 
-The \system executable is symlinked to \texttt{bin/TypeWhich}. \system
-expects its input program to be in a single file, and written in either
-Grift (extension \texttt{.grift}) or in a superset of the 
-gradually typed lambda calculus (extension \texttt{.gtlc}), shown in
-Section~\ref{input-lang-gtlc}.
+This chapter assumes that you are either:
+
+\begin{itemize}
+
+     \item Using the \system Virtual Machine, or
+     \item Have installed \system yourself, along with all the third party
+     tools we use for evaluation.
+
+\end{itemize}
+
+To get started:
+
+\begin{enumerate}
+     
+\item From the terminal, enter the \system directory:
+
+\begin{verbatim}
+cd typewhich
+\end{verbatim}
+
+\item Run the \system benchmarks, and output results to \texttt{results.yaml}:
+
+\begin{verbatim}
+./bin/TypeWhich benchmark > results.yaml
+\end{verbatim}
+
+This will take less than five minutes to complete. This command runs the
+benchmark programs using five tools (and \system in two modes). For each
+benchmark, you will thus see six lines of output (on standard error):
+\begin{verbatim}
+Running Gtubi on adversarial/01-farg-mismatch.gtlc ...
+Running InsAndOuts on adversarial/01-farg-mismatch.gtlc ...
+Running MGT on adversarial/01-farg-mismatch.gtlc ...
+Running MaxMigrate on adversarial/01-farg-mismatch.gtlc ...
+Running TypeWhich2 on adversarial/01-farg-mismatch.gtlc ...
+Running TypeWhich on adversarial/01-farg-mismatch.gtlc ...
+\end{verbatim}
+
+The \texttt{InsAndOuts} tool does not terminate on three benchmarks, and
+we kill it after some time. So, you will see \texttt{Killed} three times
+in the output. This is expected.
+
+\item Check that the results are identical to known good results:
+
+\begin{verbatim}
+./bin/yamldiff expected.yaml results.yaml
+\end{verbatim}
+
+You should see no output, which indicates that there are no differences.
+
+\item [FILL] Grift benchmarks.
+
+\end{enumerate}
+
+At this point, it should be possible to validate the results in depth.
+
+\chapter{Artifact Evaluation: Step by Step Guide}
+
+\noindent
+\textbf{This chapter assumes you have completed the steps in Chapter~\ref{getting-started}.}
+
+\section{Claims To Validate}
+
+The paper makes the following claims that can be validated:
+\begin{enumerate}
+
+    \item Figure~15 reports the results of several type migration tools on a
+    a suite of benchmarks. Specifically, it categorizes them into several 
+    columns. This artifact generates the figure, and the raw data and data
+    analysis scripts can be validated.
+
+    \item Section 6.5 runs \system on benchmarks written in Grift. These
+    benchmarks have two versions: one that has no type annotations, and the other
+    that has human-written type annotations. When run on the unannotated Grift
+    benchmarks, \system calculates all but two of the human-written annotations.
+
+    \item Section 6.6 reports that our full suite of benchmarks is 892 LOC, and
+    \system{} takes three seconds to run on all of them. It will take longer in
+    a virtual machine, but should be roughly the same. i.e., it will be significantly
+    less than 30 seconds.
+
+\end{enumerate}
+
+The rest of this section will walk you through validating these results.
+
+\subsection{GTLC Benchmarks on Multiple Tools}
+
+In the previous chapter, we generated \texttt{results.yaml}. That
+ran \system{} and all other tools on two suites of benchmarks:
+\begin{enumerate}
+        
+\item The \texttt{migeed} directory contains the benchmarks
+from \citet{migeed:decidable} written in the concrete syntax of \system.
+     
+\item The \texttt{adversarial} directory contains the ``challenge set'' from
+the \system paper.
+\end{enumerate}
+
+The evaluation framework is driven by the file \texttt{benchmarks.yaml},
+which specifies a list of type migration tools at the top, and is followed
+by a list of benchmark files, with some additional information. The entire
+benchmarking procedure is implemented in \texttt{src/benchmark.rs}:
+\begin{enumerate}
+
+\item It checks that the tool produces valid program, to verify that the tool
+did not reject the program.
+
+\item It runs the original program and the output of the tool and checks that
+they produce the same result, to verify that the tool did not introduce a
+runtime error.
+
+\item In a gradually typed language, increasing type precision can make a
+program incompatible with certain contexts. To check if this is the case, every
+benchmark in the \textsc{yaml} file \emph{may} be accompanied by a context that
+witnesses the incompatibility: the framework runs the original and migrated
+program in the context, to check if they produce different results.
+
+\item The framework counts the number of \texttt{any}s that are eliminated
+by the migration tool. Every eliminated \texttt{any} improves precision, but
+\emph{may or may not} introduce an incompatibility, but this requires human
+judgement. For example, in the
+program \verb|fun x . x + 1|, annotating ``x'' with \texttt{int} does not
+introduce an incompatibility. However, in \verb|fun x . x|, annotating ``x''
+with \texttt{int} is an incompatibility. The framework flags these results
+for manual verification. However, it allows the input \textsc{yaml} to specify
+expected outputs to suppress these warnings when desired.
+
+\end{enumerate}
+
+The file \texttt{results.yaml} is a copy of \texttt{benchmarks.yaml} with output
+data added by the benchmarking framework. We use this file to generate Figure~15
+in the paper. You should validate that table as follows:
+
+\begin{enumerate}
+
+\item Check that \texttt{results.yaml} does not have any errors: look for the
+string ``Disaster'' in that file. It should not occur!
+
+\item Regenerate the LaTeX snippet for the table with the following command:
+
+\begin{verbatim}
+./bin/TypeWhich latex-benchmark-summary results.yaml     
+\end{verbatim}
+The output that you will see will see is roughly the LaTeX code for Figure~15,
+with two small differences: it prints \texttt{TypeWhich2} instead of \texttt{TypeWhichC}
+and \texttt{TypeWhich} instead of \texttt{TypeWhichP}. However, the order of
+rows and columns is exactly the same as the table in the paper. It should be
+straightforward to check that the fractions in this output are exactly the fractions
+reported in the table.
+
+\end{enumerate}
+
+\subsection{Grift Benchmarks with \system}
+
+[FILL]
+
+\subsection{Performance}
+
+From the \system{} directory, run the following command:
+\begin{verbatim}
+time ./performance.sh
+\end{verbatim}
+
+The script will take roughly three seconds to complete. You can read the script
+to verify that it runs \system{} on three suites of benchmarks:
+\begin{enumerate}
+     \item \texttt{migeed/*.gtlc}: the benchmarks from \citet{migeed:decidable},
+     \item \texttt{adversarial/*.gtlc}: the ``challenge set'' from our paper, and
+     \item \texttt{grift-suite/benchmarks/src/dyn/*.grift}: the benchmarks from \citet{kuhlenschmidt:grift}.
+\end{enumerate}
+
+\section{Exploring Type Migrations}
+
+Our artifact includes several type migration tools, in addition to \system, and
+we have hacker their parsers to work with the same concrete syntax, so that it
+is easy to use any tool on the same program. We encourage you to try some out,
+and to modify the benchmarks as well. Here are the available tools:
+
+\begin{itemize}
+
+\item To run \citet{migeed:decidable}:
+     
+\begin{verbatim}
+./bin/MaxMigrate FILENAME.gtlc
+\end{verbatim}
+
+\item To run \citet{campora:migrating}:
+
+\begin{verbatim}
+./bin/mgt FILENAME.gtlc
+\end{verbatim}
+
+\item To run \citet{siek:gti}:
+
+\begin{verbatim}
+./bin/gtubi FILENAME.gtlc
+\end{verbatim}
+
+\item To run \citet{rastogi:gti}:
+\begin{verbatim}
+./bin/TypeWhich migrate --ins-and-outs FILENAME.gtlc
+\end{verbatim}
+
+\item To run \system{} and produce types that are safe in all contexts:
+\begin{verbatim}
+./bin/TypeWhich migrate FILENAME.gtlc
+\end{verbatim}
+
+\item To run \system{} and produce precise types that may not work in all
+contexts:
+\begin{verbatim}
+./bin/TypeWhich migrate --precise FILENAME.gtlc
+\end{verbatim}
+
+\end{itemize}
 
 \paragraph{Example}
 Create a file called \texttt{input.gtlc} with the following contents:
@@ -226,17 +452,10 @@ $ ./bin/TypeWhich migrate --precise inpuy.gtlc
      
 \end{enumerate}
 
-The \system executable supports several other sub-commands and flags. 
-Run \texttt{./bin/TypeWhich --help} for more complete documentation.
-
 \section{Input Language}\label{input-lang-gtlc}
 
-\textbf{\url{./doc/doc.pdf} has the same content as this file, but with
-slightly better formatting.}
-
-\system supports a superset of the GTLC, written in the following syntax:
-
-[FILL] A few cases missing
+\system supports a superset of the GTLC, written in the following syntax. Note
+that the other tools do not support all the extensions documented below.
 
 \begin{tabular}{rcll}
 \metavar{b} & := & \kw{true} | \kw{false} & Boolean literal \\
@@ -275,143 +494,6 @@ slightly better formatting.}
                  & Recursive let binding \\
 
 \end{tabular}
-
-\section{Evaluation Framework}
-
-\emph{To run the full suite of experiments, you will need to install the
-third-party type migration tools.}
-
-\system includes a framework for evaluating type migration algorithms, which is
-driven by a \textsc{yaml} that specifies a list of type migration tools to
-evaluate, and benchmark programs for the evaluation. The framework runs every
-tool on every benchmark and then validates the result as follows
-(all implemented in \texttt{src/benchmark.rs}):
-\begin{enumerate}
-
-\item It checks that the tool produces valid program, to verify that the tool
-did not reject the program.
-
-\item It runs the original program and the output of the tool and checks that
-they produce the same result, to verify that the tool did not introduce a
-runtime error.
-
-\item In a gradually typed language, increasing type precision can make a
-program incompatible with certain contexts. To check if this is the case, every
-benchmark in the \textsc{yaml} file may be accompanied by a context that
-witnesses the incompatibility: the framework runs the original and migrated
-program in the context, to check if they produce different results.
-
-\item The framework counts the number of \texttt{any}s that are eliminated
-by the migration tool. Every eliminated \texttt{any} improves precision, 
-\emph{may or may not} introduce an incompatibility, but this requires human
-judgement. For example, in the
-program \verb|fun x . x + 1|, annotating ``x'' with \texttt{int} does not
-introduce an incompatibility. However, in \verb|fun x . x|, annotating ``x''
-with \texttt{int} is an incompatibility. The framework flags these results
-for manual verification. However, it allows the input \textsc{yaml} to specify
-expected outputs to suppress these warnings when desired.
-
-\end{enumerate}
-
-The file \texttt{./benchmarks.yaml} drives the evaluation framework to
-compare \system and several other type migration algorithms on a suite of
-benchmarks.
-
-To run the experiments, use the following command:
-\begin{verbatim}
-./bin/TypeWhich benchmark benchmarks.yaml > RESULTS.yaml
-\end{verbatim}
-It prints progress on standard error. The output is a YAML file of results.
-
-\subsection{Validation}
-
-\begin{enumerate}
-
-\item In \texttt{RESULTS.yaml}, look for the string ``Disaster''. It should not
-      appear!
-     
-\item Look at \texttt{./benchmarks.yaml} and validate the following:
-\begin{enumerate}
-  
-  \item Ensure that all the migration tools are called correctly in the
-  \texttt{tools} section at the top of the file.
-  
-  \item Examine every \verb|assert_compatible| in the file: each one is
-  is a type-annotated version of a benchmark program that we assume is
-  compatible with the original benchmark (where all annotations are assumed
-  to be \texttt{any}). There is no way to validate this automatically 
-  in general (the problem is undecidable.) Instead, you need to examine
-  type-annotated version by hand.
-  
-  If a migrating tool produces output that is identicaly or less precise
-  than this version, then we label that migration as fully compatible.  
-
-\end{enumerate}
-
-\item In \texttt{RESULTS.yaml}, look for the string \verb|manually_verify|.
-These are results from experiments where (1) we could not crash the migrated
-program, (2) the migrated program has fewer ``any''s than the original, and
-(3)~the migrated program is not less precise than the program in the
-\verb|assert_compatible| field.
-
-\item In \texttt{RESULTS.yaml}, look for \verb|assert_unusable|: this
-is a human-written assertion that the migrated program is a function that
-will crash on all inputs due to a dynamic type inconsistency.
-
-\item Finally, you can compare \texttt{RESULTS.yaml} with a known good output
-from benchmarking:
-
-\begin{verbatim}
-./bin/yamldiff RESULTS.yaml expected.yaml
-\end{verbatim}
-
-\end{enumerate}
-
-\subsection{Results}
-
-To generate the summary table found in \citet{typewhich}, use the following
-command:
-\begin{verbatim}
-./bin/TypeWhich latex-benchmark-summary RESULTS.yaml 
-\end{verbatim}
-
-To generate the appendix of results:
-
-\begin{verbatim}
-./bin/TypeWhich latex-benchmarks RESULTS.yaml 
-\end{verbatim}
-
-\section{Benchmarks}
-
-The \system repository has several benchmarks:
-
-\begin{enumerate}
-   
-\item The \texttt{migeed} directory contains the benchmarks
-from Migeed et al., written in the concrete syntax of \system.
-
-\item The \texttt{adversarial} directory contains the ``challenge set'' from
-the \system paper.
-
-\item The \texttt{grift-suite} directory contains tests from
-\href{https://github.com/Gradual-Typing/Grift/tree/master/tests/suite}{Grift}.
-The
-\texttt{mu/} directory has been modified to use Dyn where it originally used recursive
-types.
-
-\item The \texttt{grift-suite/benchmarks} contains benchmarks from
-\url{https://github.com/Gradual-Typing/benchmarks} with the following
-adjustments:
-
-\begin{enumerate}
-\item The getters and setters in n-body have been removed. They were neither used
-nor exported we opted to remove these functions from the benchmark. This is
-discussed in the paper.
-\item We have changed where in the program some benchmarks print a terminating
-newline for consistency between the static and dynamic versions.
-\item Benchmarks that rely on modules are removed
-\end{enumerate}
-\end{enumerate}
 
 \bibliography{doc}
 

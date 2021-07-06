@@ -42,6 +42,8 @@ benchmarks:
   - file: adversarial/06-order3-intfun.gtlc
     context: |
       (HOLE) (fun a . fun b . true) (fun c . 0)
+    # g is always uses as an int -> int function, f is always applied g and an
+    # int. However, f may return a non-int.
     assert_compatible: |
       fun f : (int -> int) -> (int -> any) . 
         fun g : int -> int. (f g) ((g 10) + 1)
@@ -50,13 +52,24 @@ benchmarks:
       (HOLE) (fun x . fun y . y)
   - file: adversarial/08-outflows.gtlc
   - file: adversarial/09-precision-relation.gtlc
+    # f receives both true and 5, thus it must receive any as its argument.
+    # However, the only value of f is (fun x . 5), so it returns an int.
+    # The value of g is f, but it is used as an int->int function.
     assert_compatible: |
       (fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)
   - file: adversarial/10-if-tag.gtlc
     context: |
       (HOLE) true 1
   - file: migeed/01_apply_add.gtlc
+    # TODO: Why is this compatible, Michael? It is needed for MGT.
+    # assert_compatible: |
+    #  fun x : any -> any . x (x + 1)
   - file: migeed/02_add_applied.gtlc
+    # This example is subtle: the core GTLC has neither type-testing nor state.
+    # So, although we make two calls to x with two different types, there is
+    # no GTLC function that produce a number on "x true" and a non-number on
+    # "x (x true + 1)". So, for the function to not crash x must be a constant
+    # function that produces a number.
     assert_compatible: |
       fun x : any -> int . x (x true + 1)
     context: |
@@ -82,7 +95,6 @@ benchmarks:
       MaxMigrate:
         # The migration produced is "unusable" -- no way to apply it.
         assert_unusable: true
-        migration: "fun x : any . fun y : int -> bool -> int . y x x\n"
   - file: migeed/08_indirect_apply_self.gtlc
     assert_compatible: |
       fun x:any -> any. (fun y:any -> any. x) x x
@@ -101,18 +113,25 @@ benchmarks:
       fun x:any -> any. x x
   - file: migeed/11_untypable_in_sys_f.gtlc
     assert_compatible: |
-      (fun x:(any -> any) -> any. 
+      (fun x:(any -> any -> any) -> any. 
         fun y:any -> any -> any. 
           y (x (fun x:any. x)) 
             (x (fun b:any. fun c:any. b)))
       (fun d:any -> any. d d)      
   - file: migeed/12_self_interpreter.gtlc    
     assert_compatible: |
-      (fun h:any -> any -> any .
+      (fun h: ((any -> any) ->
+               (any -> any -> any) -> 
+               ((any -> any) -> any -> any) -> any) ->
+               ((any -> any) -> (any -> any -> any) -> 
+                ((any -> any) -> any -> any) -> any) -> any .
         (fun x:any -> any. h (x x)) 
-        (fun x:any. h x x))
+        (fun x: (any -> any) ->
+                (any -> any -> any) -> ((any -> any) -> any -> any) -> any .
+          h x x))
       (fun e:any .
-        fun m:any .
+        fun m: (any -> any) ->
+               (any -> any -> any) -> ((any -> any) -> any -> any) -> any .
           m (fun x:any . x) 
             (fun m:any . fun n:any . e m (e n)) 
-            (fun m:any . fun v:any. e (m v)))
+            (fun m:any -> any . fun v:any. e (m v)))
