@@ -651,6 +651,66 @@ impl Exp {
         }
     }
 
+    // Print the types of each bound identifier in program order
+    pub fn print_id_types(&self) {
+        match self {
+            Exp::Ann(e, _) | Exp::Coerce(_, _, e) => {
+                e.print_id_types();
+            }
+            Exp::Lit(_) | Exp::Var(_) | Exp::Empty(_) => (),
+            Exp::Fun(id, t, e) | Exp::Fix(id, t, e) => {
+                if !id.starts_with("__") {
+                    println!("{}: {}", id, t);
+                }
+                e.print_id_types();
+            }
+            Exp::LetRec(bindings, e) => {
+                for (idi, ti, ei) in bindings {
+                    if !idi.starts_with("__") {
+                        println!("{}: {}", idi, ti);
+                    }
+                    ei.print_id_types();
+                }
+                e.print_id_types();
+            }
+            Exp::UnaryOp(_, e)
+            | Exp::Fst(e)
+            | Exp::Snd(e)
+            | Exp::IsEmpty(e)
+            | Exp::Head(e)
+            | Exp::Tail(e)
+            | Exp::Box(e)
+            | Exp::Unbox(e)
+            | Exp::IsBool(e)
+            | Exp::IsInt(e)
+            | Exp::IsString(e)
+            | Exp::IsList(e)
+            | Exp::IsFun(e)
+            | Exp::VectorLen(e)
+            | Exp::PrimCoerce(_, e) => e.print_id_types(),
+            Exp::App(e1, e2)
+            | Exp::AddOverload(e1, e2)
+            | Exp::BinaryOp(_, e1, e2)
+            | Exp::Pair(e1, e2)
+            | Exp::Cons(e1, e2)
+            | Exp::BoxSet(e1, e2)
+            | Exp::Vector(e1, e2)
+            | Exp::VectorRef(e1, e2) => {
+                e1.print_id_types();
+                e2.print_id_types();
+            }
+            Exp::Let(_id, e1, e2) => {
+                e1.print_id_types();
+                e2.print_id_types();
+            }
+            Exp::If(e1, e2, e3) | Exp::VectorSet(e1, e2, e3) => {
+                e1.print_id_types();
+                e2.print_id_types();
+                e3.print_id_types();
+            }
+        };
+    }
+
     pub fn is_app_like(&self) -> bool {
         matches!(
             self,

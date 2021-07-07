@@ -5,11 +5,11 @@ mod grift;
 mod ins_and_outs;
 mod insert_coercions;
 mod parser;
+mod precision;
 mod pretty;
 mod syntax;
 mod type_check;
 mod z3_state;
-mod precision;
 
 use clap::Clap;
 use std::io::*;
@@ -158,7 +158,9 @@ fn main() -> Result<()> {
     match top_level.sub_command {
         SubCommand::Migrate(opts) => migrate_main(opts),
         SubCommand::Eval(opts) => eval_main(opts),
-        SubCommand::Benchmark(opts) => benchmark::benchmark_main(&opts.input, opts.ignore.as_slice()),
+        SubCommand::Benchmark(opts) => {
+            benchmark::benchmark_main(&opts.input, opts.ignore.as_slice())
+        }
         SubCommand::LatexBenchmarks(opts) => benchmark::details_latex(&opts.input),
         SubCommand::LatexBenchmarkSummary(opts) => benchmark::summarize_latex(&opts.input),
     }
@@ -231,7 +233,10 @@ fn migrate_main(config: Opts) -> Result<()> {
 
     match config.compare {
         None => {
-            println!("{}", &inferred);
+            match config.parser {
+                Parser::Empty => println!("{}", &inferred),
+                Parser::Grift => inferred.print_id_types(),
+            }
             Ok(())
         }
         Some(f) => {
