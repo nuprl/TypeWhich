@@ -13,6 +13,7 @@ mod z3_state;
 
 use clap::Clap;
 use std::io::*;
+use std::path::Path;
 
 #[derive(Clap)]
 enum Parser {
@@ -180,6 +181,13 @@ fn eval_main(opts: EvalOpts) -> Result<()> {
     Ok(())
 }
 
+fn language_or_override<'a>(language: &'a Parser, an_override: &'a Parser) -> &'a Parser {
+    match an_override {
+        Parser::Grift => an_override,
+        Parser::Empty => language,
+    }
+}
+
 fn migrate_main(config: Opts) -> Result<()> {
     let options = Options {
         optimizer: !config.disable_optimizer,
@@ -189,7 +197,21 @@ fn migrate_main(config: Opts) -> Result<()> {
         annot: config.annot,
     };
 
-    let env = match config.env {
+    let language = match config.parser {
+        Parser::Grift => Parser::Grift,
+        Parser::Empty => match &config.input[..] {
+            "-" => Parser::Empty,
+            _ => match Path::new(&config.input).extension() {
+                Some(ext) => match ext.to_str().expect("non utf-8") {
+                    "grift" => Parser::Grift,
+                    _ => Parser::Empty,
+                },
+                None => Parser::Empty,
+            },
+        },
+    };
+
+    let env = match language_or_override(&language, &config.env) {
         Parser::Grift => grift::env(),
         _ => Default::default(),
     };
@@ -202,7 +224,7 @@ fn migrate_main(config: Opts) -> Result<()> {
         file => std::fs::read_to_string(file)?,
     };
 
-    let mut parsed = match config.parser {
+    let mut parsed = match language {
         Parser::Empty => parser::parse(&source).unwrap(),
         Parser::Grift => grift::parse(&source),
     };
@@ -233,7 +255,7 @@ fn migrate_main(config: Opts) -> Result<()> {
 
     match config.compare {
         None => {
-            match config.parser {
+            match language {
                 Parser::Empty => println!("{}", &inferred),
                 Parser::Grift => inferred.print_id_types(),
             }
