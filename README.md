@@ -450,26 +450,30 @@ is provided in src/):
 4.  `expected.yaml`: Provides the expected behavior of the tool when
     configured with benchmarks.yaml
 
-5.  `bin/`: Provides symbolic links to tools, expects user to provide
-    symbolic links to migration tools
+5.  `test.expected.yaml`: Provides the expected behavior of only
+    <span class="smallcaps">TypeWhich</span>/ Rastogi, Chaudhuri, and
+    Hosmer (2012) for testing the implementations
 
-6.  `build.rs, Cargo.lock, Cargo.toml, target/`: Required build files
+6.  `bin/`: Provides (and expects user to provide) symbolic links to
+    tools
+
+7.  `build.rs, Cargo.lock, Cargo.toml, target/`: Required build files
     for <span class="smallcaps">TypeWhich</span>. Binaries are placed in
     target/
 
-7.  `other-examples/`: Provides additional programs that are not
+8.  `other-examples/`: Provides additional programs that are not
     interesting enough to be in the
     <span class="smallcaps">TypeWhich</span> benchmark suite
 
-8.  `grift_inference.sh`: Evaluation tool for grift benchmarks which
+9.  `grift_inference.sh`: Evaluation tool for grift benchmarks which
     compares if types produced are exactly the same as the static types
     provided in the suite
 
-9.  `performance.sh, test-runner.sh, run_tool.sh`: Tools that run
+10. `performance.sh, test-runner.sh, run_tool.sh`: Tools that run
     <span class="smallcaps">TypeWhich</span> on more programs or in
     release mode
 
-10. **`src/`**: The <span class="smallcaps">TypeWhich</span>
+11. **`src/`**: The <span class="smallcaps">TypeWhich</span>
     implementation, including implemention of Rastogi, Chaudhuri, and
     Hosmer (2012)
 
