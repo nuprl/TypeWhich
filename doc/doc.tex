@@ -40,7 +40,7 @@ informative types, or types that ensure compatibility with un-migrated code.
 \end{enumerate}
 
 Before you read the read of this guide or try to use \system, we strongly recommend
-reading \citet{typewhich}, which describes \system depth.
+reading \citet{typewhich}, which describes \system in depth.
 
 This repository contains the source code for \system. In addition to the
 core type migration algorithm, the \system executable has several auxiliary
@@ -378,7 +378,7 @@ to verify that it runs \system{} on three suites of benchmarks:
 \section{Exploring Type Migrations}
 
 Our artifact includes several type migration tools, in addition to \system, and
-we have hacker their parsers to work with the same concrete syntax, so that it
+we have hacked their parsers to work with the same concrete syntax, so that it
 is easy to use any tool on the same program. We encourage you to try some out,
 and to modify the benchmarks as well. Here are the available tools:
 
@@ -494,6 +494,67 @@ that the other tools do not support all the extensions documented below.
                  & Recursive let binding \\
 
 \end{tabular}
+
+\chapter{Guide to Source Code}
+
+The root TypeWhich directory includes a number of utilities, programs, and
+source code (though most of \system is provided in src/):
+
+\begin{enumerate}
+    \item \texttt{adversarial/, grift-suite/benchmarks/, migeed/}: The three
+    components of the \system benchmark suite, adversarial/ being original, and
+    grift-suite/ and migeed/ adapted from the referenced research
+    \item \texttt{doc/}: Source and render of this documentation
+    \item \texttt{benchmarks.yaml}: This is the test harness configuration and data
+    for the \system benchmarks framework, specifying to run the benchmarks and
+    tools presented in the paper
+    \item \texttt{expected.yaml}: Provides the expected behavior of the tool when
+    configured with benchmarks.yaml
+    \item \texttt{bin/}: Provides (and expects user to provide) symbolic links to tools
+    \item \texttt{build.rs, Cargo.lock, Cargo.toml, target/}: Required build files for
+    \system. Binaries are placed in target/
+    \item \texttt{other-examples/}: Provides additional programs that are not
+    interesting enough to be in the \system benchmark suite
+    \item \texttt{grift\_inference.sh}: Evaluation tool for grift benchmarks
+    which compares if types produced are exactly the same as the static types
+    provided in the suite
+    \item \texttt{performance.sh, test-runner.sh, run\_tool.sh}: Tools that run
+    \system on more programs or in release mode
+    \item \textbf{\texttt{src/}}: The \system implementation, including implemention of
+    \citet{rastogi:gti}
+\end{enumerate}
+
+Within src/, the following files are found:
+
+\begin{enumerate}
+    \item \textbf{\texttt{benchmark.rs}, precision.rs}: Provides the \system benchmarking
+    framework
+    \item \textbf{\texttt{cgen.rs}}: Generates the documented constraints of the \system
+    algorithm and performs type migration
+    \item \texttt{eval.rs}: An interpreter for the GTLC with explicit coercions
+    \item \texttt{insert\_coercions.rs}: Type-directed coercion insertion for the GTLC,
+    used for the interpreter. Not related to type migration
+    \item \texttt{grift.l, grift.y, grift.rs, lexer.l, parser.y, pretty.rs}: Parsers and
+    printers for grift and the unified concrete syntax used by all tools
+    \item \texttt{ins\_and\_outs/}: Our implementation of \citet{rastogi:gti}.
+    \item \texttt{main.rs}: Entry point; options parsing
+    \item \texttt{syntax.rs}: The language supported by \system
+    \item \texttt{type\_check.rs}: Type-checking for programs with explicit coercions
+    \item \texttt{z3\_state.rs}: Abstraction for the Z3 solver used for type inference
+    in \system
+\end{enumerate}
+
+The core of the \system algorithm is found in cgen.rs. The constraints
+specified in the paper are implemented in State::cgen (\textasciitilde{}line 52), with
+comments resembling the notation from the paper. Of note are references to
+\texttt{strengthen} and \texttt{weaken}, which are simply macros for
+$(t1 = t2 \land w) \lor (t1 = * \land \texttt{ground(t2)} \land \neg w)$, w fresh; and
+$(t1 = t2 \land w) \lor (t2 = * \land \texttt{ground(t1)} \land \neg w)$, w fresh
+respectively. They are not to be confused with the \textsc{Weaken} function
+from the paper.
+
+State::negative\_any (\textasciitilde{}line 400) implements the \textsc{Weaken} algorithm from the paper.
+typeinf\_options (\textasciitilde{}line 624) implements the \textsc{Migrate} algorithm in full.
 
 \bibliography{doc}
 
