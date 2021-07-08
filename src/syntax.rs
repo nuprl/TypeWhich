@@ -610,6 +610,10 @@ impl Exp {
                 )?;
                 e1.matches_roughly(e2)
             }
+            (Exp::UnaryOp(op1, e1), Exp::UnaryOp(op2, e2)) if op1 == op2 => e1.matches_roughly(e2),
+            (Exp::BinaryOp(op1, e11, e12), Exp::BinaryOp(op2, e21, e22)) if op1 == op2 => e11
+                .matches_roughly(e21)
+                .and_then(|_| e12.matches_roughly(e22)),
             (Exp::Fst(e1), Exp::Fst(e2))
             | (Exp::Snd(e1), Exp::Snd(e2))
             | (Exp::IsEmpty(e1), Exp::IsEmpty(e2))
@@ -622,16 +626,10 @@ impl Exp {
             | (Exp::IsString(e1), Exp::IsString(e2))
             | (Exp::IsList(e1), Exp::IsList(e2))
             | (Exp::IsFun(e1), Exp::IsFun(e2))
-            // this needs to check whether the operators match but meh
-            | (Exp::UnaryOp(_, e1), Exp::UnaryOp(_, e2))
             | (Exp::VectorLen(e1), Exp::VectorLen(e2)) => e1.matches_roughly(e2),
             (Exp::App(e11, e12), Exp::App(e21, e22))
             | (Exp::Let(_, e11, e12), Exp::Let(_, e21, e22))
             | (Exp::AddOverload(e11, e12), Exp::AddOverload(e21, e22))
-            // this needs to check whether the binary operators match
-            // but... if a program differs only by what kind of operator is there
-            // something has gone HORRIBLY wrong and we deserve to get nonsense results
-            | (Exp::BinaryOp(_, e11, e12), Exp::BinaryOp(_, e21, e22))
             | (Exp::Pair(e11, e12), Exp::Pair(e21, e22))
             | (Exp::Cons(e11, e12), Exp::Cons(e21, e22))
             | (Exp::BoxSet(e11, e12), Exp::BoxSet(e21, e22))

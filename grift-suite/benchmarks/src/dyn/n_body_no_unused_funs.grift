@@ -1,12 +1,12 @@
-(define pi : Float #i3.141592653589793)
-(define days-per-year : Float #i365.24)
-(define solar-mass : Float (fl* (fl* #i4 pi) pi))
-(define dt : Float 0.01)
+(define pi : Dyn #i3.141592653589793)
+(define days-per-year : Dyn #i365.24)
+(define solar-mass : Dyn (fl* (fl* #i4 pi) pi))
+(define dt : Dyn 0.01)
 
-(define (make-body [x : Float] [y : Float] [z : Float]
-                   [vx : Float] [vy : Float] [vz : Float]
-                   [mass : Float]) : (Vect Float)
-  (let ([v : (Vect Float) (vector 7 #i0.0)])
+(define (make-body [x : Dyn] [y : Dyn] [z : Dyn]
+                   [vx : Dyn] [vy : Dyn] [vz : Dyn]
+                   [mass : Dyn]) : Dyn
+  (let ([v : Dyn (vector 7 (: #i0.0 Dyn))])
     (begin (vector-set! v 0 x)
            (vector-set! v 1 y)
            (vector-set! v 2 z)
@@ -16,52 +16,10 @@
            (vector-set! v 6 mass)
            v)))
 
-(define (set-body-x! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 0 v))
-
-(define (body-x [b : (Vect Float)]) : Float
-  (vector-ref b 0))
-
-(define (set-body-y! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 1 v))
-
-(define (body-y [b : (Vect Float)]) : Float
-  (vector-ref b 1))
-
-(define (set-body-z! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 2 v))
-
-(define (body-z [b : (Vect Float)]) : Float
-  (vector-ref b 2))
-
-(define (set-body-vx! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 3 v))
-
-(define (body-vx [b : (Vect Float)]) : Float
-  (vector-ref b 3))
-
-(define (set-body-vy! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 4 v))
-
-(define (body-vy [b : (Vect Float)]) : Float
-  (vector-ref b 4))
-
-(define (set-body-vz! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 5 v))
-
-(define (body-vz [b : (Vect Float)]) : Float
-  (vector-ref b 5))
-
-(define (set-body-mass! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 6 v))
-
-(define (body-mass [b : (Vect Float)]) : Float
-  (vector-ref b 6))
-
-(define *sun* : (Vect Float)
+(define *sun* : Dyn
   (make-body #i0.0 #i0.0 #i0.0 #i0.0 #i0.0 #i0.0 solar-mass))
 
-(define *jupiter* : (Vect Float)
+(define *jupiter* : Dyn
   (make-body #i4.84143144246472090
              #i-1.16032004402742839
              #i-1.03622044471123109e-1
@@ -70,7 +28,7 @@
              (fl* #i-6.90460016972063023e-5 days-per-year)
              (fl* #i9.54791938424326609e-4 solar-mass)))
 
-(define *saturn* : (Vect Float)
+(define *saturn* : Dyn
   (make-body #i8.34336671824457987
              #i4.12479856412430479
              #i-4.03523417114321381e-1
@@ -79,7 +37,7 @@
              (fl* #i2.30417297573763929e-5 days-per-year)
              (fl* #i2.85885980666130812e-4 solar-mass)))
 
-(define *uranus* : (Vect Float)
+(define *uranus* : Dyn
   (make-body #i1.28943695621391310e1
              #i-1.51111514016986312e1
              #i-2.23307578892655734e-1
@@ -88,7 +46,7 @@
              (fl* #i-2.96589568540237556e-05 days-per-year)
              (fl* #i4.36624404335156298e-05 solar-mass)))
 
-(define *neptune* : (Vect Float)
+(define *neptune* : Dyn
   (make-body #i1.53796971148509165e+01
              #i-2.59193146099879641e+01
              #i1.79258772950371181e-01
@@ -97,8 +55,8 @@
              (fl* #i-9.51592254519715870e-05 days-per-year)
              (fl* #i5.15138902046611451e-05 solar-mass)))
 
-(define *system* : (Vect (Vect Float))
-  (let ([v : (Vect (Vect Float)) (vector 5 (vector 0 #i0.0))])
+(define *system* : Dyn
+  (let ([v : Dyn (vector 5 (: (vector 0 (: #i0.0 Dyn)) Dyn))])
    (begin (vector-set! v 0 *sun*)
      	  (vector-set! v 1 *jupiter*)
 	  (vector-set! v 2 *saturn*)
@@ -106,14 +64,14 @@
 	  (vector-set! v 4 *neptune*)
 	  v)))
 
-(define *system-size* : Int 5)
+(define *system-size* : Dyn 5)
 
 ;; -------------------------------
-(define (offset-momentum) : Unit
+(define (offset-momentum) : Dyn
   (offset-momentum-loop 0 #i0.0 #i0.0 #i0.0))
 
-(define (offset-momentum-loop [i1 : Int] [px : Float]
-                              [py : Float] [pz : Float]) : Unit
+(define (offset-momentum-loop [i1 : Dyn] [px : Dyn]
+                              [py : Dyn] [pz : Dyn]) : Dyn
   (if (= i1 *system-size*)
     (begin
       (vector-set! (vector-ref *system* 0) 3
@@ -122,52 +80,56 @@
 		    (fl/ (fl- #i0.0 py) solar-mass))
       (vector-set! (vector-ref *system* 0) 5
 		    (fl/ (fl- #i0.0 pz) solar-mass)))
-    (let ([j : (Vect Float) (vector-ref *system* i1)])
+    (let ([j : Dyn (vector-ref *system* i1)])
       (offset-momentum-loop
        (+ i1 1)
        (fl+ px (fl* (vector-ref j 3) (vector-ref j 6)))
        (fl+ py (fl* (vector-ref j 4) (vector-ref j 6)))
        (fl+ pz (fl* (vector-ref j 5) (vector-ref j 6)))))))
+				 
+
+
 
 ;; -------------------------------
-(define (energy) : Float
+(define (energy) : Dyn
   (energy-loop-o 0 #i0.0))
 
-(define (energy-loop-o [o : Int] [e : Float])
-  : Float
+(define (energy-loop-o [o : Dyn] [e : Dyn])
+  : Dyn
   (if (= o *system-size*)
       e
-      (let([o1 : (Vect Float) (vector-ref *system* o)])
-        (let ([sqs : Float (fl+ (fl+ (fl* (vector-ref o1 3) (vector-ref o1 3))
+      (let([o1 : Dyn (vector-ref *system* o)])
+        (let ([sqs : Dyn (fl+ (fl+ (fl* (vector-ref o1 3) (vector-ref o1 3))
                                      (fl* (vector-ref o1 4) (vector-ref o1 4)))
                                 (fl* (vector-ref o1 5) (vector-ref o1 5)))])
-          (let ([e : Float (fl+ e (fl* (fl* 0.5 (vector-ref o1 6)) sqs))])
+          (let ([e : Dyn (fl+ e (fl* (fl* 0.5 (vector-ref o1 6)) sqs))])
             (energy-loop-i o o1 (+ o 1) e))))))
 
-(define (energy-loop-i [o : Int] [o1 : (Vect Float)] [i : Int]  [e : Float])
-  : Float
+
+(define (energy-loop-i [o : Dyn] [o1 : Dyn] [i : Dyn]  [e : Dyn])
+  : Dyn
   (if (= i *system-size*)
       (energy-loop-o (+ o 1) e)
-      (let ([i1 : (Vect Float) (vector-ref *system* i)])
-        (let ([dx : Float (fl- (vector-ref o1 0) (vector-ref i1 0))]
-              [dy : Float (fl- (vector-ref o1 1) (vector-ref i1 1))]
-              [dz : Float (fl- (vector-ref o1 2) (vector-ref i1 2))])
-          (let ([dist : Float (flsqrt (fl+ (fl+ (fl* dx dx) (fl* dy dy))
+      (let ([i1 : Dyn (vector-ref *system* i)])
+        (let ([dx : Dyn (fl- (vector-ref o1 0) (vector-ref i1 0))]
+              [dy : Dyn (fl- (vector-ref o1 1) (vector-ref i1 1))]
+              [dz : Dyn (fl- (vector-ref o1 2) (vector-ref i1 2))])
+          (let ([dist : Dyn (flsqrt (fl+ (fl+ (fl* dx dx) (fl* dy dy))
                                            (fl* dz dz)))])
-            (let ([e : Float (fl- e (fl/ (fl* (vector-ref o1 6)
+            (let ([e : Dyn (fl- e (fl/ (fl* (vector-ref o1 6)
                                               (vector-ref i1 6))
                                          dist))])
               (energy-loop-i o o1 (+ i 1) e)))))))
-
 ;; ;; -------------------------------
 
-(define (advance) : Unit
+
+(define (advance) : Dyn
   (advance-loop-o 0))
 
-(define (advance-loop-o [o : Int]) : Unit
+(define (advance-loop-o [o : Dyn]) : Dyn
   (if (= o *system-size*)
       ()
-      (let ([o1 : (Vect Float) (vector-ref *system* o)])
+      (let ([o1 : Dyn (vector-ref *system* o)])
 	(begin
 	  (advance-loop-i (+ o 1)
                           (vector-ref o1 3)
@@ -176,22 +138,22 @@
                           o1)
 	  (advance-loop-o (+ o 1))))))
 
-(define (advance-loop-i [i3 : Int] [vx : Float]
-                        [vy : Float] [vz : Float]
-                        [o1 : (Vect Float)])
-  : Unit
+(define (advance-loop-i [i3 : Dyn] [vx : Dyn]
+                        [vy : Dyn] [vz : Dyn]
+                        [o1 : Dyn])
+  : Dyn
   (if (< i3 *system-size*)
-      (let ([i1 : (Vect Float) (vector-ref *system* i3)])
-	(let ([dx : Float (fl- (vector-ref o1 0) (vector-ref i1 0))]
-	      [dy : Float (fl- (vector-ref o1 1) (vector-ref i1 1))]
-	      [dz : Float (fl- (vector-ref o1 2) (vector-ref i1 2))]) 
-	  (let ([dist2 : Float (fl+ (fl+ (fl* dx dx) (fl* dy dy)) (fl* dz dz))])
-	    (let ([mag : Float (fl/ dt (fl* dist2 (flsqrt dist2)))])
-	      (let ([dxmag : Float (fl* dx mag)]
-		    [dymag : Float (fl* dy mag)]
-		    [dzmag : Float (fl* dz mag)]
-		    [om : Float (vector-ref o1 6)]
-		    [im : Float (vector-ref i1 6)])
+      (let ([i1 : Dyn (vector-ref *system* i3)])
+	(let ([dx : Dyn (fl- (vector-ref o1 0) (vector-ref i1 0))]
+	      [dy : Dyn (fl- (vector-ref o1 1) (vector-ref i1 1))]
+	      [dz : Dyn (fl- (vector-ref o1 2) (vector-ref i1 2))]) 
+	  (let ([dist2 : Dyn (fl+ (fl+ (fl* dx dx) (fl* dy dy)) (fl* dz dz))])
+	    (let ([mag : Dyn (fl/ dt (fl* dist2 (flsqrt dist2)))])
+	      (let ([dxmag : Dyn (fl* dx mag)]
+		    [dymag : Dyn (fl* dy mag)]
+		    [dzmag : Dyn (fl* dz mag)]
+		    [om : Dyn (vector-ref o1 6)]
+		    [im : Dyn (vector-ref i1 6)])
 		(begin
 		  (vector-set! i1 3 (fl+ (vector-ref i1 3) (fl* dxmag om)))
 		  (vector-set! i1 4 (fl+ (vector-ref i1 4) (fl* dymag om)))
@@ -209,13 +171,12 @@
 	     (vector-set! o1 2 (fl+ (vector-ref o1 2) (fl* dt vz)))
 	     ())))
 
-(define (run-benchmark) : Unit
-  (begin
-    (offset-momentum)
-    (print-float (energy) 9)
-    (display-char #\newline)
-    (repeat (i 0 (read-int)) (a : Unit ()) (advance))
-    (print-float (energy) 9)
-    (display-char #\newline))) 
+(define (run-benchmark)
+  (begin (offset-momentum)
+         (print-float (energy) 9)
+         (display-char #\newline)
+         (repeat (i 0 (read-int)) (a : Dyn ()) (advance))
+         (print-float (energy) 9)
+         (display-char #\newline)))
 
 (time (run-benchmark))

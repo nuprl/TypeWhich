@@ -16,48 +16,6 @@
            (vector-set! v 6 mass)
            v)))
 
-(define (set-body-x! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 0 v))
-
-(define (body-x [b : (Vect Float)]) : Float
-  (vector-ref b 0))
-
-(define (set-body-y! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 1 v))
-
-(define (body-y [b : (Vect Float)]) : Float
-  (vector-ref b 1))
-
-(define (set-body-z! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 2 v))
-
-(define (body-z [b : (Vect Float)]) : Float
-  (vector-ref b 2))
-
-(define (set-body-vx! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 3 v))
-
-(define (body-vx [b : (Vect Float)]) : Float
-  (vector-ref b 3))
-
-(define (set-body-vy! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 4 v))
-
-(define (body-vy [b : (Vect Float)]) : Float
-  (vector-ref b 4))
-
-(define (set-body-vz! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 5 v))
-
-(define (body-vz [b : (Vect Float)]) : Float
-  (vector-ref b 5))
-
-(define (set-body-mass! [b : (Vect Float)] [v : Float]) : Unit
-  (vector-set! b 6 v))
-
-(define (body-mass [b : (Vect Float)]) : Float
-  (vector-ref b 6))
-
 (define *sun* : (Vect Float)
   (make-body #i0.0 #i0.0 #i0.0 #i0.0 #i0.0 #i0.0 solar-mass))
 

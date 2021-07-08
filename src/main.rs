@@ -127,8 +127,9 @@ pub struct Opts {
     /// Use ins and outs. Lots of features unsupported in this mode.
     #[clap(long)]
     ins_and_outs: bool,
-    /// Provide a file and we will ROUGHLY compare our migration to the
-    /// provided program's types
+    /// When a file is provided, inferred types are corresponded to the
+    /// provided file's type annotations and whether they match (ignoring
+    /// annotations, coercions, and unannotated identifiers) is printed
     #[clap(long)]
     compare: Option<String>,
 }

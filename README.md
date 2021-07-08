@@ -171,6 +171,11 @@ be saved to the YAML file. Compare these results to known good results:
 *You should see no output, which indicates that there are no
 differences.*
 
+Build <span class="smallcaps">TypeWhich</span> in release mode (only
+needed for performance evaluation):
+
+    cargo build --release
+
 # Artifact Evaluation: Getting Started
 
 This chapter assumes that you are either:
@@ -217,7 +222,14 @@ To get started:
     You should see no output, which indicates that there are no
     differences.
 
-4.  Grift benchmarks.
+4.  Migrate the Grift benchmarks and compare them to the static types
+    provided in the suite:
+    
+        ./grift_inference.sh
+    
+    The script should output `MATCHES` for 11 programs, should report a
+    `mismatch` for `n_body` and sieve, and report a `Warning` above
+    results for sieve.
 
 At this point, it should be possible to validate the results in depth.
 
@@ -306,7 +318,7 @@ Figure 15 in the paper. You should validate that table as follows:
     ./bin/TypeWhich latex-benchmark-summary results.yaml     
     ```
     
-    The output that you will see will see is roughly the LaTeX code for
+    The output that you will see is roughly the LaTeX code for
     Figure 15, with two small differences: it prints `TypeWhich2`
     instead of `TypeWhichC` and `TypeWhich` instead of `TypeWhichP`.
     However, the order of rows and columns is exactly the same as the
@@ -316,7 +328,44 @@ Figure 15 in the paper. You should validate that table as follows:
 
 ### Grift Benchmarks with <span class="smallcaps">TypeWhich</span>
 
-\[FILL\]
+The Grift evaluation script (grift\_inference.sh) uses the –compare flag
+of <span class="smallcaps">TypeWhich</span>, which corresponds migrated
+types to the provided file’s type annotations and reports whether they
+match, ignoring annotations, coercions, and unannotated identifiers.
+
+On benchmarks for which it reports MATCHES,
+<span class="smallcaps">TypeWhich</span> produced exactly the same type
+annotations as the hand-typed versions.
+
+On `n_body`, verify that grift-suite/benchmarks/src/dyn/n\_body.grift
+and  
+grift-suite/benchmarks/src/dyn/n\_body\_no\_unused\_funs.grift differ
+only by the removal of unused getters and setters near the top of the
+program. Note that <span class="smallcaps">TypeWhich</span>’s types on
+the adjusted benchmark with no unused functions matches the hand-typed
+version.
+
+On sieve, the warning refers to a lack of parsing support for recursive
+types. As a result the mismatch message is less informative than
+inspection. To verify exactly which types fail to migrate, run
+<span class="smallcaps">TypeWhich</span> to migrate the types of the
+program:
+
+    ./bin/TypeWhich migrate grift-suite/benchmarks/src/dyn/sieve.grift
+
+Each bound identifier (excluding lets) will be printed, with its type.
+Keeping that input open, manually inspect the hand-typed version at
+grift-suite/benchmarks/src/static/sieve/single/sieve.grift. Consider,
+for example, the first identifier, `stream-first`. The annotated program
+declares stream-first to accept (Rec s (Tuple Int (-\> s))) and return
+Int, while <span class="smallcaps">TypeWhich</span>’s output accepts
+(int, any) (in Grift, (Tuple Int Any)) and returns int (in Grift, Int).
+Rather than a recursive type of Int paired with a thunk of itself,
+<span class="smallcaps">TypeWhich</span> infers Int paired with the
+dynamic type. Inspecting each function remaining, you will see that
+every single (Rec s (Tuple Int (-\> s))) is replaced with (Tuple Int
+Any) and no other types are changed. (stream-unfold represents a tuple
+as a unit-terminated list of pairs, but otherwise matches)
 
 ### Performance
 
@@ -465,7 +514,7 @@ is provided in src/):
     interesting enough to be in the
     <span class="smallcaps">TypeWhich</span> benchmark suite
 
-9.  `grift_inference.sh`: Evaluation tool for grift benchmarks which
+9.  `grift_inference.sh`: Evaluation tool for Grift benchmarks which
     compares if types produced are exactly the same as the static types
     provided in the suite
 
@@ -492,7 +541,7 @@ Within src/, the following files are found:
     GTLC, used for the interpreter. Not related to type migration
 
 5.  `grift.l, grift.y, grift.rs, lexer.l, parser.y, pretty.rs`: Parsers
-    and printers for grift and the unified concrete syntax used by all
+    and printers for Grift and the unified concrete syntax used by all
     tools
 
 6.  `ins_and_outs/`: Our implementation of Rastogi, Chaudhuri, and
@@ -501,7 +550,8 @@ Within src/, the following files are found:
 7.  `main.rs`: Entry point; options parsing
 
 8.  `syntax.rs`: The language supported by
-    <span class="smallcaps">TypeWhich</span>
+    <span class="smallcaps">TypeWhich</span>. Also includes the –compare
+    tool used for Grift evaluation
 
 9.  `type_check.rs`: Type-checking for programs with explicit coercions
 

@@ -201,6 +201,12 @@ be saved to the YAML file. Compare these results to known good results:
 \emph{You should see no output, which indicates that there are no
 differences.}
 
+Build \system in release mode (only needed for performance evaluation):
+
+\begin{verbatim}
+cargo build --release
+\end{verbatim}
+
 \chapter{Artifact Evaluation: Getting Started}
 \label{getting-started} 
 
@@ -254,7 +260,16 @@ in the output. This is expected.
 
 You should see no output, which indicates that there are no differences.
 
-\item [FILL] Grift benchmarks.
+\item Migrate the Grift benchmarks and compare them to the static types
+provided in the suite:
+
+\begin{verbatim}
+./grift_inference.sh
+\end{verbatim}
+
+The script should output \texttt{MATCHES} for 11 programs, should report a
+\texttt{mismatch} for \texttt{n\_body} and sieve, and report a \texttt{Warning} above
+results for sieve.
 
 \end{enumerate}
 
@@ -347,7 +362,7 @@ string ``Disaster'' in that file. It should not occur!
 \begin{verbatim}
 ./bin/TypeWhich latex-benchmark-summary results.yaml     
 \end{verbatim}
-The output that you will see will see is roughly the LaTeX code for Figure~15,
+The output that you will see is roughly the LaTeX code for Figure~15,
 with two small differences: it prints \texttt{TypeWhich2} instead of \texttt{TypeWhichC}
 and \texttt{TypeWhich} instead of \texttt{TypeWhichP}. However, the order of
 rows and columns is exactly the same as the table in the paper. It should be
@@ -358,7 +373,42 @@ reported in the table.
 
 \subsection{Grift Benchmarks with \system}
 
-[FILL]
+The Grift evaluation script (grift\_inference.sh) uses the --compare flag
+of \system, which corresponds migrated types to the provided file's type
+annotations and reports whether they match, ignoring annotations, coercions,
+and unannotated identifiers.
+
+On benchmarks for which it reports MATCHES, \system produced exactly the same type
+annotations as the hand-typed versions.
+
+On \texttt{n\_body}, verify that grift-suite/benchmarks/src/dyn/n\_body.grift
+and \\
+grift-suite/benchmarks/src/dyn/n\_body\_no\_unused\_funs.grift differ only
+by the removal of unused getters and setters near the top of the
+program. Note that \system's types on the adjusted benchmark with no unused
+functions matches the hand-typed version.
+
+On sieve, the warning refers to a lack of parsing support for recursive types.
+As a result the mismatch message is less informative than inspection. To verify
+exactly which types fail to migrate, run \system to migrate the types of the
+program:
+
+\begin{verbatim}
+./bin/TypeWhich migrate grift-suite/benchmarks/src/dyn/sieve.grift
+\end{verbatim}
+
+Each bound identifier (excluding lets) will be printed, with its
+type. Keeping that input open, manually inspect the hand-typed version at
+grift-suite/benchmarks/src/static/sieve/single/sieve.grift. Consider, for
+example, the first identifier, \texttt{stream-first}. The annotated program
+declares stream-first to accept (Rec s (Tuple Int (-> s))) and return Int,
+while \system's output accepts (int, any) (in Grift, (Tuple Int Any))
+and returns int (in Grift, Int). Rather than a recursive type of Int
+paired with a thunk of itself, \system infers Int paired with the dynamic
+type. Inspecting each function remaining, you will see that every single (Rec
+s (Tuple Int (-> s))) is replaced with (Tuple Int Any) and no other types are
+changed. (stream-unfold represents a tuple as a unit-terminated list of pairs,
+but otherwise matches)
 
 \subsection{Performance}
 
@@ -517,7 +567,7 @@ source code (though most of \system is provided in src/):
     \system. Binaries are placed in target/
     \item \texttt{other-examples/}: Provides additional programs that are not
     interesting enough to be in the \system benchmark suite
-    \item \texttt{grift\_inference.sh}: Evaluation tool for grift benchmarks
+    \item \texttt{grift\_inference.sh}: Evaluation tool for Grift benchmarks
     which compares if types produced are exactly the same as the static types
     provided in the suite
     \item \texttt{performance.sh, test-runner.sh, run\_tool.sh}: Tools that run
@@ -537,10 +587,11 @@ Within src/, the following files are found:
     \item \texttt{insert\_coercions.rs}: Type-directed coercion insertion for the GTLC,
     used for the interpreter. Not related to type migration
     \item \texttt{grift.l, grift.y, grift.rs, lexer.l, parser.y, pretty.rs}: Parsers and
-    printers for grift and the unified concrete syntax used by all tools
+    printers for Grift and the unified concrete syntax used by all tools
     \item \texttt{ins\_and\_outs/}: Our implementation of \citet{rastogi:gti}.
     \item \texttt{main.rs}: Entry point; options parsing
-    \item \texttt{syntax.rs}: The language supported by \system
+    \item \texttt{syntax.rs}: The language supported by \system. Also includes
+    the --compare tool used for Grift evaluation
     \item \texttt{type\_check.rs}: Type-checking for programs with explicit coercions
     \item \texttt{z3\_state.rs}: Abstraction for the Z3 solver used for type inference
     in \system
