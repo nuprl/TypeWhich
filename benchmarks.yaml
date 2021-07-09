@@ -36,9 +36,6 @@ benchmarks:
       (HOLE) (fun a . a) (fun b . true)
     assert_compatible: |
       fun f:(any -> any) -> any. fun x:any -> any. x (f x)    
-    results:
-      MaxMigrate:
-        assert_unusable: true
   - file: adversarial/06-order3-intfun.gtlc
     context: |
       (HOLE) (fun a . fun b . true) (fun c . 0)
@@ -95,12 +92,18 @@ benchmarks:
       (HOLE) 1 (fun z1 . fun z2 . 1)
     results:
       MaxMigrate:
-        # The migration produced is "unusable" -- no way to apply it.
+        # The migration produced is "unusable" -- no way to apply it. It is
+        # explained in the paper itself.
         assert_unusable: true
   - file: migeed/08_indirect_apply_self.gtlc
     assert_compatible: |
       fun x:any -> any. (fun y:any -> any. x) x x
     results:
+      # Look at the output that we get for MaxMigrate in results.yaml. It is
+      # going to be:
+      #   fun x : any . (fun y : int . x) x x
+      # The annotation on y requires x to be an integer. But the inner application
+      # expects it to be a function. So, there is no way to use this term.
       MaxMigrate:
         assert_unusable: true
     context: |
