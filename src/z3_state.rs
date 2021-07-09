@@ -137,6 +137,9 @@ impl<'a> Z3State<'a> {
     pub fn z3_is_list(&self, e: Dynamic<'a>) -> Bool<'a> {
         self.typ.variants[4].tester.apply(&[&e]).as_bool().unwrap()
     }
+    pub fn z3_is_pair(&self, e: Dynamic<'a>) -> Bool<'a> {
+        self.typ.variants[5].tester.apply(&[&e]).as_bool().unwrap()
+    }
     pub fn z3_is_box(&self, e: Dynamic<'a>) -> Bool<'a> {
         self.typ.variants[6].tester.apply(&[&e]).as_bool().unwrap()
     }

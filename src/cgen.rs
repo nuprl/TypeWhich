@@ -522,6 +522,11 @@ impl<'a> State<'a> {
                 .z3
                 .z3_is_list(self.t2z3(t))
                 .implies(&self.t2z3(t)._eq(&self.t2z3(&Typ::List(Box::new(Typ::Any)))))
+            & self.z3.z3_is_pair(self.t2z3(t)).implies(
+                &self
+                    .t2z3(t)
+                    ._eq(&self.t2z3(&Typ::Pair(Box::new(Typ::Any), Box::new(Typ::Any)))),
+            )
             & self
                 .z3
                 .z3_is_box(self.t2z3(t))
