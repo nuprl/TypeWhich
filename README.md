@@ -358,14 +358,13 @@ Keeping that input open, manually inspect the hand-typed version at
 grift-suite/benchmarks/src/static/sieve/single/sieve.grift. Consider,
 for example, the first identifier, `stream-first`. The annotated program
 declares stream-first to accept (Rec s (Tuple Int (-\> s))) and return
-Int, while <span class="smallcaps">TypeWhich</span>’s output accepts
-(int, any) (in Grift, (Tuple Int Any)) and returns int (in Grift, Int).
-Rather than a recursive type of Int paired with a thunk of itself,
-<span class="smallcaps">TypeWhich</span> infers Int paired with the
-dynamic type. Inspecting each function remaining, you will see that
-every single (Rec s (Tuple Int (-\> s))) is replaced with (Tuple Int
-Any) and no other types are changed. (stream-unfold represents a tuple
-as a unit-terminated list of pairs, but otherwise matches)
+Int, while <span class="smallcaps">TypeWhich</span>’s output accepts any
+and returns any. Inspecting each function remaining, you will see that
+every (Rec s (Tuple Int (-\> s))) is replaced with the dynamic type.
+Also, some (but not all) integer types are migrated as the dynamic type
+(because they hold values from projections out of tuples of any). Note
+that the unit-terminated pair representation of tuples is visible in
+stream-unfold, which otherwise has the expected type.
 
 ### Performance
 
