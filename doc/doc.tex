@@ -210,35 +210,45 @@ cargo build --release
 \chapter{Artifact Evaluation: Getting Started}
 \label{getting-started} 
 
-This chapter assumes that you are either:
+Before starting this chapter, we must either:
 
 \begin{itemize}
 
-     \item Using the \system Virtual Machine, or
-     \item Have installed \system yourself, along with all the third party
+     \item Use the \system Virtual Machine, or
+
+     \item Install \system manually, along with all the third party
      tools we use for evaluation.
 
 \end{itemize}
 
-To get started:
+\noindent
+\textbf{Warning:} \system uses the Z3 SMT solver under the hood, and different
+versions of Z3 can produce slightly different results. The expected outputs that
+we document in this guide were produced on the \system Virtual Machine.
+
+\medskip
+
+\noindent
+If the following steps are successful, then we can be quite confident that
+\system and all third-party tools are working as expected.
 
 \begin{enumerate}
      
-\item From the terminal, enter the \system directory:
+\item From a terminal window, enter the \system directory:
 
 \begin{verbatim}
 cd typewhich
 \end{verbatim}
 
-\item Run the \system benchmarks, and output results to \texttt{results.yaml}:
+\item Run the \system benchmarks and output results to \texttt{results.yaml}:
 
 \begin{verbatim}
-./bin/TypeWhich benchmark > results.yaml
+./bin/TypeWhich benchmark benchmarks.yaml > results.yaml
 \end{verbatim}
 
-This will take less than five minutes to complete. This command runs the
-benchmark programs using five tools (and \system in two modes). For each
-benchmark, you will thus see six lines of output (on standard error):
+This will take less than five minutes to complete. This command runs the GTLC
+benchmarks using all five tools, including \system in two modes. Therefore, for
+each benchmark, we will see six lines of output (on standard error). For example:
 \begin{verbatim}
 Running Gtubi on adversarial/01-farg-mismatch.gtlc ...
 Running InsAndOuts on adversarial/01-farg-mismatch.gtlc ...
@@ -248,32 +258,34 @@ Running TypeWhich2 on adversarial/01-farg-mismatch.gtlc ...
 Running TypeWhich on adversarial/01-farg-mismatch.gtlc ...
 \end{verbatim}
 
-The \texttt{InsAndOuts} tool does not terminate on three benchmarks, and
-we kill it after some time. So, you will see \texttt{Killed} three times
-in the output. This is expected.
+The \texttt{InsAndOuts} tool does not terminate on three benchmarks, but we kill
+it after several seconds. Thus we expect to see \texttt{Killed} appear three
+times.
 
-\item Check that the results are identical to known good results:
+\item Run the following command to ensure that the results are identical to
+known good results:
 
 \begin{verbatim}
 ./bin/yamldiff expected.yaml results.yaml
 \end{verbatim}
 
-You should see no output, which indicates that there are no differences.
+There should be no output printed, which indicates that there are no
+differences.
 
-\item Migrate the Grift benchmarks and compare them to the static types
-provided in the suite:
-
+\item Run the following command to run \system on the Grift benchmarks:
 \begin{verbatim}
 ./grift_inference.sh
 \end{verbatim}
 
-The script should output \texttt{MATCHES} for 11 programs, should report a
-\texttt{mismatch} for \texttt{n\_body} and sieve, and report a \texttt{Warning} above
-results for sieve.
+We expect to see \texttt{MATCHES} print several times, which indicates that
+\system inferred exactly the same types that were written by the Grift authors
+on that benchmark. However, we also expect to see a \texttt{Warning}, and
+two mismatches on \texttt{n\_body} and \texttt{sieve}.
 
 \end{enumerate}
 
-At this point, it should be possible to validate the results in depth.
+At this point, we can investigate the artifact in more depth, which is the
+subject of the next chapter.
 
 \chapter{Artifact Evaluation: Step by Step Guide}
 
@@ -282,45 +294,51 @@ At this point, it should be possible to validate the results in depth.
 
 \section{Claims To Validate}
 
-The paper makes the following claims that can be validated:
+The paper makes the following claims that we validate in this chapter:
 \begin{enumerate}
 
-    \item Figure~15 reports the results of several type migration tools on a
-    a suite of benchmarks. Specifically, it categorizes them into several 
-    columns. This artifact generates the figure, and the raw data and data
-    analysis scripts can be validated.
+    \item Figure~15 summarizes the performance of several type migration tools
+    on a a suite of benchmarks. This artifact generates that figure, and we can
+    validate the data and benchmarking scripts in as much depth as desired.
 
     \item Section 6.5 runs \system on benchmarks written in Grift. These
     benchmarks have two versions: one that has no type annotations, and the other
     that has human-written type annotations. When run on the unannotated Grift
-    benchmarks, \system calculates all but two of the human-written annotations.
+    benchmarks, \system recovers the human-written annotations on all but two
+    of the Grift benchmarks. This artifact includes a script that produces this
+    result.
 
     \item Section 6.6 reports that our full suite of benchmarks is 892 LOC, and
-    \system{} takes three seconds to run on all of them. It will take longer in
-    a virtual machine, but should be roughly the same. i.e., it will be significantly
-    less than 30 seconds.
+    \system{} takes three seconds to run on all of them. This artifact includes
+    the script we use for the performance evaluation. It will take longer in a
+    virtual machine, but should be roughly the same. i.e., it will be
+    significantly less than 30 seconds.
 
 \end{enumerate}
 
-The rest of this section will walk you through validating these results.
+The rest of this section will is a step-by-step guide through repeating and
+validating these claims.
 
-\subsection{GTLC Benchmarks on Multiple Tools}
+\subsection{GTLC Benchmarks on Multiple Tools (Figure 15)}
 
 In the previous chapter, we generated \texttt{results.yaml}. That
 ran \system{} and all other tools on two suites of benchmarks:
 \begin{enumerate}
         
-\item The \texttt{migeed} directory contains the benchmarks
-from \citet{migeed:decidable} written in the concrete syntax of \system.
+\item All the benchmarks from \citet{migeed:decidable}, which are in the
+\texttt{migeed} directory.
      
-\item The \texttt{adversarial} directory contains the ``challenge set'' from
-the \system paper.
+\item The ``challenge set''' from the paper, which are in the 
+\texttt{adversarial} directory.
+
 \end{enumerate}
 
-The evaluation framework is driven by the file \texttt{benchmarks.yaml},
-which specifies a list of type migration tools at the top, and is followed
-by a list of benchmark files, with some additional information. The entire
-benchmarking procedure is implemented in \texttt{src/benchmark.rs}:
+The file \texttt{benchmarks.yaml} drives the benchmarking framework.
+The top of the file lists the type migration tool, and is followed by
+a list of benchmark files, and some additional information that needed to
+produce results. The entire
+benchmarking procedure is implemented in \texttt{src/benchmark.rs}, which
+does performs the following steps on each benchmark:
 \begin{enumerate}
 
 \item It checks that the tool produces valid program, to verify that the tool
@@ -363,11 +381,15 @@ string ``Disaster'' in that file. It should not occur!
 ./bin/TypeWhich latex-benchmark-summary results.yaml     
 \end{verbatim}
 The output that you will see is roughly the LaTeX code for Figure~15,
-with two small differences: it prints \texttt{TypeWhich2} instead of \texttt{TypeWhichC}
-and \texttt{TypeWhich} instead of \texttt{TypeWhichP}. However, the order of
-rows and columns is exactly the same as the table in the paper. It should be
-straightforward to check that the fractions in this output are exactly the fractions
-reported in the table.
+with two small differences:
+\begin{enumerate}
+\item It prints \texttt{TypeWhich2} instead of \texttt{TypeWhichC}, and
+\item  \texttt{TypeWhich} instead of \texttt{TypeWhichP}.
+\end{enumerate}
+
+However, the order of rows and columns is exactly the same as the table in the
+paper. It should be straightforward to check that the fractions in this output
+are exactly the fractions reported in the table.
 
 \end{enumerate}
 
