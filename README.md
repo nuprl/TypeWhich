@@ -573,7 +573,7 @@ State::negative\_any (\~line 400) implements the
 typeinf\_options (\~line 624) implements the
 <span class="smallcaps">Migrate</span> algorithm in full.
 
-<div id="refs" class="references hanging-indent">
+<div id="refs" class="references">
 
 <div id="ref-campora:migrating">
 

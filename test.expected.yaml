@@ -18,16 +18,16 @@ tools:
 benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "(fun f:bool -> int. f true) (fun x:bool. x + 100)\n"
       TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "(fun f:bool -> int. f true) (fun x:bool. (x : any) + 100)\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "(fun f:bool -> int. f true) (fun x:bool. x + 100)\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -36,7 +36,7 @@ benchmarks:
     num_stars: 2
   - file: adversarial/02-rank2-poly-id.gtlc
     results:
-      InsAndOuts:
+      TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 2
@@ -46,7 +46,7 @@ benchmarks:
           FullyCompatible:
             num_stars: 2
         migration: "(fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)\n"
-      TypeWhich2:
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 2
@@ -55,6 +55,11 @@ benchmarks:
     assert_compatible: "(fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)\n"
   - file: adversarial/03-unreachable-error.gtlc
     results:
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 3
+        migration: "(fun b:(any -> any) -> (any -> int) -> any -> int. b (fun c:any.\n  (fun x:any. x x) 5 5) (fun d:any. 0)) (fun t:any -> any.\nfun f:any -> int. f)\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -65,66 +70,61 @@ benchmarks:
           FullyCompatible:
             num_stars: 2
         migration: "(fun b:(⦉4418⦊ -> ⦉4418⦊) -> (any -> int) -> any -> int. b\n  (fun c . (fun x:int. x x) 5 5) (fun d:any. 0))\n(fun t:⦉4418⦊ -> ⦉4418⦊. fun f:any -> int. f)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 3
-        migration: "(fun b:(any -> any) -> (any -> int) -> any -> int. b (fun c:any.\n  (fun x:any. x x) 5 5) (fun d:any. 0)) (fun t:any -> any.\nfun f:any -> int. f)\n"
     num_stars: 6
     assert_compatible: "(fun b:(any -> any) -> (any -> int) -> any -> int.\n   b (fun c:any.  (fun x:int. x x) 5 5) (fun d:any. 0)) \n(fun t:any -> any. fun f:any -> int. f)\n"
   - file: adversarial/04-f-in-f-out.gtlc
     results:
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun f:any -> int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun f:any -> int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "(fun f:int -> int. (fun y:int. f) (f 5)) (fun x:int. 10 + x)\n"
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun f:any -> int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun f:any -> int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)\n"
     num_stars: 3
     assert_compatible: "(fun f:int -> int. (fun y:int. f) (f 5)) (fun x:int. 10 + x)\n"
   - file: adversarial/05-order3-fun.gtlc
     context: "(HOLE) (fun a . a) (fun b . true)\n"
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "fun f:any. fun x:any. x (f x)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "fun f:any. fun x:any. x (f x)\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "fun f:(any -> any) -> any. fun x:any -> any. x (f x)\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "fun f:any. fun x:any. x (f x)\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "fun f:any. fun x:any. x (f x)\n"
     num_stars: 2
     assert_compatible: "fun f:(any -> any) -> any. fun x:any -> any. x (f x)    \n"
   - file: adversarial/06-order3-intfun.gtlc
     context: "(HOLE) (fun a . fun b . true) (fun c . 0)\n"
     results:
-      TypeWhich:
-        result:
-          Restricted:
-            num_stars: 0
-        migration: "fun f:(int -> int) -> int -> int. fun g:int -> int. f g (g 10 + 1)\n"
-      InsAndOuts:
+      TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "fun f:any. fun g:any. f g (g 10 + 1)\n"
-      TypeWhich2:
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "fun f:(int -> int) -> int -> any. fun g:int -> int. f g (g 10 + 1)\n"
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 2
@@ -152,16 +152,16 @@ benchmarks:
     num_stars: 1
   - file: adversarial/08-outflows.gtlc
     results:
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun x:int. (x : any) 5 + x) 5\n"
       InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "(fun x:int. x 5 + x) 5\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun x:int. (x : any) 5 + x) 5\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -170,27 +170,27 @@ benchmarks:
     num_stars: 1
   - file: adversarial/09-precision-relation.gtlc
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)\n"
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun f:any -> int. f true + (fun g:any -> int. g 5) f) (fun x:any. 5)\n"
       TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "(fun f:any -> int. f true + (fun g:any -> int. g 5) f) (fun x:any. 5)\n"
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun f:any -> int. f true + (fun g:any -> int. g 5) f) (fun x:any. 5)\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)\n"
     num_stars: 3
     assert_compatible: "(fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)\n"
   - file: adversarial/10-if-tag.gtlc
     context: "(HOLE) true 1\n"
     results:
-      InsAndOuts:
+      TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 2
@@ -200,7 +200,7 @@ benchmarks:
           Restricted:
             num_stars: 1
         migration: "fun tag:bool. fun x:bool. if tag\n    then (x : any) + 1\n    else if x then 1 else 0\n"
-      TypeWhich2:
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 2
@@ -228,16 +228,16 @@ benchmarks:
   - file: migeed/02_add_applied.gtlc
     context: "(HOLE) (fun y . 1)\n"
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x (x true + 1)\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "fun x:any -> int. x (x true + 1)\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x (x true + 1)\n"
       TypeWhich2:
         result:
           FullyCompatible:
@@ -248,16 +248,16 @@ benchmarks:
   - file: migeed/03_add_two_applies.gtlc
     context: "(HOLE) (fun y . 1)\n"
     results:
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x 4 + x true\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "fun x:any -> int. x 4 + x true\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x 4 + x true\n"
       InsAndOuts:
         result:
           FullyCompatible:
@@ -272,12 +272,12 @@ benchmarks:
           FullyCompatible:
             num_stars: 0
         migration: "(fun x:int. x) 4\n"
-      TypeWhich:
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "(fun x:int. x) 4\n"
-      InsAndOuts:
+      TypeWhich:
         result:
           FullyCompatible:
             num_stars: 0
@@ -286,17 +286,17 @@ benchmarks:
     assert_compatible: "(fun x:int. x) 4\n"
   - file: migeed/05_succ_id_id.gtlc
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "1 + (fun y:bool. y) ((fun x:bool. x) true)\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "1 + (fun y:bool. (y : any)) ((fun x:bool. x) true)\n"
       TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "1 + (fun y:bool. (y : any)) ((fun x:bool. x) true)\n"
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 0
@@ -324,6 +324,11 @@ benchmarks:
   - file: migeed/07_apply2.gtlc
     context: "(HOLE) 1 (fun z1 . fun z2 . 1)\n"
     results:
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. fun y:any -> any -> any. y x x\n"
       TypeWhich2:
         result:
           FullyCompatible:
@@ -334,26 +339,21 @@ benchmarks:
           FullyCompatible:
             num_stars: 2
         migration: "fun x:any. fun y:any. y x x\n"
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. fun y:any -> any -> any. y x x\n"
     num_stars: 2
     assert_compatible: "fun x:any. fun y:any -> any -> any. y x x\n"
   - file: migeed/08_indirect_apply_self.gtlc
     context: "(HOLE) (fun z : any . z)\n"
     results:
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "fun x:any. (fun y:any. x) x x\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "fun x:any -> any. (fun y:any -> any. x) x x\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "fun x:any. (fun y:any. x) x x\n"
       InsAndOuts:
         result:
           FullyCompatible:
@@ -383,12 +383,12 @@ benchmarks:
     assert_compatible: "fun x:any. (fun f:any -> int. (fun xx:any -> int. fun y:int. xx) f (f x))  (fun z:any. 1)\n"
   - file: migeed/10_apply_self.gtlc
     results:
-      InsAndOuts:
+      TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "fun x:any. x x\n"
-      TypeWhich2:
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 1
@@ -402,11 +402,6 @@ benchmarks:
     assert_compatible: "fun x:any -> any. x x\n"
   - file: migeed/11_untypable_in_sys_f.gtlc
     results:
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 4
-        migration: "(fun x:(any -> any) -> any. fun y:any. y (x (fun x:any. x)) (x\n    (fun b:any. fun c:any. b))) (fun d:any -> any. d d)\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -417,20 +412,25 @@ benchmarks:
           Rejection:
             stdout: ""
             stderr: ""
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 4
+        migration: "(fun x:(any -> any) -> any. fun y:any. y (x (fun x:any. x)) (x\n    (fun b:any. fun c:any. b))) (fun d:any -> any. d d)\n"
     num_stars: 6
     assert_compatible: "(fun x:(any -> any -> any) -> any. \n  fun y:any -> any -> any. \n    y (x (fun x:any. x)) \n      (x (fun b:any. fun c:any. b)))\n(fun d:any -> any. d d)      \n"
   - file: migeed/12_self_interpreter.gtlc
     results:
-      InsAndOuts:
-        result:
-          Rejection:
-            stdout: ""
-            stderr: ""
       TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 8
         migration: "(fun h:any -> any -> any. (fun x:any -> any. h (x x)) (fun x:any. h x\n    x)) (fun e:any. fun m:any. m (fun x:any. x) (fun m:any. fun n:any. e\n        m (e n)) (fun m:any. fun v:any. e (m v)))\n"
+      InsAndOuts:
+        result:
+          Rejection:
+            stdout: ""
+            stderr: ""
       TypeWhich:
         result:
           FullyCompatible:

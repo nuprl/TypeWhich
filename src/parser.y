@@ -30,6 +30,7 @@ typ_atom -> R<Typ> :
   | 'int_typ'   { Ok(Typ::Int) }
   | ID          { Ok(Typ::Any) }
   | 'bool'      { Ok(Typ::Bool) }
+  | 'vect' typ_atom { Ok(Typ::Vect($2?)) }
   | '(' typ ')' { $2 }
   ;
 
