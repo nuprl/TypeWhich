@@ -61,9 +61,11 @@ benchmarks:
     context: |
       (HOLE) true 1
   - file: migeed/01_apply_add.gtlc
-    # TODO: Why is this compatible, Michael? It is needed for MGT.
-    # assert_compatible: |
-    #  fun x : any -> any . x (x + 1)
+    # This is what we get out of MGT. It is compatible with the assumption that
+    # the inner x has a coercion that is "doomed to fail". MGT produces this
+    # coercion, but does not print it.
+    assert_compatible: |
+      fun x : any -> any . x (x + 1)
   - file: migeed/02_add_applied.gtlc
     # This example is subtle: the core GTLC has neither type-testing nor state.
     # So, although we make two calls to x with two different types, there is
