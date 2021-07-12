@@ -525,9 +525,9 @@ is provided in src/):
     implementation, including implemention of Rastogi, Chaudhuri, and
     Hosmer (2012)
 
-Within src/, the following files are found:
+Within `src/`, the following files are found:
 
-1.  **`benchmark.rs`, precision.rs**: Provides the
+1.  **`benchmark.rs`, `precision.rs`**: Provides the
     <span class="smallcaps">TypeWhich</span> benchmarking framework
 
 2.  **`cgen.rs`**: Generates the documented constraints of the
