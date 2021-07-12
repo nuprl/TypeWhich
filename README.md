@@ -178,31 +178,38 @@ needed for performance evaluation):
 
 # Artifact Evaluation: Getting Started
 
-This chapter assumes that you are either:
+Before starting this chapter, we must either:
 
-  - Using the <span class="smallcaps">TypeWhich</span> Virtual Machine,
-    or
+  - Use the <span class="smallcaps">TypeWhich</span> Virtual Machine, or
 
-  - Have installed <span class="smallcaps">TypeWhich</span> yourself,
-    along with all the third party tools we use for evaluation.
+  - Install <span class="smallcaps">TypeWhich</span> manually, along
+    with all the third party tools we use for evaluation.
 
-To get started:
+**Warning:** <span class="smallcaps">TypeWhich</span> uses the Z3 SMT
+solver under the hood, and different versions of Z3 can produce slightly
+different results. The expected outputs that we document in this guide
+were produced on the <span class="smallcaps">TypeWhich</span> Virtual
+Machine.
 
-1.  From the terminal, enter the
+If the following steps are successful, then we can be quite confident
+that <span class="smallcaps">TypeWhich</span> and all third-party tools
+are working as expected.
+
+1.  From a terminal window, enter the
     <span class="smallcaps">TypeWhich</span> directory:
     
-        cd ~/typewhich
+        cd typewhich
 
-2.  Run the <span class="smallcaps">TypeWhich</span> benchmarks, and
+2.  Run the <span class="smallcaps">TypeWhich</span> benchmarks and
     output results to `results.yaml`:
     
         ./bin/TypeWhich benchmark benchmarks.yaml > results.yaml
     
     This will take less than five minutes to complete. This command runs
-    the benchmark programs using five tools (and
-    <span class="smallcaps">TypeWhich</span> in two modes). For each
-    benchmark, you will thus see six lines of output (on standard
-    error):
+    the GTLC benchmarks using all five tools, including
+    <span class="smallcaps">TypeWhich</span> in two modes. Therefore,
+    for each benchmark, we will see six lines of output (on standard
+    error). For example:
     
         Running Gtubi on adversarial/01-farg-mismatch.gtlc ...
         Running InsAndOuts on adversarial/01-farg-mismatch.gtlc ...
@@ -211,27 +218,31 @@ To get started:
         Running TypeWhich2 on adversarial/01-farg-mismatch.gtlc ...
         Running TypeWhich on adversarial/01-farg-mismatch.gtlc ...
     
-    The `InsAndOuts` tool does not terminate on three benchmarks, and we
-    kill it after some time. So, you will see `Killed` three times in
-    the output. This is expected.
+    There are three runs of third-party tools that take longer than 30
+    seconds, so you will `Killed` appear three times. These are known
+    shortcomings that are described in the paper.
 
-3.  Check that the results are identical to known good results:
+3.  Run the following command to ensure that the results are identical
+    to known good results:
     
         ./bin/yamldiff expected.yaml results.yaml
     
-    You should see no output, which indicates that there are no
+    There should be no output printed, which indicates that there are no
     differences.
 
-4.  Migrate the Grift benchmarks and compare them to the static types
-    provided in the suite:
+4.  Run the following command to run
+    <span class="smallcaps">TypeWhich</span> on the Grift benchmarks:
     
         ./grift_inference.sh
     
-    The script should output `MATCHES` for 11 programs, should report a
-    `mismatch` for `n_body` and sieve, and report a `Warning` above
-    results for sieve.
+    We expect to see `MATCHES` print several times, which indicates that
+    <span class="smallcaps">TypeWhich</span> inferred exactly the same
+    types that were written by the Grift authors on that benchmark.
+    However, we also expect to see a `Warning`, and two mismatches on
+    `n_body` and `sieve`.
 
-At this point, it should be possible to validate the results in depth.
+At this point, we can investigate the artifact in more depth, which is
+the subject of the next chapter.
 
 # Artifact Evaluation: Step by Step Guide
 
@@ -240,45 +251,49 @@ Chapter [2](#getting-started).**
 
 ## Claims To Validate
 
-The paper makes the following claims that can be validated:
+The paper makes the following claims that we validate in this chapter:
 
-1.  Figure 15 reports the results of several type migration tools on a a
-    suite of benchmarks. Specifically, it categorizes them into several
-    columns. This artifact generates the figure, and the raw data and
-    data analysis scripts can be validated.
+1.  Figure 15 summarizes the performance of several type migration tools
+    on a a suite of benchmarks. This artifact generates that figure, and
+    we can validate the data and benchmarking scripts in as much depth
+    as desired.
 
 2.  Section 6.5 runs <span class="smallcaps">TypeWhich</span> on
     benchmarks written in Grift. These benchmarks have two versions: one
     that has no type annotations, and the other that has human-written
     type annotations. When run on the unannotated Grift benchmarks,
-    <span class="smallcaps">TypeWhich</span> calculates all but two of
-    the human-written annotations.
+    <span class="smallcaps">TypeWhich</span> recovers the human-written
+    annotations on all but two of the Grift benchmarks. This artifact
+    includes a script that produces this result.
 
 3.  Section 6.6 reports that our full suite of benchmarks is 892 LOC,
     and <span class="smallcaps">TypeWhich</span> takes three seconds to
-    run on all of them. It will take longer in a virtual machine, but
-    should be roughly the same. i.e., it will be significantly less than
-    30 seconds.
+    run on all of them. This artifact includes the script we use for the
+    performance evaluation. It will take longer in a virtual machine,
+    but should be roughly the same. i.e., it will be significantly less
+    than 30 seconds.
 
-The rest of this section will walk you through validating these results.
+The rest of this section will is a step-by-step guide through repeating
+and validating these claims.
 
-### GTLC Benchmarks on Multiple Tools
+### GTLC Benchmarks on Multiple Tools (Figure 15)
 
 In the previous chapter, we generated `results.yaml`. That ran
 <span class="smallcaps">TypeWhich</span> and all other tools on two
 suites of benchmarks:
 
-1.  The `migeed` directory contains the benchmarks from Migeed and
-    Palsberg (2020) written in the concrete syntax of
-    <span class="smallcaps">TypeWhich</span>.
+1.  All the benchmarks from Migeed and Palsberg (2020), which are in the
+    `migeed` directory.
 
-2.  The `adversarial` directory contains the “challenge set” from the
-    <span class="smallcaps">TypeWhich</span> paper.
+2.  The “challenge set”’ from the paper, which are in the `adversarial`
+    directory.
 
-The evaluation framework is driven by the file `benchmarks.yaml`, which
-specifies a list of type migration tools at the top, and is followed by
-a list of benchmark files, with some additional information. The entire
-benchmarking procedure is implemented in `src/benchmark.rs`:
+The file `benchmarks.yaml` drives the benchmarking framework. The top of
+the file lists the type migration tool, and is followed by a list of
+benchmark files, and some additional information that needed to produce
+results. The entire benchmarking procedure is implemented in
+`src/benchmark.rs`, which does performs the following steps on each
+benchmark:
 
 1.  It checks that the tool produces valid program, to verify that the
     tool did not reject the program.
@@ -319,8 +334,12 @@ Figure 15 in the paper. You should validate that table as follows:
     ```
     
     The output that you will see is roughly the LaTeX code for
-    Figure 15, with two small differences: it prints `TypeWhich2`
-    instead of `TypeWhichC` and `TypeWhich` instead of `TypeWhichP`.
+    Figure 15, with two small differences:
+    
+    1.  It prints `TypeWhich2` instead of `TypeWhichC`, and
+    
+    2.  `TypeWhich` instead of `TypeWhichP`.
+    
     However, the order of rows and columns is exactly the same as the
     table in the paper. It should be straightforward to check that the
     fractions in this output are exactly the fractions reported in the
@@ -525,9 +544,9 @@ is provided in src/):
     implementation, including implemention of Rastogi, Chaudhuri, and
     Hosmer (2012)
 
-Within `src/`, the following files are found:
+Within src/, the following files are found:
 
-1.  **`benchmark.rs`, `precision.rs`**: Provides the
+1.  **`benchmark.rs`, precision.rs**: Provides the
     <span class="smallcaps">TypeWhich</span> benchmarking framework
 
 2.  **`cgen.rs`**: Generates the documented constraints of the
