@@ -196,7 +196,7 @@ To get started:
 2.  Run the <span class="smallcaps">TypeWhich</span> benchmarks, and
     output results to `results.yaml`:
     
-        ./bin/TypeWhich benchmark > results.yaml
+        ./bin/TypeWhich benchmark benchmarks.yaml > results.yaml
     
     This will take less than five minutes to complete. This command runs
     the benchmark programs using five tools (and
