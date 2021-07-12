@@ -191,7 +191,7 @@ To get started:
 1.  From the terminal, enter the
     <span class="smallcaps">TypeWhich</span> directory:
     
-        cd typewhich
+        cd ~/typewhich
 
 2.  Run the <span class="smallcaps">TypeWhich</span> benchmarks, and
     output results to `results.yaml`:
