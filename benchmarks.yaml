@@ -35,7 +35,10 @@ benchmarks:
     context: |
       (HOLE) (fun a . a) (fun b . true)
     assert_compatible: |
-      fun f:(any -> any) -> any. fun x:any -> any. x (f x)    
+      fun f:(any -> any) -> any. fun x:any -> any. x (f x)
+    results:
+      MaxMigrate:
+        assert_unusable: true
   - file: adversarial/06-order3-intfun.gtlc
     context: |
       (HOLE) (fun a . fun b . true) (fun c . 0)
