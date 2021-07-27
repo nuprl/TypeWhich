@@ -20,8 +20,8 @@ struct Outcome {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 enum Expect {
     Rejection(Rejection),
-    NewRuntimeError,
-    Unusable,
+    NewRuntimeError { num_stars: usize },
+    Unusable { num_stars: usize },
     FullyCompatible {
         num_stars: usize,
         #[serde(skip_serializing_if = "is_false", default)]
@@ -218,7 +218,7 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
             (None, _) => outcome.result = Some(Expect::Disaster),
             (_, None) => outcome.result = Some(Expect::Disaster),
             (Some(true), Some(false)) => {
-                outcome.result = Some(Expect::NewRuntimeError);
+                outcome.result = Some(Expect::NewRuntimeError { num_stars: stars_after_migration });
             }
             (Some(true), Some(true)) => {
                 // No context, so we assume it is fully compatible. *But*, we set manually_verify
@@ -255,7 +255,7 @@ fn benchmark_one(tool: &MigrationTool, benchmark: &mut Benchmark) {
                 (Some(true), Some(true), Some(true), Some(false)) => {
                     if outcome.assert_unusable {
                         // Requires manual inspection
-                        outcome.result = Some(Expect::Unusable);
+                        outcome.result = Some(Expect::Unusable { num_stars: stars_after_migration });
                     } else {
                         outcome.result = Some(Expect::Restricted {
                             num_stars: stars_after_migration,
@@ -304,10 +304,10 @@ pub fn summarize_latex(src_file: impl AsRef<str>) -> Result<(), std::io::Error> 
                 Some(Expect::Rejection(..)) => {
                     *rejected.get_mut(tool_title).unwrap() += 1;
                 }
-                Some(Expect::NewRuntimeError) => {
+                Some(Expect::NewRuntimeError { .. }) => {
                     *new_runtime_err.get_mut(tool_title).unwrap() += 1;
                 }
-                Some(Expect::Unusable) => {
+                Some(Expect::Unusable { .. }) => {
                     *unusable.get_mut(tool_title).unwrap() += 1;
                 }
                 Some(Expect::FullyCompatible { num_stars, .. }) => {
@@ -361,6 +361,89 @@ pub fn summarize_latex(src_file: impl AsRef<str>) -> Result<(), std::io::Error> 
     Ok(())
 }
 
+/// Produces the concise summmary table that makes it easier to determine the "winner" in
+/// three categories:
+///
+/// 1. What percentage of migrations are safe?
+/// 2. What percentage of migrations are compatible with all contexts?
+/// 3. What percentage of type annotations are improved?
+///
+/// A migration that is safe may still be unusable. A program with improved type annotations
+/// may not be safe.
+pub fn summarize_latex_concise(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
+    let src_text = std::fs::read_to_string(src_file.as_ref())?;
+    let benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
+
+    let mut restricted = HashMap::<String, i32>::new();
+    let mut compatible = HashMap::<String, i32>::new();
+    let mut migrated = HashMap::<String, i32>::new();
+    let mut num_stars_left = HashMap::<String, i32>::new();
+    let mut num_original_stars = HashMap::<String, i32>::new();
+    for tool in &benchmarks.tools {
+        restricted.insert(tool.title.clone(), 0);
+        compatible.insert(tool.title.clone(), 0);
+        migrated.insert(tool.title.clone(), 0);
+        num_stars_left.insert(tool.title.clone(), 0);
+        num_original_stars.insert(tool.title.clone(), 0);
+    }
+
+    for b in &benchmarks.benchmarks {
+        for (tool_title, outcome) in &b.results {
+            match outcome.result {
+                Some(Expect::Rejection(..)) => { }
+                Some(Expect::NewRuntimeError { num_stars }) => {
+                    *migrated.get_mut(tool_title).unwrap() += 1;
+                    *num_stars_left.get_mut(tool_title).unwrap() += num_stars as i32;
+                    *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
+                }
+                Some(Expect::Unusable { num_stars }) => {
+                    *migrated.get_mut(tool_title).unwrap() += 1;
+                    *num_stars_left.get_mut(tool_title).unwrap() += num_stars as i32;
+                    *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
+                    *restricted.get_mut(tool_title).unwrap() += 1;
+                }
+                Some(Expect::FullyCompatible { num_stars, .. }) => {
+                    *migrated.get_mut(tool_title).unwrap() += 1;
+                    *num_stars_left.get_mut(tool_title).unwrap() += num_stars as i32;
+                    *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
+                    *compatible.get_mut(tool_title).unwrap() += 1;
+                }
+                Some(Expect::Restricted { num_stars }) => {
+                    *migrated.get_mut(tool_title).unwrap() += 1;
+                    *num_stars_left.get_mut(tool_title).unwrap() += num_stars as i32;
+                    *num_original_stars.get_mut(tool_title).unwrap() += b.num_stars as i32;
+                    *restricted.get_mut(tool_title).unwrap() += 1;
+                }
+                Some(Expect::Disaster) => {}
+                None => {
+                    panic!("missing outcome");
+                }
+            }
+        }
+    }
+
+    let num_benchmarks = benchmarks.benchmarks.len();
+
+    for tool in &benchmarks.tools {
+        let title = &tool.title;
+        let migrated = *migrated.get(title).unwrap();
+        let restricted = *restricted.get(title).unwrap();
+        let compatible = *compatible.get(title).unwrap();
+        let stars = *num_stars_left.get(title).unwrap();
+        let stars_denom = *num_original_stars.get(title).unwrap();
+        println!(
+            "{} & {:.2} & {:.2} & {:.2} & {:.2} \\\\ ",
+            title,
+            (migrated as f64) / num_benchmarks as f64,
+            ((restricted + compatible) as f64) / (num_benchmarks as f64),
+            (compatible as f64) / (num_benchmarks as f64),
+            1.0 - (stars as f64) / (stars_denom as f64),
+        );
+    }
+
+    Ok(())
+}
+
 pub fn benchmark_main(src_file: impl AsRef<str>, ignore: &[String]) -> Result<(), std::io::Error> {
     let src_text = std::fs::read_to_string(src_file.as_ref())?;
     let mut benchmarks: Benchmarks = serde_yaml::from_str(&src_text).expect("syntax error");
@@ -394,9 +477,9 @@ pub fn details_latex(src_file: impl AsRef<str>) -> Result<(), std::io::Error> {
             let outcome_str = match result.result.as_ref().unwrap() {
                 Expect::Disaster => "\\textbf{DISASTER}",
                 Expect::FullyCompatible { .. } => "Compatible",
-                Expect::NewRuntimeError => "Runtime Error",
+                Expect::NewRuntimeError { .. } => "Runtime Error",
                 Expect::Rejection { .. } => "Rejected",
-                Expect::Unusable => "Unusable",
+                Expect::Unusable{ .. } => "Unusable",
                 Expect::Restricted { .. } => "Restricted",
             };
             println!("\\paragraph{{{}}}: {}", &t.title, outcome_str);

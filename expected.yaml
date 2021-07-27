@@ -27,16 +27,26 @@ tools:
 benchmarks:
   - file: adversarial/01-farg-mismatch.gtlc
     results:
-      TypeWhich2:
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "(fun f:bool -> int. f true) (fun x:bool. x + 100)\n"
+      MGT:
         result:
           FullyCompatible:
             num_stars: 1
-        migration: "(fun f:bool -> int. f true) (fun x:bool. (x : any) + 100)\n"
+        migration: "(fun f : any. ((f)) ((true))) ((fun x : int. x + 100))\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "(fun f:any -> int. f true) (fun x:any. x + 100)\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun f:bool -> int. f true) (fun x:bool. (x : any) + 100)\n"
       Gtubi:
         result:
           Rejection:
@@ -47,25 +57,25 @@ benchmarks:
           FullyCompatible:
             num_stars: 1
         migration: "(fun f : bool -> int . f true) (fun x : any . x + 100)\n"
-      MGT:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun f : any. ((f)) ((true))) ((fun x : int. x + 100))\n"
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "(fun f:bool -> int. f true) (fun x:bool. x + 100)\n"
     num_stars: 2
   - file: adversarial/02-rank2-poly-id.gtlc
     results:
+      Gtubi:
+        result:
+          Rejection:
+            stdout: "adversarial/02-rank2-poly-id.gtlc:1: bool and int are not consistent\n\n\n"
+            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
+      MaxMigrate:
+        result:
+          NewRuntimeError:
+            num_stars: 0
+        migration: "(fun i : any -> any . (fun a : int . i true) (i 5)) (fun x : bool . x)\n"
       TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "(fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)\n"
-      TypeWhich:
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 2
@@ -75,15 +85,7 @@ benchmarks:
           FullyCompatible:
             num_stars: 3
         migration: "(fun i : any. (fun a : any. ((i)) ((true))) (((i)) ((5)))) ((fun x : any. x))\n"
-      Gtubi:
-        result:
-          Rejection:
-            stdout: "adversarial/02-rank2-poly-id.gtlc:1: bool and int are not consistent\n\n\n"
-            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
-      MaxMigrate:
-        result: NewRuntimeError
-        migration: "(fun i : any -> any . (fun a : int . i true) (i 5)) (fun x : bool . x)\n"
-      InsAndOuts:
+      TypeWhich:
         result:
           FullyCompatible:
             num_stars: 2
@@ -92,21 +94,11 @@ benchmarks:
     assert_compatible: "(fun i:any -> any. (fun a:any. i true) (i 5)) (fun x:any. x)\n"
   - file: adversarial/03-unreachable-error.gtlc
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "(fun b:(⦉4418⦊ -> ⦉4418⦊) -> (any -> int) -> any -> int. b\n  (fun c . (fun x:int. x x) 5 5) (fun d:any. 0))\n(fun t:⦉4418⦊ -> ⦉4418⦊. fun f:any -> int. f)\n"
       MGT:
         result:
           FullyCompatible:
             num_stars: 3
         migration: "(fun b : (any -> any) -> (any -> int) -> any -> int.\nb (fun c : any. (((fun x : any. ((x)) x) ((5)))) ((5))) (fun d : any. 0))\n(fun t : any -> any. fun f : any -> int. f)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 3
-        migration: "(fun b:(any -> any) -> (any -> int) -> any -> int. b (fun c:any.\n  (fun x:any. x x) 5 5) (fun d:any. 0)) (fun t:any -> any.\nfun f:any -> int. f)\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -117,15 +109,30 @@ benchmarks:
           Rejection:
             stdout: ""
             stderr: "MaxMigrate: Maybe.fromJust: Nothing\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 3
+        migration: "(fun b:(any -> any) -> (any -> int) -> any -> int. b (fun c:any.\n  (fun x:any. x x) 5 5) (fun d:any. 0)) (fun t:any -> any.\nfun f:any -> int. f)\n"
       Gtubi:
         result:
           Rejection:
             stdout: ""
             stderr: "Fatal error: exception Stack_overflow\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "(fun b:(⦉4418⦊ -> ⦉4418⦊) -> (any -> int) -> any -> int. b\n  (fun c . (fun x:int. x x) 5 5) (fun d:any. 0))\n(fun t:⦉4418⦊ -> ⦉4418⦊. fun f:any -> int. f)\n"
     num_stars: 6
     assert_compatible: "(fun b:(any -> any) -> (any -> int) -> any -> int.\n   b (fun c:any.  (fun x:int. x x) 5 5) (fun d:any. 0)) \n(fun t:any -> any. fun f:any -> int. f)\n"
   - file: adversarial/04-f-in-f-out.gtlc
     results:
+      Gtubi:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "((fun f : (int -> int). ((fun y : int. f) (f 5))) (fun x : int. (10 + x)))"
       TypeWhich2:
         result:
           FullyCompatible:
@@ -136,19 +143,16 @@ benchmarks:
           FullyCompatible:
             num_stars: 0
         migration: "(fun f : int -> int. (fun y : int. f) (f 5)) (fun x : int. 10 + x)\n"
-      Gtubi:
+      MaxMigrate:
         result:
-          FullyCompatible:
+          NewRuntimeError:
             num_stars: 0
-        migration: "((fun f : (int -> int). ((fun y : int. f) (f 5))) (fun x : int. (10 + x)))"
+        migration: "(fun f : int -> any . (fun y : bool . f) (f 5)) (fun x : int . 10 + x)\n"
       InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "(fun f:any -> int. (fun y:int. f) (f 5)) (fun x:any. 10 + x)\n"
-      MaxMigrate:
-        result: NewRuntimeError
-        migration: "(fun f : int -> any . (fun y : bool . f) (f 5)) (fun x : int . 10 + x)\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -159,6 +163,16 @@ benchmarks:
   - file: adversarial/05-order3-fun.gtlc
     context: "(HOLE) (fun a . a) (fun b . true)\n"
     results:
+      Gtubi:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "(fun f : ((beta@1 -> beta@2) -> beta@1). (fun x : (beta@1 -> beta@2). (x (f x))))"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "fun f:any. fun x:any. x (f x)\n"
       InsAndOuts:
         result:
           FullyCompatible:
@@ -169,55 +183,47 @@ benchmarks:
           FullyCompatible:
             num_stars: 0
         migration: "fun f:(any -> any) -> any. fun x:any -> any. x (f x)\n"
-      Gtubi:
+      MaxMigrate:
+        assert_unusable: true
         result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "(fun f : ((beta@1 -> beta@2) -> beta@1). (fun x : (beta@1 -> beta@2). (x (f x))))"
+          Unusable:
+            num_stars: 1
+        migration: "fun f : int -> int . fun x : any . x (f x)\n"
       MGT:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "fun f : (any -> any) -> any. fun x : any -> any. x (f x)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "fun f:any. fun x:any. x (f x)\n"
-      MaxMigrate:
-        assert_unusable: true
-        result: Unusable
-        migration: "fun f : int -> int . fun x : any . x (f x)\n"
     num_stars: 2
     assert_compatible: "fun f:(any -> any) -> any. fun x:any -> any. x (f x)\n"
   - file: adversarial/06-order3-intfun.gtlc
     context: "(HOLE) (fun a . fun b . true) (fun c . 0)\n"
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "fun f:any. fun g:any. f g (g 10 + 1)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "fun f:any. fun g:any. f g (g 10 + 1)\n"
       MGT:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "fun f : (int -> int) -> int -> any. fun g : int -> int. f g ((g 10) + 1)\n"
-      MaxMigrate:
-        result:
-          Restricted:
-            num_stars: 1
-        migration: "fun f : int -> int -> int . fun g : any . f g (g 10 + 1)\n"
       Gtubi:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "(fun f : ((int -> int) -> (int -> beta@5)). (fun g : (int -> int). ((f g) ((g 10) + 1))))"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "fun f:any. fun g:any. f g (g 10 + 1)\n"
+      MaxMigrate:
+        result:
+          Restricted:
+            num_stars: 1
+        migration: "fun f : int -> int -> int . fun g : any . f g (g 10 + 1)\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "fun f:any. fun g:any. f g (g 10 + 1)\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -228,26 +234,11 @@ benchmarks:
   - file: adversarial/07-double-f.gtlc
     context: "(HOLE) (fun x . fun y . y)\n"
     results:
-      TypeWhich:
-        result:
-          Restricted:
-            num_stars: 0
-        migration: "fun f:bool -> bool. f (f true)\n"
       Gtubi:
         result:
           Restricted:
             num_stars: 0
         migration: "(fun f : (bool -> bool). (f (f true)))"
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun f:any. f (f true)\n"
-      MGT:
-        result:
-          Restricted:
-            num_stars: 0
-        migration: "fun f : bool -> bool. f (f true)\n"
       MaxMigrate:
         result:
           Restricted:
@@ -258,20 +249,35 @@ benchmarks:
           FullyCompatible:
             num_stars: 1
         migration: "fun f:any. f (f true)\n"
-    num_stars: 1
-  - file: adversarial/08-outflows.gtlc
-    results:
-      MGT:
+      TypeWhich:
+        result:
+          Restricted:
+            num_stars: 0
+        migration: "fun f:bool -> bool. f (f true)\n"
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 1
-        migration: "(fun x : any. (((x)) ((5))) + x) ((5))\n"
+        migration: "fun f:any. f (f true)\n"
+      MGT:
+        result:
+          Restricted:
+            num_stars: 0
+        migration: "fun f : bool -> bool. f (f true)\n"
+    num_stars: 1
+  - file: adversarial/08-outflows.gtlc
+    results:
+      Gtubi:
+        result:
+          Rejection:
+            stdout: "<Unknown file and line>:  int and (int -> beta@3_{11}) are not consistent\n\n\n"
+            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
       InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "(fun x:int. x 5 + x) 5\n"
-      TypeWhich:
+      TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 1
@@ -281,12 +287,12 @@ benchmarks:
           FullyCompatible:
             num_stars: 1
         migration: "(fun x : any . x 5 + x) 5\n"
-      Gtubi:
+      MGT:
         result:
-          Rejection:
-            stdout: "<Unknown file and line>:  int and (int -> beta@3_{11}) are not consistent\n\n\n"
-            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
-      TypeWhich2:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun x : any. (((x)) ((5))) + x) ((5))\n"
+      TypeWhich:
         result:
           FullyCompatible:
             num_stars: 1
@@ -294,54 +300,56 @@ benchmarks:
     num_stars: 1
   - file: adversarial/09-precision-relation.gtlc
     results:
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun f:any -> int. f true + (fun g:any -> int. g 5) f) (fun x:any. 5)\n"
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)\n"
-      MGT:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "(fun f : any. (((f)) ((true))) + ((fun g : int -> any. g 5) ((f))))\n((fun x : any. 5))\n"
-      Gtubi:
-        result:
-          Rejection:
-            stdout: "<Unknown file and line>:  int and bool are not consistent\n\n\n"
-            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
-      MaxMigrate:
-        result: NewRuntimeError
-        migration: "(fun f : bool -> int . f true + (fun g : any -> int . g 5) f) (fun x : bool . 5)\n"
       TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "(fun f:any -> int. f true + (fun g:any -> int. g 5) f) (fun x:any. 5)\n"
+      Gtubi:
+        result:
+          Rejection:
+            stdout: "<Unknown file and line>:  int and bool are not consistent\n\n\n"
+            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun f:any -> int. f true + (fun g:any -> int. g 5) f) (fun x:any. 5)\n"
+      MaxMigrate:
+        result:
+          NewRuntimeError:
+            num_stars: 0
+        migration: "(fun f : bool -> int . f true + (fun g : any -> int . g 5) f) (fun x : bool . 5)\n"
+      MGT:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "(fun f : any. (((f)) ((true))) + ((fun g : int -> any. g 5) ((f))))\n((fun x : any. 5))\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)\n"
     num_stars: 3
     assert_compatible: "(fun f:any -> int. f true + (fun g:int -> int. g 5) f) (fun x:any. 5)\n"
   - file: adversarial/10-if-tag.gtlc
     context: "(HOLE) true 1\n"
     results:
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "fun tag:any. fun x:any. if tag then x + 1 else if x then 1 else 0\n"
       Gtubi:
         result:
           Rejection:
             stdout: "adversarial/10-if-tag.gtlc:1: Undefined variable if\n\n\n"
             stderr: "Fatal error: exception Support.Error.Exit(1)\n"
-      MaxMigrate:
+      TypeWhich:
         result:
-          Rejection:
-            stdout: ""
-            stderr: "MaxMigrate: Maybe.fromJust: Nothing\n"
+          Restricted:
+            num_stars: 1
+        migration: "fun tag:bool. fun x:bool. if tag\n    then (x : any) + 1\n    else if x then 1 else 0\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "fun tag:any. fun x:any. if tag then x + 1 else if x then 1 else 0\n"
       MGT:
         result:
           Restricted:
@@ -352,19 +360,14 @@ benchmarks:
           FullyCompatible:
             num_stars: 2
         migration: "fun tag:any. fun x:any. if tag then x + 1 else if x then 1 else 0\n"
-      TypeWhich:
+      MaxMigrate:
         result:
-          Restricted:
-            num_stars: 1
-        migration: "fun tag:bool. fun x:bool. if tag\n    then (x : any) + 1\n    else if x then 1 else 0\n"
+          Rejection:
+            stdout: ""
+            stderr: "MaxMigrate: Maybe.fromJust: Nothing\n"
     num_stars: 2
   - file: migeed/01_apply_add.gtlc
     results:
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any -> any. x ((x : any) + 1)\n"
       InsAndOuts:
         result:
           FullyCompatible:
@@ -375,41 +378,31 @@ benchmarks:
           FullyCompatible:
             num_stars: 0
         migration: "fun x : any -> any. x (((x)) + ((1)))\n"
-      MaxMigrate:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x : any . x (x + 1)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x (x + 1)\n"
       Gtubi:
         result:
           Rejection:
             stdout: ""
             stderr: "Fatal error: exception Stack_overflow\n"
+      MaxMigrate:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x : any . x (x + 1)\n"
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any -> any. x ((x : any) + 1)\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x (x + 1)\n"
     num_stars: 1
     assert_compatible: "fun x : any -> any . x (x + 1)\n"
   - file: migeed/02_add_applied.gtlc
     context: "(HOLE) (fun y . 1)\n"
     results:
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x (x true + 1)\n"
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x (x true + 1)\n"
-      MaxMigrate:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "fun x : any -> int . x (x true + 1)\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -420,123 +413,148 @@ benchmarks:
           Rejection:
             stdout: "migeed/02_add_applied.gtlc:1: bool and int are not consistent\n\n\n"
             stderr: "Fatal error: exception Support.Error.Exit(1)\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x (x true + 1)\n"
       MGT:
         result:
           Restricted:
             num_stars: 0
         migration: "fun x : bool -> any. x (((x true) + ((1))))\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x (x true + 1)\n"
+      MaxMigrate:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "fun x : any -> int . x (x true + 1)\n"
     num_stars: 1
     assert_compatible: "fun x : any -> int . x (x true + 1)\n"
   - file: migeed/03_add_two_applies.gtlc
     context: "(HOLE) (fun y . 1)\n"
     results:
-      Gtubi:
-        result:
-          Rejection:
-            stdout: "<Unknown file and line>:  int and (int -> beta@3_{11}) are not consistent\n\n\n"
-            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
       MaxMigrate:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "fun x : any -> int . x 4 + x true\n"
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "fun x:any -> int. x 4 + x true\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x 4 + x true\n"
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x 4 + x true\n"
       MGT:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "fun x : any. (((x)) ((4))) + (((x)) ((true)))\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x 4 + x true\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x 4 + x true\n"
+      Gtubi:
+        result:
+          Rejection:
+            stdout: "<Unknown file and line>:  int and (int -> beta@3_{11}) are not consistent\n\n\n"
+            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "fun x:any -> int. x 4 + x true\n"
     num_stars: 1
     assert_compatible: "fun x:any -> int. x 4 + x true\n"
   - file: migeed/04_identity_four.gtlc
     results:
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "(fun x:int. x) 4\n"
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "(fun x:int. x) 4\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "(fun x:int. x) 4\n"
       Gtubi:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "((fun x : int. x) 4)"
-      MaxMigrate:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "(fun x : int . x) 4\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "(fun x:int. x) 4\n"
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "(fun x:int. x) 4\n"
       MGT:
         result:
           FullyCompatible:
             num_stars: 0
         migration: "(fun x : int. x) 4\n"
-      InsAndOuts:
+      MaxMigrate:
         result:
           FullyCompatible:
             num_stars: 0
-        migration: "(fun x:int. x) 4\n"
+        migration: "(fun x : int . x) 4\n"
     num_stars: 1
     assert_compatible: "(fun x:int. x) 4\n"
   - file: migeed/05_succ_id_id.gtlc
     results:
-      MaxMigrate:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "1 + (fun y : int . y) ((fun x : any . x) true)\n"
-      TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "1 + (fun y:bool. (y : any)) ((fun x:bool. x) true)\n"
-      InsAndOuts:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "1 + (fun y:bool. y) ((fun x:bool. x) true)\n"
-      MGT:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "1 + ((fun y : int. y) (((fun x : any. x) ((true)))))\n"
       Gtubi:
         result:
           Rejection:
             stdout: "<Unknown file and line>:  int and bool are not consistent\n\n\n"
             stderr: "Fatal error: exception Support.Error.Exit(1)\n"
+      MGT:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "1 + ((fun y : int. y) (((fun x : any. x) ((true)))))\n"
       TypeWhich:
         result:
           FullyCompatible:
             num_stars: 1
         migration: "1 + (fun y:bool. (y : any)) ((fun x:bool. x) true)\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "1 + (fun y:bool. (y : any)) ((fun x:bool. x) true)\n"
+      MaxMigrate:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "1 + (fun y : int . y) ((fun x : any . x) true)\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "1 + (fun y:bool. y) ((fun x:bool. x) true)\n"
     num_stars: 2
   - file: migeed/06_identity.gtlc
     context: "(HOLE) (fun y . y)\n"
     results:
+      Gtubi:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "(fun x : _t0. x)"
       MaxMigrate:
         result:
           Restricted:
             num_stars: 0
         migration: "fun x : int . x\n"
+      InsAndOuts:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x\n"
       TypeWhich:
         result:
           Restricted:
@@ -547,17 +565,7 @@ benchmarks:
           FullyCompatible:
             num_stars: 1
         migration: "fun x : any. x\n"
-      Gtubi:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "(fun x : _t0. x)"
       TypeWhich2:
-        result:
-          FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x\n"
-      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 1
@@ -566,25 +574,27 @@ benchmarks:
   - file: migeed/07_apply2.gtlc
     context: "(HOLE) 1 (fun z1 . fun z2 . 1)\n"
     results:
-      MGT:
+      TypeWhich2:
         result:
           FullyCompatible:
-            num_stars: 1
-        migration: "fun x : any. fun y : any -> any -> any. y x x\n"
+            num_stars: 2
+        migration: "fun x:any. fun y:any. y x x\n"
       MaxMigrate:
         assert_unusable: true
-        result: Unusable
+        result:
+          Unusable:
+            num_stars: 1
         migration: "fun x : any . fun y : int -> bool -> int . y x x\n"
       InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "fun x:any. fun y:any. y x x\n"
-      TypeWhich2:
+      MGT:
         result:
           FullyCompatible:
-            num_stars: 2
-        migration: "fun x:any. fun y:any. y x x\n"
+            num_stars: 1
+        migration: "fun x : any. fun y : any -> any -> any. y x x\n"
       TypeWhich:
         result:
           FullyCompatible:
@@ -600,50 +610,52 @@ benchmarks:
   - file: migeed/08_indirect_apply_self.gtlc
     context: "(HOLE) (fun z : any . z)\n"
     results:
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "fun x:any -> any. (fun y:any -> any. x) x x\n"
       MaxMigrate:
         assert_unusable: true
-        result: Unusable
+        result:
+          Unusable:
+            num_stars: 1
         migration: "fun x : any . (fun y : int . x) x x\n"
-      InsAndOuts:
+      TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "fun x:any. (fun y:any. x) x x\n"
-      Gtubi:
-        result:
-          Rejection:
-            stdout: "there is a cycle, no solution\n"
-            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
       MGT:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "fun x : any. (((fun y : any. x) x)) x\n"
-      TypeWhich2:
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 0
+        migration: "fun x:any -> any. (fun y:any -> any. x) x x\n"
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "fun x:any. (fun y:any. x) x x\n"
+      Gtubi:
+        result:
+          Rejection:
+            stdout: "there is a cycle, no solution\n"
+            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
     num_stars: 2
     assert_compatible: "fun x:any -> any. (fun y:any -> any. x) x x\n"
   - file: migeed/09_the_long_one.gtlc
     context: "(HOLE) true 1\n"
     results:
-      MaxMigrate:
-        result:
-          Restricted:
-            num_stars: 1
-        migration: "fun x : int . (fun f : any . (fun xx : int . fun y : int . xx) f (f x)) (fun z : int . 1)\n"
       TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "fun x:any. (fun f:any -> int. (fun xx:any -> int. fun y:int. xx) f (f\n    x)) (fun z:any. 1)\n"
+      Gtubi:
+        result:
+          FullyCompatible:
+            num_stars: 2
+        migration: "(fun x : _t3. ((fun f : (_t3 -> int). (((fun xx : (_t3 -> int). (fun y : int. xx)) f) (f x))) (fun z : _t3. 1)))"
       InsAndOuts:
         result:
           FullyCompatible:
@@ -654,36 +666,36 @@ benchmarks:
           FullyCompatible:
             num_stars: 2
         migration: "fun x:any. (fun f:any -> int. (fun xx:any -> int. fun y:int. xx) f (f\n    x)) (fun z:any. 1)\n"
+      MaxMigrate:
+        result:
+          Restricted:
+            num_stars: 1
+        migration: "fun x : int . (fun f : any . (fun xx : int . fun y : int . xx) f (f x)) (fun z : int . 1)\n"
       MGT:
         result:
           FullyCompatible:
             num_stars: 2
         migration: "fun x : any.\n(fun f : any -> int. (fun xx : any -> int. fun y : int. xx) f (f x))\n  (fun z : any. 1)\n"
-      Gtubi:
-        result:
-          FullyCompatible:
-            num_stars: 2
-        migration: "(fun x : _t3. ((fun f : (_t3 -> int). (((fun xx : (_t3 -> int). (fun y : int. xx)) f) (f x))) (fun z : _t3. 1)))"
     num_stars: 5
     assert_compatible: "fun x:any. (fun f:any -> int. (fun xx:any -> int. fun y:int. xx) f (f x))  (fun z:any. 1)\n"
   - file: migeed/10_apply_self.gtlc
     results:
-      MaxMigrate:
-        result:
-          Rejection:
-            stdout: ""
-            stderr: "MaxMigrate: Maybe.fromJust: Nothing\n"
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 0
-        migration: "fun x:any -> any. x x\n"
       Gtubi:
         result:
           Rejection:
             stdout: "there is a cycle, no solution\n"
             stderr: "Fatal error: exception Support.Error.Exit(1)\n"
+      MaxMigrate:
+        result:
+          Rejection:
+            stdout: ""
+            stderr: "MaxMigrate: Maybe.fromJust: Nothing\n"
       TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 1
+        migration: "fun x:any. x x\n"
+      InsAndOuts:
         result:
           FullyCompatible:
             num_stars: 1
@@ -693,11 +705,11 @@ benchmarks:
           FullyCompatible:
             num_stars: 1
         migration: "fun x : any. ((x)) x\n"
-      InsAndOuts:
+      TypeWhich:
         result:
           FullyCompatible:
-            num_stars: 1
-        migration: "fun x:any. x x\n"
+            num_stars: 0
+        migration: "fun x:any -> any. x x\n"
     num_stars: 1
     assert_compatible: "fun x:any -> any. x x\n"
   - file: migeed/11_untypable_in_sys_f.gtlc
@@ -707,35 +719,45 @@ benchmarks:
           FullyCompatible:
             num_stars: 5
         migration: "(fun x : any.\nfun y : any -> any -> any.\n  y (((x)) ((fun x : any. x))) (((x)) ((fun b : any. fun c : any. b))))\n((fun d : any. ((d)) d))\n"
-      Gtubi:
-        result:
-          Rejection:
-            stdout: "there is a cycle, no solution\n"
-            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
-      MaxMigrate:
-        result:
-          Rejection:
-            stdout: ""
-            stderr: "MaxMigrate: Maybe.fromJust: Nothing\n"
       InsAndOuts:
         result:
           Rejection:
             stdout: ""
             stderr: ""
-      TypeWhich:
+      Gtubi:
         result:
-          FullyCompatible:
-            num_stars: 3
-        migration: "(fun x:(any -> any) -> any. fun y:any -> any -> any. y (x (fun x:any.\n    x)) (x (fun b:any. fun c:any. b))) (fun d:any -> any. d d)\n"
+          Rejection:
+            stdout: "there is a cycle, no solution\n"
+            stderr: "Fatal error: exception Support.Error.Exit(1)\n"
       TypeWhich2:
         result:
           FullyCompatible:
             num_stars: 4
         migration: "(fun x:(any -> any) -> any. fun y:any. y (x (fun x:any. x)) (x\n    (fun b:any. fun c:any. b))) (fun d:any -> any. d d)\n"
+      TypeWhich:
+        result:
+          FullyCompatible:
+            num_stars: 3
+        migration: "(fun x:(any -> any) -> any. fun y:any -> any -> any. y (x (fun x:any.\n    x)) (x (fun b:any. fun c:any. b))) (fun d:any -> any. d d)\n"
+      MaxMigrate:
+        result:
+          Rejection:
+            stdout: ""
+            stderr: "MaxMigrate: Maybe.fromJust: Nothing\n"
     num_stars: 6
     assert_compatible: "(fun x:(any -> any -> any) -> any. \n  fun y:any -> any -> any. \n    y (x (fun x:any. x)) \n      (x (fun b:any. fun c:any. b)))\n(fun d:any -> any. d d)      \n"
   - file: migeed/12_self_interpreter.gtlc
     results:
+      MGT:
+        result:
+          FullyCompatible:
+            num_stars: 6
+        migration: "(fun h : ((any -> any) ->\n(any -> any -> any) -> ((any -> any) -> any -> any) -> any) ->\n((any -> any) -> (any -> any -> any) -> ((any -> any) -> any -> any) -> any) ->\nany.\n(fun x : any. h ((((x)) x)))\n  ((fun x : (any -> any) ->\n    (any -> any -> any) -> ((any -> any) -> any -> any) -> any.\n    h x x)))\n((fun e : any.\n  fun m : (any -> any) ->\n    (any -> any -> any) -> ((any -> any) -> any -> any) -> any.\n    m (fun x : any. x) (fun m : any. fun n : any. ((((e)) m)) (((e)) n))\n      (fun m : any -> any. fun v : any. ((e)) (m v))))\n"
+      TypeWhich2:
+        result:
+          FullyCompatible:
+            num_stars: 8
+        migration: "(fun h:any -> any -> any. (fun x:any -> any. h (x x)) (fun x:any. h x\n    x)) (fun e:any. fun m:any. m (fun x:any. x) (fun m:any. fun n:any. e\n        m (e n)) (fun m:any. fun v:any. e (m v)))\n"
       MaxMigrate:
         result:
           Rejection:
@@ -746,26 +768,16 @@ benchmarks:
           Rejection:
             stdout: "there is a cycle, no solution\n"
             stderr: "Fatal error: exception Support.Error.Exit(1)\n"
-      TypeWhich:
-        result:
-          FullyCompatible:
-            num_stars: 8
-        migration: "(fun h:any -> any -> any. (fun x:any -> any. h (x x)) (fun x:any. h x\n    x)) (fun e:any. fun m:any. m (fun x:any. x) (fun m:any. fun n:any. e\n        m (e n)) (fun m:any. fun v:any. e (m v)))\n"
       InsAndOuts:
         result:
           Rejection:
             stdout: ""
             stderr: ""
-      TypeWhich2:
+      TypeWhich:
         result:
           FullyCompatible:
             num_stars: 8
         migration: "(fun h:any -> any -> any. (fun x:any -> any. h (x x)) (fun x:any. h x\n    x)) (fun e:any. fun m:any. m (fun x:any. x) (fun m:any. fun n:any. e\n        m (e n)) (fun m:any. fun v:any. e (m v)))\n"
-      MGT:
-        result:
-          FullyCompatible:
-            num_stars: 6
-        migration: "(fun h : ((any -> any) ->\n(any -> any -> any) -> ((any -> any) -> any -> any) -> any) ->\n((any -> any) -> (any -> any -> any) -> ((any -> any) -> any -> any) -> any) ->\nany.\n(fun x : any. h ((((x)) x)))\n  ((fun x : (any -> any) ->\n    (any -> any -> any) -> ((any -> any) -> any -> any) -> any.\n    h x x)))\n((fun e : any.\n  fun m : (any -> any) ->\n    (any -> any -> any) -> ((any -> any) -> any -> any) -> any.\n    m (fun x : any. x) (fun m : any. fun n : any. ((((e)) m)) (((e)) n))\n      (fun m : any -> any. fun v : any. ((e)) (m v))))\n"
     num_stars: 10
     assert_compatible: "(fun h: ((any -> any) ->\n         (any -> any -> any) -> \n         ((any -> any) -> any -> any) -> any) ->\n         ((any -> any) -> (any -> any -> any) -> \n          ((any -> any) -> any -> any) -> any) -> any .\n  (fun x:any -> any. h (x x)) \n  (fun x: (any -> any) ->\n          (any -> any -> any) -> ((any -> any) -> any -> any) -> any .\n    h x x))\n(fun e:any .\n  fun m: (any -> any) ->\n         (any -> any -> any) -> ((any -> any) -> any -> any) -> any .\n    m (fun x:any . x) \n      (fun m:any . fun n:any . e m (e n)) \n      (fun m:any -> any . fun v:any. e (m v)))"
 

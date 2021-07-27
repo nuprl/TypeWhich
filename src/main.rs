@@ -65,6 +65,7 @@ enum SubCommand {
     Benchmark(BenchmarkOpts),
     LatexBenchmarks(BenchmarkOpts),
     LatexBenchmarkSummary(BenchmarkOpts),
+    LatexConciseSummary(BenchmarkOpts),
 }
 
 #[derive(Clap)]
@@ -165,6 +166,7 @@ fn main() -> Result<()> {
         }
         SubCommand::LatexBenchmarks(opts) => benchmark::details_latex(&opts.input),
         SubCommand::LatexBenchmarkSummary(opts) => benchmark::summarize_latex(&opts.input),
+        SubCommand::LatexConciseSummary(opts) => benchmark::summarize_latex_concise(&opts.input),
     }
 }
 
