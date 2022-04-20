@@ -622,8 +622,8 @@ Types?” *Proceedings of the ACM on Programming Languages (PACMPL)* 4
 <div id="ref-typewhich">
 
 Phipps-Costin, Luna, Carolyn Jane Anderson, Michael Greenberg, and Arjun
-Guha. 2021. “Solver-Based Gradual Type Migration.”
-<https://khoury.northeastern.edu/~arjunguha/main/papers/2021-typewhich.html>.
+Guha. 2021. “Solver-Based Gradual Type Migration.” *Proceedings of the
+ACM on Programming Languages (PACMPL)* 5 (OOPSLA).
 
 </div>
 
